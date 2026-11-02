@@ -38,6 +38,7 @@ export const de = {
   'sum.gold': 'Gold',
   'sum.xp': 'Erfahrung',
   'sum.levelUps': 'Level-Ups',
+  'sum.steps': 'Schritte',
   'sum.inSkills': 'in einem Skill|in {n} Skills',
   'sum.unchecked': 'Nicht geprüft: {text}',
   'sum.uncheckedHint': 'Kann der Planer nicht prüfen',
@@ -46,9 +47,6 @@ export const de = {
   'smart.none': 'Eine Alternative geprüft — der direkte Weg ist am schnellsten|{n} Alternativen geprüft — der direkte Weg ist am schnellsten',
   'smart.hint': 'Upgrades, Umwege und andere Quellen wurden komplett durchgerechnet',
 
-  'overview.title': 'Schnellster Weg',
-  'overview.gold': '{amount} GP verdienen',
-  'overview.make': 'Herstellen · ein Schritt|Herstellen · {n} Schritte',
 
   'flow.title': 'Ablauf',
   'flow.steps': 'ein Schritt|{n} Schritte',

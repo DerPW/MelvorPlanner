@@ -3,16 +3,16 @@
 // gemacht werden muss. Bei Item-Zielen zusätzlich Baum und Material.
 
 import { useMemo, useState } from 'react'
-import { fmtDurationShort } from '../core/format'
+import { fmtDuration, fmtDurationShort } from '../core/format'
 import { MAX_LEVEL } from '../core/experience'
 import type { GameIndex } from '../core/planner'
-import { isGoal, nextBest, solve } from '../core/solve'
+import { isGoal, nextBest, solve, type Solution } from '../core/solve'
 import { useT, type T } from '../i18n'
 import { GameIcon, Ref, Segmented, Select, Stepper, Switch, Sym, Toolbar } from './components'
 import { Materials, TreeTable } from './PlanTables'
 import { routeEntity, routeIcon, routeLabel, routeTarget } from './routeText'
 import { statusLine, useTrack } from './LiveTrack'
-import { recipeAction, RouteOverview, SolutionFlow, SolutionSummary, TrackContext } from './SolutionView'
+import { recipeAction, SolutionFlow, SolutionNotes, stepKeys, SummaryPlate, TrackContext } from './SolutionView'
 import { useGame, type PlanTab, type RouteTarget } from './state'
 
 export function RouteView({ id }: { id: string }) {
@@ -48,7 +48,6 @@ export function RouteView({ id }: { id: string }) {
             {entity ? <Ref entity={entity}>{routeLabel(index, route)}</Ref> : routeLabel(index, route)}
           </span>
         }
-        subtitle={`${t(`route.kind.${route.kind}`)} · ${t(state.options.smart ? 'route.subtitleSmart' : 'route.subtitle')}`}
       >
         {plan && (
           <Segmented<PlanTab>
@@ -112,42 +111,118 @@ export function RouteView({ id }: { id: string }) {
         </div>
       </Toolbar>
       <div className="content">
-        <TrackBar route={route} />
-        <AlternativeBar route={route} onNext={setAvoid} onPrev={() => update({ ...route, avoid: route.avoidHistory?.at(-1) ?? [], avoidHistory: route.avoidHistory?.slice(0, -1) ?? [] })} />
-        <SolutionSummary solution={solution} />
-        <RouteOverview solution={solution} onOpen={plan ? () => dispatch({ type: 'tab', tab: 'flow' }) : undefined} />
-        {tab === 'flow' && (
-          <div className="inline-option">
+        <div className="route-page">
+          <RouteHead
+            route={route}
+            solution={solution}
+            showMaterials={tab === 'flow'}
+            onNext={setAvoid}
+            onPrev={() => update({ ...route, avoid: route.avoidHistory?.at(-1) ?? [], avoidHistory: route.avoidHistory?.slice(0, -1) ?? [] })}
+          />
+          <div className="fade-in" key={tab}>
+            {tab === 'flow' && (
+              <TrackedFlow routeId={id}>
+                <SolutionFlow
+                  solution={solution}
+                  scope={id}
+                  alternatives={{
+                    avoided: avoid,
+                    avoid: (k) => !avoid.includes(k) && setAvoid([...avoid, k]),
+                    allow: (k) => setAvoid(avoid.filter((x) => x !== k)),
+                  }}
+                />
+              </TrackedFlow>
+            )}
+            {tab === 'tree' && plan?.kind === 'craft' && <TreeTable plan={plan.plan} levels={plan.at.levels} solution={solution} />}
+            {tab === 'materials' && plan?.kind === 'craft' && <Materials plan={plan.plan} />}
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
+/** Kopf einer Route: Ziel und Zeit, Kennzahlen, Bedienung (Verfolgen, Weg ‹ ›,
+ *  Material), Live-Status und Hinweise — alles an einer Stelle */
+function RouteHead({
+  route,
+  solution,
+  showMaterials,
+  onNext,
+  onPrev,
+}: {
+  route: RouteTarget
+  solution: Solution
+  showMaterials: boolean
+  onNext: (avoid: string[]) => void
+  onPrev: () => void
+}) {
+  const { index, state, dispatch } = useGame()
+  const t = useT()
+  const { tracking } = useTrack()
+  const entity = routeEntity(route)
+  const label = routeLabel(index, route)
+  const active = state.activeRoute === route.id
+  return (
+    <section className="route-head">
+      <div className="rh-top">
+        <div className="rh-icon">
+          <GameIcon src={routeIcon(index, route)} size={40} entity={entity} />
+        </div>
+        <div className="rh-title">
+          <h2>{entity ? <Ref entity={entity}>{label}</Ref> : label}</h2>
+          <p>
+            {t(`route.kind.${route.kind}`)} · {t(state.options.smart ? 'route.subtitleSmart' : 'route.subtitle')}
+          </p>
+        </div>
+        <div className="rh-time">
+          <span>{t('sum.active')}</span>
+          <b>{fmtDuration(solution.activeMs)}</b>
+          {solution.passiveMs > 0 && (
+            <small>
+              + {fmtDuration(solution.passiveMs)} {t('sum.passive')}
+            </small>
+          )}
+        </div>
+      </div>
+
+      <SummaryPlate solution={solution} steps={stepKeys(solution).length} />
+
+      <div className="rh-controls">
+        <button
+          className={`btn small ${active ? 'tracking' : 'plain'}`}
+          onClick={() => dispatch({ type: 'setActiveRoute', id: active ? null : route.id })}
+          title={t(active ? 'track.stop' : 'track.startHint')}
+        >
+          <i className={active ? 'live-dot' : 'live-dot off'} /> {t(active ? 'track.active' : 'track.start')}
+        </button>
+        <AlternativeNav route={route} onNext={onNext} onPrev={onPrev} />
+        <span className="spacer" />
+        {showMaterials && (
+          <label className="rh-option" title={t('opt.materials.off')}>
             <Switch
               label={t('opt.materials')}
               checked={state.options.includeMaterials}
               onChange={(includeMaterials) => dispatch({ type: 'setOption', options: { includeMaterials } })}
             />
-            <span>
-              {t('opt.materials')}
-              <span className="muted"> — {t('opt.materials.off')}</span>
-            </span>
-          </div>
+            {t('opt.materials')}
+          </label>
         )}
-        <div className="fade-in" key={tab}>
-          {tab === 'flow' && (
-            <TrackedFlow routeId={id}>
-              <SolutionFlow
-                solution={solution}
-                scope={id}
-                alternatives={{
-                  avoided: avoid,
-                  avoid: (k) => !avoid.includes(k) && setAvoid([...avoid, k]),
-                  allow: (k) => setAvoid(avoid.filter((x) => x !== k)),
-                }}
-              />
-            </TrackedFlow>
-          )}
-          {tab === 'tree' && plan?.kind === 'craft' && <TreeTable plan={plan.plan} levels={plan.at.levels} solution={solution} />}
-          {tab === 'materials' && plan?.kind === 'craft' && <Materials plan={plan.plan} />}
-        </div>
       </div>
-    </>
+
+      <AvoidedChips route={route} />
+
+      {active && tracking && (
+        <div className={`rh-live ts-${tracking.status}`}>
+          <i className={tracking.status === 'idle' ? 'live-dot off' : 'live-dot'} />
+          <b>{statusLine(t, tracking)}</b>
+          {tracking.status !== 'done' && <span className="muted">· {t('track.total', { time: fmtDurationShort(tracking.totalMs) })}</span>}
+        </div>
+      )}
+      {active && !state.live && <div className="rh-live ts-idle muted">{t('track.needLive')}</div>}
+
+      <SolutionNotes solution={solution} />
+    </section>
   )
 }
 
@@ -159,10 +234,9 @@ function avoidLabel(index: GameIndex, key: string, t: T): string {
 }
 
 /** „Weg 2 ‹ ›“: der nächstbeste Weg meidet eine weitere Abzweigung, „‹“ geht
- *  zum vorigen zurück. Gemiedenes steht als Chip da und lässt sich einzeln
- *  wieder erlauben. */
-function AlternativeBar({ route, onNext, onPrev }: { route: RouteTarget; onNext: (avoid: string[]) => void; onPrev: () => void }) {
-  const { index, baseIndex, state, dispatch } = useGame()
+ *  zum vorigen zurück */
+function AlternativeNav({ route, onNext, onPrev }: { route: RouteTarget; onNext: (avoid: string[]) => void; onPrev: () => void }) {
+  const { baseIndex, state } = useGame()
   const t = useT()
   const [busy, setBusy] = useState(false)
   const [none, setNone] = useState(false)
@@ -179,11 +253,9 @@ function AlternativeBar({ route, onNext, onPrev }: { route: RouteTarget; onNext:
       setBusy(false)
     }, 30)
   }
-  const allow = (k: string) =>
-    dispatch({ type: 'updateRoute', route: { ...route, avoid: avoid.filter((x) => x !== k), avoidHistory: [...(route.avoidHistory ?? []), avoid] } })
   return (
-    <div className="alt-bar">
-      <div className="alt-nav">
+    <>
+      <div className="alt-nav" title={t('alt.hint')}>
         <button className="icon-btn" disabled={n <= 1 || busy} title={t('alt.prev')} aria-label={t('alt.prev')} onClick={onPrev}>
           <Sym name="chevron" size={12} className="flip" />
         </button>
@@ -194,6 +266,20 @@ function AlternativeBar({ route, onNext, onPrev }: { route: RouteTarget; onNext:
       </div>
       {busy && <span className="muted">{t('alt.searching')}</span>}
       {none && !busy && <span className="muted">{t('alt.none')}</span>}
+    </>
+  )
+}
+
+/** Gemiedene Wege als Chips, einzeln wieder erlaubbar */
+function AvoidedChips({ route }: { route: RouteTarget }) {
+  const { index, dispatch } = useGame()
+  const t = useT()
+  const avoid = route.avoid ?? []
+  if (!avoid.length) return null
+  const allow = (k: string) =>
+    dispatch({ type: 'updateRoute', route: { ...route, avoid: avoid.filter((x) => x !== k), avoidHistory: [...(route.avoidHistory ?? []), avoid] } })
+  return (
+    <div className="rh-avoided">
       {avoid.map((k) => (
         <span key={k} className="chip avoided" data-entity={k.startsWith('purchase:') ? k : index.recipes.get(k)?.outputs[0] ? `item:${index.recipes.get(k)!.outputs[0].item}` : undefined}>
           <Sym name="avoid" size={11} /> {t('alt.without', { name: avoidLabel(index, k, t) })}
@@ -202,7 +288,6 @@ function AlternativeBar({ route, onNext, onPrev }: { route: RouteTarget; onNext:
           </button>
         </span>
       ))}
-      {!avoid.length && !busy && !none && <span className="muted alt-hint">{t('alt.hint')}</span>}
     </div>
   )
 }
@@ -212,26 +297,4 @@ function TrackedFlow({ routeId, children }: { routeId: string; children: React.R
   const { tracking } = useTrack()
   const value = tracking && tracking.route.id === routeId ? { current: tracking.currentKeys, live: tracking.liveKeys } : null
   return <TrackContext.Provider value={value}>{children}</TrackContext.Provider>
-}
-
-/** „Verfolgen“: diese Route live begleiten — Schritt, Restzeit, Benachrichtigung */
-function TrackBar({ route }: { route: RouteTarget }) {
-  const { state, dispatch } = useGame()
-  const t = useT()
-  const { tracking } = useTrack()
-  const active = state.activeRoute === route.id
-  return (
-    <div className={`track-bar ${active ? `on ${tracking?.status ?? ''}` : ''}`}>
-      <button
-        className={`btn small ${active ? '' : 'plain'}`}
-        onClick={() => dispatch({ type: 'setActiveRoute', id: active ? null : route.id })}
-        title={t(active ? 'track.stop' : 'track.startHint')}
-      >
-        <i className={active ? 'live-dot' : 'live-dot off'} /> {t(active ? 'track.active' : 'track.start')}
-      </button>
-      {active && tracking && <span className="track-line">{statusLine(t, tracking)}</span>}
-      {active && tracking && tracking.status !== 'done' && <span className="muted">{t('track.total', { time: fmtDurationShort(tracking.totalMs) })}</span>}
-      {active && !state.live && <span className="muted">{t('track.needLive')}</span>}
-    </div>
-  )
 }

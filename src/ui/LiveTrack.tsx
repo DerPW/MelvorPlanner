@@ -227,7 +227,7 @@ export function LiveCard() {
         <div className="lc-rates muted">{t('track.measuring')}</div>
       )}
       {tracking && (
-        <button className={`lc-route ${tracking.status}`} onClick={() => dispatch({ type: 'view', view: { kind: 'route', id: tracking.route.id }, root: true })}>
+        <button className={`lc-route ts-${tracking.status}`} onClick={() => dispatch({ type: 'view', view: { kind: 'route', id: tracking.route.id }, root: true })}>
           <span className="lc-route-head">
             <GameIcon src={routeIcon(index, tracking.route)} size={14} />
             <span className="grow">{routeLabel(index, tracking.route)}</span>

@@ -38,6 +38,7 @@ export const en: Record<Key, string> = {
   'sum.gold': 'Gold',
   'sum.xp': 'Experience',
   'sum.levelUps': 'Level-ups',
+  'sum.steps': 'Steps',
   'sum.inSkills': 'in one skill|in {n} skills',
   'sum.unchecked': 'Not checked: {text}',
   'sum.uncheckedHint': 'The planner can’t check this',
@@ -46,9 +47,6 @@ export const en: Record<Key, string> = {
   'smart.none': 'One alternative checked — the direct path is fastest|{n} alternatives checked — the direct path is fastest',
   'smart.hint': 'Upgrades, detours and other sources were simulated end to end',
 
-  'overview.title': 'Fastest path',
-  'overview.gold': 'Earn {amount} GP',
-  'overview.make': 'Make · one step|Make · {n} steps',
 
   'flow.title': 'Steps',
   'flow.steps': 'one step|{n} steps',

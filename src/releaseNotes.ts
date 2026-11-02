@@ -10,6 +10,28 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.9.0',
+    date: '2026-11-02',
+    de: {
+      title: 'Live verfolgen, neue Routen-Ansicht',
+      items: [
+        'Live-Karte in der Seitenleiste: was im Spiel gerade läuft, gemessen aus dem 10-s-Speichertakt — XP/h, Items/h, Gold/h und wann das nächste Level kommt.',
+        'Routen verfolgen: „Verfolgen“ macht eine Route zur aktiven. Sie zeigt, welcher Schritt dran ist, ob du gerade das Richtige machst, und die Restzeit mit deinem echten Tempo; der laufende Schritt ist im Ablauf markiert.',
+        'Benachrichtigung, wenn ein Schritt fertig ist und du wechseln musst — und wenn das Ziel erreicht ist (als System-Benachrichtigung, sobald erlaubt, sonst in der Seite).',
+        'Routen-Ansicht neu: eine Kopf-Karte mit Ziel, Zeit, Kennzahlen, Bedienung (Verfolgen, Weg ‹ ›, Material) und Live-Status; der Ablauf als nummerierte Zeitleiste aus Phasen-Karten mit mehr Luft, „Alternative“ rechts unter der Zeit.',
+      ],
+    },
+    en: {
+      title: 'Live tracking, new route view',
+      items: [
+        'Live card in the sidebar: what is running in the game, measured from the 10-second save cycle — XP/h, items/h, gold/h and when the next level comes.',
+        'Track routes: “Track” makes a route the active one. It shows which step is up, whether you are doing the right thing, and the time left at your real pace; the running step is highlighted in the list.',
+        'A notification when a step is done and you need to switch — and when the goal is reached (as a system notification once allowed, otherwise on the page).',
+        'Route view redone: a header card with goal, time, figures, controls (Track, way ‹ ›, materials) and live status; the steps as a numbered timeline of phase cards with more room, “Alternative” on the right under the time.',
+      ],
+    },
+  },
+  {
     version: '0.8.2',
     date: '2026-11-02',
     de: {

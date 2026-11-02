@@ -61,6 +61,16 @@ allem, was davon abhängt). „›“ (`nextBest`) probiert die Abzweigungen fü
 Ziel einzeln weg und nimmt die günstigste — so entsteht eine Folge immer
 etwas langsamerer, aber anderer Wege.
 
+## Live
+
+`src/core/live.ts`: Das Spiel speichert alle ~10 s. Jede neue Fassung wird
+eine Momentaufnahme (Kopf: Skill und Aktion als Anzeigename, dazu XP, Lager,
+Gold); Raten kommen aus der ersten und letzten Aufnahme derselben Aktion
+(höchstens 10 min zurück). `src/ui/LiveTrack.tsx` ordnet die Aktion einem
+Rezept zu, vergleicht sie mit dem Block der aktiven Route, der gerade dran ist
+(`flowGroups`/`currentGroups`), rechnet die Restzeit mit gemessenem Tempo und
+benachrichtigt, wenn ein Block fertig ist und die Aktion nicht mehr passt.
+
 ## Oberfläche
 
 - **Globale Suche (⌘K)** oben in der Seitenleiste: Items, Skills, Monster,

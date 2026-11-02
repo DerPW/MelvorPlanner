@@ -140,159 +140,100 @@ export function ItemName({ id }: { id: Id }) {
 }
 
 /** Zusammenfassung als Pergament-Tafel + Hinweise */
-export function SolutionSummary({ solution }: { solution: Solution }) {
-  const { index } = useGame()
-  const t = useT()
+/** Kennzahlen eines Wegs: Gold-Bilanz, XP, Level-Ups */
+function summaryOf(index: GameIndex, solution: Solution) {
   const xp = [...solutionXp(solution).values()].reduce((a, b) => a + b, 0)
   const goldBefore = solution.before.currencies[GP] ?? 0
   const goldAfter = solution.after.currencies[GP] ?? 0
-  const delta = goldAfter - goldBefore
   const ups = index.data.skills
     .map((s) => ({ s, from: solution.before.levels[s.id] ?? 1, to: solution.after.levels[s.id] ?? 1 }))
     .filter((x) => x.to > x.from)
-  const gp = index.currencies.get(GP)
-  const smart = solution.smart
+  return { xp, delta: goldAfter - goldBefore, goldAfter, ups }
+}
 
+/** Pergament-Tafel mit den Kennzahlen (Zeit steht im Kopf der Route) */
+export function SummaryPlate({ solution, steps }: { solution: Solution; steps: number }) {
+  const { index } = useGame()
+  const t = useT()
+  const { xp, delta, goldAfter, ups } = summaryOf(index, solution)
+  const gp = index.currencies.get(GP)
   return (
-    <>
-      <div className="plate">
-        <div className="plate-cell">
-          <div className="plate-label">{t('sum.active')}</div>
-          <div className="plate-value">{fmtDuration(solution.activeMs)}</div>
+    <div className="plate">
+      <div className="plate-cell">
+        <div className="plate-label">
+          <GameIcon src={gp?.icon} size={14} />
+          {t('sum.gold')}
         </div>
-        {solution.passiveMs > 0 && (
-          <div className="plate-cell">
-            <div className="plate-label">{t('sum.passive')}</div>
-            <div className="plate-value">{fmtDuration(solution.passiveMs)}</div>
-          </div>
-        )}
-        <div className="plate-cell">
-          <div className="plate-label">
-            <GameIcon src={gp?.icon} size={14} />
-            {t('sum.gold')}
-          </div>
-          <div className={`plate-value ${goldAfter < 0 ? 'bad' : ''}`}>
-            {delta > 0 ? '+' : delta < 0 ? '−' : ''}
-            {fmtInt(Math.abs(delta))}
-            <small>GP</small>
-          </div>
-        </div>
-        <div className="plate-cell">
-          <div className="plate-label">{t('sum.xp')}</div>
-          <div className="plate-value">
-            {fmtInt(xp)}
-            <small>XP</small>
-          </div>
-        </div>
-        <div className="plate-cell">
-          <div className="plate-label">{t('sum.levelUps')}</div>
-          <div className="plate-value">
-            {ups.reduce((s, u) => s + u.to - u.from, 0)}
-            <small>{t('sum.inSkills', { n: ups.length })}</small>
-          </div>
+        <div className={`plate-value ${goldAfter < 0 ? 'bad' : ''}`}>
+          {delta > 0 ? '+' : delta < 0 ? '−' : ''}
+          {fmtInt(Math.abs(delta))}
+          <small>GP</small>
         </div>
       </div>
-
-      {(ups.length > 0 || solution.problems.length > 0 || solution.notes.length > 0 || smart.checked > 0) && (
-        <div className="notes">
-          {solution.problems.map((p) => (
-            <span key={JSON.stringify(p)} className="note bad">
-              <Sym name="warn" size={14} />
-              {t(p)}
-            </span>
-          ))}
-          {smart.taken.length > 0 && (
-            <span className="note good" title={smart.taken.join(', ')}>
-              <Sym name="check" size={14} />
-              {t('smart.taken', { n: smart.taken.length, time: fmtDuration(smart.savedMs) })}
-            </span>
-          )}
-          {smart.checked > 0 && smart.taken.length === 0 && (
-            <span className="note" title={t('smart.hint')}>
-              <Sym name="check" size={14} />
-              {t('smart.none', { n: smart.checked })}
-            </span>
-          )}
-          {ups.map(({ s, from, to }) => (
-            <span key={s.id} className="note">
-              <GameIcon src={s.icon} size={16} entity={`skill:${s.id}`} />
-              {s.name}
-              <b>
-                {from} → {to}
-              </b>
-            </span>
-          ))}
-          {solution.notes.map((n) => (
-            <span key={n} className="note" title={t('sum.uncheckedHint')}>
-              <Sym name="warn" size={14} />
-              {t('sum.unchecked', { text: n })}
-            </span>
-          ))}
+      <div className="plate-cell">
+        <div className="plate-label">{t('sum.xp')}</div>
+        <div className="plate-value">
+          {fmtInt(xp)}
+          <small>XP</small>
         </div>
-      )}
-    </>
+      </div>
+      <div className="plate-cell">
+        <div className="plate-label">{t('sum.levelUps')}</div>
+        <div className="plate-value">
+          {ups.reduce((s, u) => s + u.to - u.from, 0)}
+          <small>{t('sum.inSkills', { n: ups.length })}</small>
+        </div>
+      </div>
+      <div className="plate-cell">
+        <div className="plate-label">{t('sum.steps')}</div>
+        <div className="plate-value">{fmtInt(steps)}</div>
+      </div>
+    </div>
   )
 }
 
-/** Der schnellste Weg auf einen Blick: nummerierte Phasen mit Zeit */
-export function RouteOverview({ solution, onOpen }: { solution: Solution; onOpen?: () => void }) {
+/** Hinweise zum Weg: Probleme, geprüfte Umwege, Level-Ups, Ungeprüftes */
+export function SolutionNotes({ solution }: { solution: Solution }) {
   const { index } = useGame()
   const t = useT()
-  if (solution.phases.length < 2) return null
+  const { ups } = summaryOf(index, solution)
+  const smart = solution.smart
+  if (!(ups.length > 0 || solution.problems.length > 0 || solution.notes.length > 0 || smart.checked > 0)) return null
   return (
-    <div className="overview">
-      <div className="overview-title">{t('overview.title')}</div>
-      <ol>
-        {solution.phases.map((ph, i) => {
-          let icon: string | null | undefined
-          let entity: string | null = null
-          let label: string
-          let time: string
-          if (ph.kind === 'route') {
-            const g = ph.route.goal
-            if (g.kind === 'level') {
-              const s = index.skills.get(g.skill)
-              icon = s?.icon
-              entity = `skill:${g.skill}`
-              label = `${s?.name ?? g.skill} ${ph.route.before.levels[g.skill] ?? 1} → ${g.level}`
-            } else {
-              icon = index.currencies.get(GP)?.icon
-              label = t('overview.gold', { amount: fmtInt(g.amount) })
-            }
-            time = fmtDurationShort(ph.route.totalMs)
-          } else if (ph.kind === 'buy') {
-            icon = ph.purchase.icon
-            entity = `purchase:${ph.purchase.id}`
-            label = ph.purchase.name
-            time = t('flow.shop')
-          } else if (ph.kind === 'unlock') {
-            icon = featureIcon(index, ph.feature)
-            entity = featureEntity(index, ph.feature)
-            label = t('flow.unlock', { name: ph.name })
-            time = t('flow.unlocked')
-          } else if (ph.kind === 'task') {
-            icon = ph.entity ? entityIcon(index, ph.entity) : null
-            entity = ph.entity
-            label = t(ph.text)
-            time = t('flow.byHand')
-          } else {
-            icon = index.items.get(ph.goals[0]?.item)?.icon
-            entity = ph.goals[0] ? `item:${ph.goals[0].item}` : null
-            label = t('overview.make', { n: ph.plan.steps.length })
-            time = fmtDurationShort(ph.plan.activeMs + ph.plan.passiveMs)
-          }
-          return (
-            <li key={i} style={{ '--i': i } as React.CSSProperties}>
-              <button onClick={onOpen} title={isGoal(ph.why) ? undefined : t(ph.why)}>
-                <span className="n">{i + 1}</span>
-                <GameIcon src={icon} size={16} entity={entity} />
-                <span className="txt">{label}</span>
-                <span className="time">{time}</span>
-              </button>
-            </li>
-          )
-        })}
-      </ol>
+    <div className="notes">
+      {solution.problems.map((p) => (
+        <span key={JSON.stringify(p)} className="note bad">
+          <Sym name="warn" size={14} />
+          {t(p)}
+        </span>
+      ))}
+      {smart.taken.length > 0 && (
+        <span className="note good" title={smart.taken.join(', ')}>
+          <Sym name="check" size={14} />
+          {t('smart.taken', { n: smart.taken.length, time: fmtDuration(smart.savedMs) })}
+        </span>
+      )}
+      {smart.checked > 0 && smart.taken.length === 0 && (
+        <span className="note" title={t('smart.hint')}>
+          <Sym name="check" size={14} />
+          {t('smart.none', { n: smart.checked })}
+        </span>
+      )}
+      {ups.map(({ s, from, to }) => (
+        <span key={s.id} className="note">
+          <GameIcon src={s.icon} size={16} entity={`skill:${s.id}`} />
+          {s.name}
+          <b>
+            {from} → {to}
+          </b>
+        </span>
+      ))}
+      {solution.notes.map((n) => (
+        <span key={n} className="note" title={t('sum.uncheckedHint')}>
+          <Sym name="warn" size={14} />
+          {t('sum.unchecked', { text: n })}
+        </span>
+      ))}
     </div>
   )
 }
@@ -338,7 +279,7 @@ const buyKey = (phase: number) => `${phase}:buy`
 const unlockKey = (phase: number, feature: string) => `${phase}:unlock:${feature}`
 const taskKey = (phase: number) => `${phase}:task`
 
-function stepKeys(solution: Solution): string[] {
+export function stepKeys(solution: Solution): string[] {
   return solution.phases.flatMap((ph, i) =>
     ph.kind === 'route'
       ? ph.route.segments.flatMap((s, j) => [
@@ -519,7 +460,9 @@ export function SolutionFlow({ solution, scope, alternatives }: { solution: Solu
           </span>
         )}
       </div>
-      <AvoidContext.Provider value={alternatives ?? null}>{rows}</AvoidContext.Provider>
+      <AvoidContext.Provider value={alternatives ?? null}>
+        <div className="flow-phases">{rows}</div>
+      </AvoidContext.Provider>
     </>
   )
 }
@@ -850,12 +793,12 @@ function StepRow({
       <GameIcon src={icon} size={26} entity={entity} />
       <div className="what">
         <b>{title}</b>
-        <div className="sub">
-          {sub}
-          <AltControl alt={alt} />
-        </div>
+        <div className="sub">{sub}</div>
       </div>
-      <div className="meta">{meta}</div>
+      <div className="meta">
+        {meta}
+        <AltControl alt={alt} />
+      </div>
     </li>
   )
 }
