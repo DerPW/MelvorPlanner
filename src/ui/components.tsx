@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useT } from '../i18n'
 
 /** Spiel-Symbol (Item, Skill, Währung) */
 export function GameIcon({ src, size = 20, alt = '', className = '' }: { src: string | null | undefined; size?: number; alt?: string; className?: string }) {
@@ -106,6 +107,7 @@ export function Stepper({
   narrow?: boolean
   label?: string
 }) {
+  const t = useT()
   const [text, setText] = useState(String(value))
   useEffect(() => setText(String(value)), [value])
   const clamp = (n: number) => Math.min(max, Math.max(min, Math.round(n)))
@@ -116,7 +118,7 @@ export function Stepper({
   }
   return (
     <span className={`stepper ${narrow ? 'narrow' : ''}`}>
-      <button type="button" aria-label="Weniger" onClick={() => onChange(clamp(value - step))}>
+      <button type="button" aria-label={t('common.less')} onClick={() => onChange(clamp(value - step))}>
         <Sym name="minus" size={12} />
       </button>
       <input
@@ -131,7 +133,7 @@ export function Stepper({
           if (e.key === 'ArrowDown') { e.preventDefault(); onChange(clamp(value - step)) }
         }}
       />
-      <button type="button" aria-label="Mehr" onClick={() => onChange(clamp(value + step))}>
+      <button type="button" aria-label={t('common.more')} onClick={() => onChange(clamp(value + step))}>
         <Sym name="plus" size={12} />
       </button>
     </span>
@@ -147,8 +149,17 @@ export function Segmented<T extends string>({
   onChange: (v: T) => void
   options: { value: T; label: string; icon?: string }[]
 }) {
+  // Der helle Hintergrund gleitet zur gewählten Taste (Lage gemessen, weil
+  // die Tasten unterschiedlich breit sind)
+  const box = useRef<HTMLDivElement>(null)
+  const [thumb, setThumb] = useState<{ left: number; width: number } | null>(null)
+  useLayoutEffect(() => {
+    const active = box.current?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')
+    if (active) setThumb({ left: active.offsetLeft, width: active.offsetWidth })
+  }, [value, options.map((o) => o.label).join('|')])
   return (
-    <div className="segmented" role="group">
+    <div className="segmented" role="group" ref={box}>
+      {thumb && <span className="segmented-thumb" style={{ transform: `translateX(${thumb.left}px)`, width: thumb.width }} />}
       {options.map((o) => (
         <button key={o.value} type="button" aria-pressed={value === o.value} onClick={() => onChange(o.value)}>
           {o.icon && <Sym name={o.icon} size={14} />}
@@ -159,9 +170,26 @@ export function Segmented<T extends string>({
   )
 }
 
-export function Toolbar({ title, subtitle, children }: { title: ReactNode; subtitle?: ReactNode; children?: ReactNode }) {
+export function Toolbar({
+  title,
+  subtitle,
+  children,
+  onBack,
+  backLabel,
+}: {
+  title: ReactNode
+  subtitle?: ReactNode
+  children?: ReactNode
+  onBack?: () => void
+  backLabel?: string
+}) {
   return (
     <header className="toolbar">
+      {onBack && (
+        <button className="back-btn" onClick={onBack} aria-label={backLabel} title={backLabel}>
+          <Sym name="chevron" size={14} />
+        </button>
+      )}
       <div className="toolbar-title">
         <h1>{title}</h1>
         {subtitle && <p>{subtitle}</p>}
@@ -202,9 +230,10 @@ export function Select({
 }
 
 export function LevelTag({ level, have }: { level: number; have: number }) {
+  const t = useT()
   if (level <= 1) return null
   return (
-    <span className={`lv ${have < level ? 'missing' : ''}`} title={have < level ? `Du hast Level ${have}` : undefined}>
+    <span className={`lv ${have < level ? 'missing' : ''}`} title={have < level ? t('common.youHave', { level: have }) : undefined}>
       Lv {level}
     </span>
   )

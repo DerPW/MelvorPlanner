@@ -1,28 +1,16 @@
 import { fmtDurationShort, fmtInt, fmtNum } from '../core/format'
 import { actionTime, rankSources, unmetReqs, yieldOf } from '../core/planner'
 import type { Id } from '../core/types'
+import { useT } from '../i18n'
 import { GameIcon, LevelTag, Stepper, Sym } from './components'
 import { recipeAction } from './SolutionView'
 import { useGame } from './state'
 
-const KIND: Record<string, string> = {
-  artisan: 'Herstellen',
-  cooking: 'Kochen',
-  woodcutting: 'Holzfällen',
-  mining: 'Bergbau',
-  fishing: 'Angeln',
-  firemaking: 'Nebenprodukt',
-  thieving: 'Thieving-Beute',
-  farming: 'Farming',
-  mill: 'Mühle',
-  shop: 'Shop',
-  upgrade: 'Aufwerten',
-}
-
 export function Inspector({ item: id }: { item: Id }) {
   const { index, bonus, state, dispatch } = useGame()
+  const t = useT()
   const item = index.items.get(id)
-  if (!item) return <div className="insp-empty">Unbekanntes Item</div>
+  if (!item) return <div className="insp-empty">{t('insp.unknown')}</div>
 
   const goal = state.items.find((g) => g.item === id)
   const stock = state.profile.inventory[id] ?? 0
@@ -35,7 +23,7 @@ export function Inspector({ item: id }: { item: Id }) {
   return (
     <div className="insp">
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button className="icon-btn" aria-label="Schliessen" onClick={() => dispatch({ type: 'select', item: null })}>
+        <button className="icon-btn" aria-label={t('common.close')} onClick={() => dispatch({ type: 'select', item: null })}>
           <Sym name="close" size={14} />
         </button>
       </div>
@@ -44,9 +32,12 @@ export function Inspector({ item: id }: { item: Id }) {
           <GameIcon src={item.icon} size={60} />
         </div>
         <h2>{item.name}</h2>
+        <button className="link" onClick={() => dispatch({ type: 'view', view: { kind: 'detail', type: 'item', id } })}>
+          {t('insp.details')} <Sym name="chevron" size={10} />
+        </button>
         {sells && (
           <p>
-            Verkauf <GameIcon src={index.currencies.get(sells.currency)?.icon} size={14} /> {fmtInt(sells.qty)}
+            {t('insp.sells')} <GameIcon src={index.currencies.get(sells.currency)?.icon} size={14} /> {fmtInt(sells.qty)}
           </p>
         )}
       </div>
@@ -54,41 +45,41 @@ export function Inspector({ item: id }: { item: Id }) {
       <div className="insp-section">
         <div className="insp-box">
           <div className="insp-line">
-            <span className="grow">{goal ? 'Ziel' : 'Bauen'}</span>
+            <span className="grow">{t(goal ? 'insp.goal' : 'insp.build')}</span>
             {goal ? (
               <>
-                <Stepper label="Zielmenge" value={goal.qty} min={1} onChange={(qty) => dispatch({ type: 'setItemQty', item: id, qty })} />
-                <button className="icon-btn" aria-label="Ziel entfernen" title="Ziel entfernen" onClick={() => dispatch({ type: 'removeItem', item: id })}>
+                <Stepper label={t('insp.goalQty')} value={goal.qty} min={1} onChange={(qty) => dispatch({ type: 'setItemQty', item: id, qty })} />
+                <button className="icon-btn" aria-label={t('insp.removeGoal')} title={t('insp.removeGoal')} onClick={() => dispatch({ type: 'removeItem', item: id })}>
                   <Sym name="close" size={13} />
                 </button>
               </>
             ) : (
               <button className="btn primary small" onClick={() => dispatch({ type: 'addItem', item: id })}>
-                <Sym name="plus" size={12} /> Zum Plan
+                <Sym name="plus" size={12} /> {t('insp.addToPlan')}
               </button>
             )}
           </div>
           <div className="insp-line">
-            <span className="grow">Im Lager</span>
-            <Stepper label="Im Lager" value={stock} onChange={(qty) => dispatch({ type: 'setStock', item: id, qty })} />
+            <span className="grow">{t('insp.inStock')}</span>
+            <Stepper label={t('insp.inStock')} value={stock} onChange={(qty) => dispatch({ type: 'setStock', item: id, qty })} />
           </div>
         </div>
       </div>
 
       <div className="insp-section">
         <div className="insp-label">
-          <span>Quellen</span>
+          <span>{t('insp.sources')}</span>
           {chosen && (
             <button className="link" onClick={() => dispatch({ type: 'choose', item: id, recipe: null })}>
-              Automatisch
+              {t('insp.auto')}
             </button>
           )}
         </div>
         <div className="insp-box">
-          {sources.length === 0 && <div className="insp-line muted">Keine bekannte Quelle (Drop, Hunting, Ranching …)</div>}
+          {sources.length === 0 && <div className="insp-line muted">{t('insp.noSource')}</div>}
           {sources.map((r, i) => {
             const per = yieldOf(r, id, state.profile)
-            const t = per > 0 ? actionTime(r, state.profile) / per : 0
+            const ms = per > 0 ? actionTime(r, state.profile) / per : 0
             const skill = r.skill ? index.skills.get(r.skill) : null
             const unmet = unmetReqs(r.reqs, state.profile)
             return (
@@ -96,22 +87,22 @@ export function Inspector({ item: id }: { item: Id }) {
                 key={r.id}
                 className={`source ${r.demoLocked ? 'locked' : ''}`}
                 onClick={() => dispatch({ type: 'choose', item: id, recipe: r.id })}
-                title={r.demoLocked ? 'In der Demo gesperrt' : undefined}
+                title={r.demoLocked ? t('insp.demoLocked') : undefined}
               >
                 <span className={`radio ${current?.id === r.id ? 'on' : ''}`} />
                 <GameIcon src={skill?.icon ?? r.icon} size={20} className="skill" />
                 <span style={{ minWidth: 0 }}>
                   <span className="t">
-                    <span className="name">{recipeAction(r)}</span>
+                    <span className="name">{recipeAction(t, r)}</span>
                     <LevelTag level={r.level} have={r.skill ? (state.profile.levels[r.skill] ?? 1) : 1} />
-                    {i === 0 && !chosen && <span className="tag std">Standard</span>}
-                    {bonus.perRecipe.get(r.id)?.some((a) => a.supported) && <span className="tag bonus">Bonus</span>}
+                    {i === 0 && !chosen && <span className="tag std">{t('insp.default')}</span>}
+                    {bonus.perRecipe.get(r.id)?.some((a) => a.supported) && <span className="tag bonus">{t('bonus.tag')}</span>}
                     {r.demoLocked && <span className="tag locked">Demo</span>}
                   </span>
                   <span className="d">
-                    <span>{KIND[r.kind]}</span>
-                    {t > 0 && <span>{fmtDurationShort(t)} je Stück</span>}
-                    {per !== 1 && per > 0 && <span>{fmtNum(Math.round(per * 1000) / 1000)} je Durchlauf</span>}
+                    <span>{t(`kind.${r.kind}`)}</span>
+                    {ms > 0 && <span>{t('insp.perUnit', { time: fmtDurationShort(ms) })}</span>}
+                    {per !== 1 && per > 0 && <span>{t('insp.perRun', { n: fmtNum(Math.round(per * 1000) / 1000) })}</span>}
                     {r.costs.map((c) => (
                       <span key={c.currency} className="gold">
                         <GameIcon src={index.currencies.get(c.currency)?.icon} size={13} />
@@ -128,7 +119,7 @@ export function Inspector({ item: id }: { item: Id }) {
                       .filter((q) => q.type !== 'level')
                       .map((q, k) => (
                         <span key={k} className="bad">
-                          braucht {q.type === 'purchase' ? q.name : q.type === 'item' ? index.items.get(q.item)?.name : ''}
+                          {t('insp.needs', { name: q.type === 'purchase' ? q.name : q.type === 'item' ? (index.items.get(q.item)?.name ?? '') : '' })}
                         </span>
                       ))}
                   </span>
@@ -142,12 +133,12 @@ export function Inspector({ item: id }: { item: Id }) {
       {usedIn.length > 0 && (
         <div className="insp-section">
           <div className="insp-label">
-            <span>Verwendet für</span>
+            <span>{t('insp.usedFor')}</span>
             <span>{usedIn.length}</span>
           </div>
           <div className="insp-box used-in">
             {usedIn.slice(0, 40).map((o) => (
-              <button key={o} title={index.items.get(o)?.name} onClick={() => dispatch({ type: 'select', item: o })}>
+              <button key={o} data-entity={`item:${o}`} onClick={() => dispatch({ type: 'select', item: o })}>
                 <GameIcon src={index.items.get(o)?.icon} size={24} />
               </button>
             ))}

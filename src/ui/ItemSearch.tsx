@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Id } from '../core/types'
+import { useT } from '../i18n'
 import { GameIcon, Sym } from './components'
 import { useGame } from './state'
 
 /** Suchfeld mit Ergebnisliste; ⌘K springt hinein (nur eines je Seite mit `shortcut`) */
 export function ItemSearch({
   onPick,
-  placeholder = 'Item suchen',
+  placeholder,
   shortcut = false,
   width,
 }: {
@@ -16,6 +17,7 @@ export function ItemSearch({
   width?: number
 }) {
   const { index } = useGame()
+  const t = useT()
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
@@ -67,7 +69,7 @@ export function ItemSearch({
       <input
         ref={input}
         value={q}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t('search.placeholder')}
         onChange={(e) => {
           setQ(e.target.value)
           setOpen(true)
@@ -93,7 +95,7 @@ export function ItemSearch({
       {shortcut && !q && <kbd>⌘K</kbd>}
       {open && q.trim() && (
         <div className="popover" role="listbox">
-          {results.length === 0 && <div className="pop-empty">Kein Item gefunden</div>}
+          {results.length === 0 && <div className="pop-empty">{t('search.none')}</div>}
           {results.map((item, i) => {
             const via = [...new Set((index.producers.get(item.id) ?? []).filter((r) => !r.demoLocked).map((r) => r.skill).filter(Boolean))]
             const locked = (index.producers.get(item.id) ?? []).every((r) => r.demoLocked)
@@ -102,6 +104,7 @@ export function ItemSearch({
                 key={item.id}
                 role="option"
                 aria-selected={i === active}
+                data-entity={`item:${item.id}`}
                 className={`pop-row ${i === active ? 'active' : ''}`}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => pick(item.id)}

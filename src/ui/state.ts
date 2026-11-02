@@ -14,6 +14,9 @@ export type View =
   | { kind: 'route'; id: string }
   | { kind: 'profile' }
   | { kind: 'skill'; skill: Id }
+  | { kind: 'detail'; type: DetailType; id: Id }
+
+export type DetailType = 'item' | 'enemy' | 'area' | 'purchase'
 
 export type PlanTab = 'flow' | 'tree' | 'materials'
 
@@ -30,6 +33,8 @@ export interface State {
   inspectorOpen: boolean
   /** Live-Verbindung: Spielstand-Datei, die mitgelesen wird */
   live: { save: string } | null
+  /** Vorige Ansichten für „Zurück" (nicht gespeichert) */
+  history: View[]
 }
 
 export type Action =
@@ -56,6 +61,7 @@ export type Action =
   | { type: 'select'; item: Id | null }
   | { type: 'inspector'; open: boolean }
   | { type: 'setLive'; save: string | null }
+  | { type: 'back' }
 
 export const emptyProfile = (): Profile => ({ levels: {}, inventory: {}, currencies: {}, owned: {}, farmingPlots: 4 })
 
@@ -64,13 +70,14 @@ export const initialState = (): State => ({
   routes: [],
   profile: emptyProfile(),
   choices: {},
-  options: { includeMaterials: true, bonuses: true },
+  options: { includeMaterials: true, bonuses: true, smart: true },
   done: {},
   view: { kind: 'plan' },
   tab: 'flow',
   selected: null,
   inspectorOpen: true,
   live: null,
+  history: [],
 })
 
 export function reducer(s: State, a: Action): State {
@@ -82,9 +89,6 @@ export function reducer(s: State, a: Action): State {
       return {
         ...s,
         items: has ? s.items.map((g) => (g.item === a.item ? { ...g, qty: g.qty + qty } : g)) : [...s.items, { item: a.item, qty }],
-        view: { kind: 'plan' },
-        selected: a.item,
-        inspectorOpen: true,
       }
     }
     case 'setItemQty':
@@ -142,7 +146,12 @@ export function reducer(s: State, a: Action): State {
     case 'clearDone':
       return { ...s, done: {} }
     case 'view':
-      return { ...s, view: a.view }
+      if (JSON.stringify(a.view) === JSON.stringify(s.view)) return s
+      return { ...s, view: a.view, history: [...s.history, s.view].slice(-30) }
+    case 'back': {
+      const prev = s.history.at(-1)
+      return prev ? { ...s, view: prev, history: s.history.slice(0, -1) } : s
+    }
     case 'tab':
       return { ...s, tab: a.tab }
     case 'select':
@@ -169,6 +178,7 @@ export function loadState(): State {
       profile: { ...base.profile, ...saved.profile },
       options: { ...base.options, ...saved.options },
       selected: null,
+      history: [],
     }
   } catch {
     return base
@@ -177,7 +187,7 @@ export function loadState(): State {
 
 export function saveState(s: State) {
   try {
-    const { selected: _s, inspectorOpen: _i, ...keep } = s
+    const { selected: _s, inspectorOpen: _i, history: _h, ...keep } = s
     localStorage.setItem(KEY, JSON.stringify(keep))
   } catch {
     // privat / voll — dann eben nicht

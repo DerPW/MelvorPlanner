@@ -20,6 +20,20 @@ hinterlässt. Steckt ein Skill fest, sucht der Planer die billigste
 Freischaltung (z. B. „Farming braucht Samen → Samen gibt es nur per
 Thieving 35 → erst Thieving trainieren").
 
+## Oberfläche
+
+- **Globale Suche (⌘K)** oben in der Seitenleiste: Items, Skills, Monster,
+  Gebiete/Dungeons, Shop-Käufe, Rezepte — und Ansichten und Aktionen
+  (Routen anlegen, Import, Sprache, Optionen). Neue Sorten kommen als
+  Eintrag in `KINDS` (`src/ui/search.tsx`) dazu.
+- **Detailseiten** für Items, Monster, Gebiete und Shop-Käufe mit allem, was
+  die Spieldaten hergeben; alles verlinkt, mit Zurück.
+- **Tooltip und Kontextmenü** für jedes Element mit `data-entity="typ:id"`
+  (`src/ui/EntityHover.tsx`).
+- **Deutsch/Englisch** nach Browser, umstellbar (`src/i18n/`; `pnpm check:i18n`
+  prüft, dass jeder Schlüssel in beiden Sprachen steht).
+- Versionsanzeige mit Release Notes (`src/releaseNotes.ts`).
+
 ## Spielstand importieren
 
 Profil → „Spielstand importieren": `.sav`-Datei hineinziehen oder den

@@ -5,7 +5,7 @@
 
 import { MAX_LEVEL, levelForXp } from './experience'
 import type { GameIndex } from './planner'
-import { parseSave, type SaveData } from './save'
+import { parseSave, SaveError, type SaveData } from './save'
 import type { Profile } from './types'
 
 export const DEMO_LEVEL_CAP = 60
@@ -28,7 +28,7 @@ async function brotliDecode(input: Uint8Array): Promise<Uint8Array> {
       if (res.code !== 3) break
     }
   } catch {
-    throw new Error('Die Daten ließen sich nicht entpacken — ist das ein Spielstand aus Melvor Idle 2?')
+    throw new SaveError({ key: 'save.unpack' })
   } finally {
     stream.free()
   }
@@ -39,13 +39,13 @@ async function brotliDecode(input: Uint8Array): Promise<Uint8Array> {
     out.set(c, pos)
     pos += c.length
   }
-  if (!total) throw new Error('Datei ließ sich nicht entpacken — ist das ein Melvor-Idle-2-Spielstand?')
+  if (!total) throw new SaveError({ key: 'save.unpack' })
   return out
 }
 
 function base64ToBytes(text: string): Uint8Array {
   const clean = text.replace(/\s+/g, '')
-  if (!/^[A-Za-z0-9+/=_-]+$/.test(clean)) throw new Error('Der Text ist kein Export-Text aus dem Spiel (Base64 erwartet).')
+  if (!/^[A-Za-z0-9+/=_-]+$/.test(clean)) throw new SaveError({ key: 'save.notBase64' })
   const bin = atob(clean.replace(/-/g, '+').replace(/_/g, '/'))
   const bytes = new Uint8Array(bin.length)
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)

@@ -11,7 +11,14 @@
 // GameEntity.ReadFrom, BaseExperience, CurrencyWalletComponent,
 // BankInventoryComponent/StackableInventory, ShopComponent, ToolbeltComponent.
 
-import type { Id } from './types'
+import type { Id, Msg } from './types'
+
+/** Fehler mit Übersetzungsschlüssel (die Oberfläche übersetzt) */
+export class SaveError extends Error {
+  constructor(public msg: Msg) {
+    super(msg.key)
+  }
+}
 
 export interface SaveData {
   version: number
@@ -30,7 +37,7 @@ export interface SaveData {
   purchases: Record<Id, number>
   equipped: Id[]
   entities: string[]
-  warnings: string[]
+  warnings: Msg[]
 }
 
 /** Versionen, deren Aufbau hier geprüft ist */
@@ -47,7 +54,7 @@ class Reader {
     return this.bytes.length
   }
   private need(n: number) {
-    if (this.pos + n > this.bytes.length) throw new Error(`Spielstand endet unerwartet bei Byte ${this.pos}`)
+    if (this.pos + n > this.bytes.length) throw new SaveError({ key: 'save.truncated', params: { pos: this.pos } })
   }
   i32() {
     this.need(4)
@@ -128,9 +135,9 @@ export function parseSave(raw: Uint8Array): SaveData {
     entities: [],
     warnings: [],
   }
-  if (out.version < 0 || out.version > 1000) throw new Error('Das ist kein Spielstand von Melvor Idle 2.')
+  if (out.version < 0 || out.version > 1000) throw new SaveError({ key: 'save.notASave' })
   if (!KNOWN_SAVE_VERSIONS.includes(out.version)) {
-    out.warnings.push(`Spielstand-Version ${out.version} ist ungeprüft (geprüft: ${KNOWN_SAVE_VERSIONS.join(', ')}).`)
+    out.warnings.push({ key: 'save.unknownVersion', params: { version: out.version, known: KNOWN_SAVE_VERSIONS.join(', ') } })
   }
 
   // Kopf (SaveHeader.ReadFrom)
@@ -165,11 +172,11 @@ export function parseSave(raw: Uint8Array): SaveData {
         try {
           readComponent(out, entity, component, cr)
         } catch (err) {
-          out.warnings.push(`${short(entity)}/${component} nicht lesbar: ${(err as Error).message}`)
+          out.warnings.push({ key: 'save.unreadable', params: { what: `${short(entity)}/${component}`, reason: errMsg(err) } })
         }
       }
     } catch (err) {
-      out.warnings.push(`${short(entity)} nicht lesbar: ${(err as Error).message}`)
+      out.warnings.push({ key: 'save.unreadable', params: { what: short(entity), reason: errMsg(err) } })
     }
   }
   return out
@@ -249,3 +256,9 @@ function readComponent(out: SaveData, entity: string, component: string, r: Read
 }
 
 const short = (id: string) => id.replace(/^MelvorBase:/, '')
+
+/** Grund eines Fehlers als Meldung — SaveError behält seinen Schlüssel */
+export function errMsg(err: unknown): Msg {
+  if (err instanceof SaveError) return err.msg
+  return { key: 'save.error', params: { reason: String((err as Error)?.message ?? err) } }
+}

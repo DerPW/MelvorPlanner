@@ -2,6 +2,12 @@
 
 export type Id = string
 
+/** Meldung als Schlüssel + Werte — die Oberfläche übersetzt (src/i18n) */
+export interface Msg {
+  key: string
+  params?: Record<string, string | number | Msg>
+}
+
 export interface ItemQty {
   item: Id
   qty: number
@@ -93,11 +99,45 @@ export interface Purchase {
   demoLocked: boolean
 }
 
+export interface NamedValue {
+  name: string
+  value: number
+}
+
 export interface Item {
   id: Id
   name: string
   icon: string | null
   sells: CurrencyQty | null
+  description?: string
+  /** Bank-Reiter: Skills, die das Item herstellen bzw. verbrauchen */
+  bankTags?: { tag: Id; product: boolean; ingredient: boolean }[]
+  equipment?: { type: string; stats: NamedValue[]; power: NamedValue[]; protection: NamedValue[]; reqs: Req[]; mods: Mod[] }
+  weapon?: { type: string; damage: string; elements: string[]; ammo: string | null }
+  food?: { healing: number }
+  bury?: CurrencyQty
+  trap?: { type: string }
+  toolbelt?: { slot: string; mods: Mod[]; reqs: Req[] }
+  bait?: { mods: Mod[] }
+  compost?: { mods: Mod[] }
+  openable?: { always: ItemQty[]; drops: { item: Id; min: number; max: number; chance: number }[] }
+}
+
+/** Quelle, die der Planer nicht rechnet — nur für die Detailseite */
+export interface InfoSource {
+  item: Id
+  via: 'enemy' | 'hunting' | 'survey' | 'ranching' | 'chest'
+  /** Monster: seine Id */
+  from?: Id
+  name: string
+  icon?: string | null
+  /** Truhe: ihr Item */
+  chest?: Id
+  min: number
+  max: number
+  chance: number
+  level?: number
+  intervalMs?: number | null
 }
 
 export interface Skill {
@@ -159,6 +199,34 @@ export interface GameData {
   guildRanks: Record<Id, GuildRank[]>
   /** Lesbare Namen der Eingrenzungen von Boni */
   names: Record<Id, string>
+  infoSources: InfoSource[]
+  enemies: Enemy[]
+  areas: Area[]
+}
+
+export interface Enemy {
+  id: Id
+  name: string
+  icon: string | null
+  /** Kampf-Skill → Level */
+  levels: Record<Id, number>
+  stats: NamedValue[]
+  damageType: string | null
+  element: string | null
+  gold: { min: number; max: number } | null
+  reqs: Req[]
+}
+
+export interface Area {
+  id: Id
+  kind: 'area' | 'dungeon'
+  name: string
+  icon: string | null
+  category: string | null
+  difficulty: string | null
+  enemies: Id[]
+  reqs: Req[]
+  rewards: ItemQty[]
 }
 
 export interface Profile {

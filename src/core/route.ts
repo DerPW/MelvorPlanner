@@ -10,7 +10,7 @@
 
 import { MAX_LEVEL, levelForXp, xpForLevel } from './experience'
 import { actionTime, currencyYield, isAvailable, rankSources, successChance, yieldOf, type GameIndex } from './planner'
-import type { Id, Profile, Recipe } from './types'
+import type { Id, Msg, Profile, Recipe } from './types'
 
 export const GP = 'MelvorBase:GoldPieces'
 
@@ -21,6 +21,8 @@ export interface RouteOptions {
   includeMaterials: boolean
   /** Boni (Shop, Werkzeuge, Gilde) einrechnen */
   bonuses: boolean
+  /** Upgrades und Umwege durchrechnen und den schnellsten Weg nehmen */
+  smart: boolean
 }
 
 interface Bundle {
@@ -61,7 +63,7 @@ export interface Route {
   after: Profile
   reached: boolean
   alreadyDone: boolean
-  stopReason: string | null
+  stopReason: Msg | null
 }
 
 const NOT_AN_ACTIVITY = new Set(['shop', 'upgrade', 'mill', 'farming'])
@@ -99,7 +101,7 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
     return route
   }
   if (goal.kind === 'level' && goal.level > cap) {
-    route.stopReason = `Höchstes Level in dieser Version ist ${cap}.`
+    route.stopReason = { key: 'route.maxLevel', params: { cap } }
     return route
   }
 
@@ -152,10 +154,7 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
     }
 
     if (!best) {
-      route.stopReason =
-        goal.kind === 'level'
-          ? 'Mit deinem Stand gibt es keine freigeschaltete Aktivität, die diesen Skill trainiert.'
-          : 'Keine freigeschaltete Aktivität bringt Gold.'
+      route.stopReason = { key: goal.kind === 'level' ? 'route.noLevelActivity' : 'route.noGoldActivity' }
       break
     }
 

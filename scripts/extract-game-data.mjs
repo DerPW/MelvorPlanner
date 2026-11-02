@@ -310,7 +310,6 @@ each('FishingRecipe', (id, o) => {
 each('FiremakingRecipe', (id, o) => {
   push('FiremakingRecipe', id, o, {
     kind: 'firemaking',
-    name: `${o.DisplayName} verbrennen`,
     icon: icon(o.Icon),
     skill: 'MelvorBase:Firemaking',
     inputs: qtyList(o.Ingredients?.Items),
@@ -509,6 +508,129 @@ for (const [id, o] of all('MasteryGuildBonus')) {
     bonusSources.push({ id, kind: 'guild', name: o.DisplayName, icon: null, skill: req.Data.Component.Entity, rank: req.Data.Rank, mods })
   }
 }
+// Item-Details für die Detailseite: Beschreibung, Bank-Reiter, Ausrüstung,
+// Waffe, Nahrung, Truhe, Vergraben, Werkzeug/Köder/Kompost/Falle
+const ratingList = (list) =>
+  (list ?? []).map((x) => {
+    const key = Object.keys(x).find((k) => k !== 'Value' && typeof x[k] === 'string')
+    return { name: short(x[key] ?? key ?? '?'), value: x.Value ?? x.Quantity ?? 0 }
+  })
+const itemById = new Map(items.map((i) => [i.id, i]))
+for (const [id, o] of all('Item')) {
+  const it = itemById.get(id)
+  if (!it) continue
+  const c = o.Capabilities ?? {}
+  if (o.Description) it.description = o.Description
+  const tags = (o.BankTags ?? []).map((t) => ({ tag: t.BankTag, product: !!t.IsProduct, ingredient: !!t.IsIngredient }))
+  if (tags.length) it.bankTags = tags
+  const eq = c['MelvorBase:Equipment']
+  if (eq) {
+    it.equipment = {
+      type: short(eq.Type ?? ''),
+      stats: ratingList(eq.Stats?.Stats),
+      power: ratingList(eq.Stats?.PowerRatings),
+      protection: ratingList(eq.Stats?.ProtectionRatings),
+      reqs: requirements({ Requirements: eq.Requirements }).reqs,
+      mods: bonusMods(eq.Bonuses),
+    }
+  }
+  const wp = c['MelvorBase:Weapon']
+  if (wp) it.weapon = { type: short(wp.Type ?? ''), damage: short(wp.DamageType ?? ''), elements: (wp.Elements ?? []).map(short), ammo: wp.RequiredAmmoType ? short(wp.RequiredAmmoType) : null }
+  if (c['MelvorBase:Food']) it.food = { healing: c['MelvorBase:Food'].BaseHealing ?? 0 }
+  if (c['MelvorBase:Bury']?.CurrencyGain) it.bury = { currency: c['MelvorBase:Bury'].CurrencyGain.Currency, qty: c['MelvorBase:Bury'].CurrencyGain.Quantity }
+  if (c['MelvorBase:HuntingTrap']) it.trap = { type: short(c['MelvorBase:HuntingTrap'].TrapType ?? '') }
+  const tool = c['MelvorBase:Toolbelt']
+  if (tool) it.toolbelt = { slot: short(tool.FitsInSlot ?? ''), mods: bonusMods(tool.Bonuses), reqs: requirements({ Requirements: tool.Requirements }).reqs }
+  if (c['MelvorBase:FishingBait']) it.bait = { mods: bonusMods(c['MelvorBase:FishingBait'].Bonuses) }
+  if (c['MelvorBase:Compost']) it.compost = { mods: bonusMods({ Component: c['MelvorBase:Compost'].CompostModifierTemplate }) }
+  const op = c['MelvorBase:Openable']
+  if (op) {
+    const total = (op.DropTable ?? []).reduce((n, d) => n + d.Weight, 0) || 1
+    it.openable = {
+      always: qtyList(op.AlwaysDrops),
+      drops: (op.DropTable ?? []).map((d) => ({ item: d.Item, min: d.MinQuantity, max: d.MaxQuantity, chance: d.Weight / total })),
+    }
+  }
+}
+
+// Quellen, die der Planer (noch) nicht rechnet — für die Detailseite:
+// Monster-Beute, Hunting, Ranching, Truhen
+const infoSources = []
+const tableShare = (rows) => {
+  const total = (rows ?? []).reduce((n, r) => n + (r.Weight ?? 0), 0) || 1
+  return (rows ?? []).map((r) => ({ ...r, share: (r.Weight ?? 0) / total }))
+}
+handled.add('Enemy')
+for (const [id, e] of all('Enemy')) {
+  if (JSON.stringify(e.Drops ?? {}).includes('DemoPlaceholder')) continue
+  const name = typeof e.DisplayName === 'string' ? e.DisplayName : e.DisplayName?.Singular ?? short(id)
+  for (const f of e.Drops?.FixedItems ?? []) infoSources.push({ item: f.Item, via: 'enemy', from: id, name, min: f.MinQuantity, max: f.MaxQuantity, chance: 1 })
+  for (const t of e.Drops?.ItemTables ?? []) {
+    for (const r of tableShare(t.Table)) infoSources.push({ item: r.Item, via: 'enemy', from: id, name, min: r.MinQuantity, max: r.MaxQuantity, chance: (t.Chance ?? 1) * r.share })
+  }
+}
+handled.add('HuntingAnimal')
+for (const [id, a] of all('HuntingAnimal')) {
+  const name = typeof a.DisplayName === 'string' ? a.DisplayName : a.DisplayName?.Singular ?? short(id)
+  const lv = requirements(a).level
+  for (const p of a.Products ?? []) infoSources.push({ item: p.Item, via: 'hunting', name, icon: icon(a.Icon), min: p.Quantity, max: p.Quantity, chance: p.Chance ?? 1, level: lv })
+  for (const p of a.SurveyingProducts ?? []) infoSources.push({ item: p.Item, via: 'survey', name, icon: icon(a.Icon), min: p.Quantity, max: p.Quantity, chance: p.Chance ?? 1, level: lv })
+}
+handled.add('RanchingAnimal')
+for (const [id, a] of all('RanchingAnimal')) {
+  const name = typeof a.DisplayName === 'string' ? a.DisplayName : a.DisplayName?.Singular ?? short(id)
+  for (const p of a.Products ?? []) {
+    infoSources.push({ item: p.Item, via: 'ranching', name, icon: icon(a.Icon), min: p.Quantity, max: p.Quantity, chance: 1, level: requirements(a).level, intervalMs: a.ProductInterval ?? null })
+  }
+}
+for (const it of items) {
+  for (const d of it.openable?.drops ?? []) infoSources.push({ item: d.item, via: 'chest', name: it.name, icon: it.icon, chest: it.id, min: d.min, max: d.max, chance: d.chance })
+  for (const d of it.openable?.always ?? []) infoSources.push({ item: d.item, via: 'chest', name: it.name, icon: it.icon, chest: it.id, min: d.qty, max: d.qty, chance: 1 })
+}
+
+// Monster, Kampfgebiete und Dungeons — für Suche und Detailseiten
+const displayName = (o, id) => (typeof o.DisplayName === 'string' ? o.DisplayName : o.DisplayName?.Singular ?? short(id))
+const realIcon = (res) => (res && !String(res).includes('missing_artwork') ? icon(res) : null)
+const enemies = []
+for (const [id, e] of all('Enemy')) {
+  if (JSON.stringify(e).includes('DemoPlaceholder')) continue
+  const gold = (e.Drops?.FixedCurrencies ?? []).find((c) => c.Currency === 'MelvorBase:GoldPieces')
+  enemies.push({
+    id,
+    name: displayName(e, id),
+    icon: realIcon(e.Sprite),
+    levels: Object.fromEntries((e.Levels ?? []).map((l) => [l.Key, l.Value])),
+    stats: ratingList(e.Stats?.Stats),
+    damageType: e.DamageType ? short(e.DamageType) : null,
+    element: e.Element ? short(e.Element) : null,
+    gold: gold ? { min: gold.MinQuantity, max: gold.MaxQuantity } : null,
+    reqs: requirements(e).reqs,
+  })
+}
+const areas = []
+handled.add('Dungeon')
+for (const [type, kind] of [['CombatArea', 'area'], ['Dungeon', 'dungeon']]) {
+  for (const [id, a] of all(type)) {
+    const ids = []
+    for (const x of a.Enemies ?? []) {
+      if (typeof x === 'string') ids.push(x)
+      else for (const w of x.Enemies ?? []) if (w.Enemy && !ids.includes(w.Enemy)) ids.push(w.Enemy)
+    }
+    areas.push({
+      id,
+      kind,
+      name: displayName(a, id),
+      icon: realIcon(a.Icon),
+      category: objects.CombatAreaCategory?.get(a.Category)?.DisplayName ?? (a.Category ? short(a.Category) : null),
+      difficulty: a.Difficulty ? short(a.Difficulty) : null,
+      enemies: ids,
+      reqs: requirements({ Requirements: a.UnlockRequirements }).reqs,
+      rewards: qtyList(a.Rewards?.Items ?? (Array.isArray(a.Rewards) ? a.Rewards : [])),
+    })
+  }
+}
+icon('res://Assets/Icons/Combat.png')
+
 // Lesbare Namen der Eingrenzungen (Kategorie, Fanggebiet, Rezept …)
 const scopeIds = new Set(bonusSources.flatMap((b) => b.mods.flatMap((m) => [m.recipe, m.category, m.subcategory, m.location, m.recipetype, m.item]).filter(Boolean)))
 const names = {}
@@ -576,6 +698,9 @@ const data = {
   bonusSources,
   guildRanks,
   names,
+  infoSources,
+  enemies,
+  areas,
 }
 fs.writeFileSync(path.join(OUT_DIR, 'data.json'), JSON.stringify(data))
 

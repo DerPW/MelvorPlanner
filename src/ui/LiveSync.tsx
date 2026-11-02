@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
-import type { SaveData } from '../core/save'
+import { errMsg, SaveError, type SaveData } from '../core/save'
+import type { Msg } from '../core/types'
 import { profileFromSave, readSave } from '../core/saveImport'
 import { useGame } from './state'
 
@@ -21,7 +22,7 @@ export interface LiveState {
   /** Kopf je Spielstand für die Auswahl */
   headers: Record<string, SaveData>
   lastSync: number | null
-  error: string | null
+  error: Msg | null
   busy: boolean
 }
 
@@ -30,7 +31,7 @@ export const useLive = () => useContext(LiveContext)
 
 async function fetchSave(name: string): Promise<SaveData> {
   const res = await fetch(`api/saves/${encodeURIComponent(name)}`, { cache: 'no-store' })
-  if (!res.ok) throw new Error(res.status === 404 ? 'Spielstand nicht mehr da' : `Server antwortet ${res.status}`)
+  if (!res.ok) throw new SaveError(res.status === 404 ? { key: 'live.gone' } : { key: 'live.status', params: { status: res.status } })
   return readSave(new Uint8Array(await res.arrayBuffer()))
 }
 
@@ -90,7 +91,7 @@ export function LiveSyncProvider({ children }: { children: ReactNode }) {
         setLive((l) => ({ ...l, lastSync: Date.now(), error: null, busy: false }))
       } catch (e) {
         // Das Spiel schreibt über eine Zwischendatei — beim nächsten Takt nochmal
-        if (!stopped) setLive((l) => ({ ...l, error: (e as Error).message, busy: false }))
+        if (!stopped) setLive((l) => ({ ...l, error: errMsg(e), busy: false }))
       }
     }
     tick()

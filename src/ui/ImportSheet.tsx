@@ -1,21 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
 import { fmtInt } from '../core/format'
 import { GP } from '../core/route'
-import type { SaveData } from '../core/save'
+import { errMsg, type SaveData } from '../core/save'
 import { profileFromSave, readSave, type ImportResult } from '../core/saveImport'
+import type { Msg } from '../core/types'
+import { useI18n } from '../i18n'
 import { GameIcon, Sym } from './components'
 import { useGame } from './state'
 
 const SAVE_DIR = '~/Library/Application Support/Games By Malcs/Melvor Idle 2/steam/'
 
-const dateFmt = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' })
-
 /** macOS-Sheet: Spielstand als Datei oder Export-Text → Vorschau → übernehmen */
 export function ImportSheet({ onClose }: { onClose: () => void }) {
   const { index, state, dispatch } = useGame()
+  const { t } = useI18n()
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<Msg | null>(null)
   const [save, setSave] = useState<SaveData | null>(null)
   const [result, setResult] = useState<ImportResult | null>(null)
   const [drag, setDrag] = useState(false)
@@ -37,7 +38,7 @@ export function ImportSheet({ onClose }: { onClose: () => void }) {
     } catch (e) {
       setSave(null)
       setResult(null)
-      setError((e as Error).message)
+      setError(errMsg(e))
     } finally {
       setBusy(false)
     }
@@ -51,10 +52,10 @@ export function ImportSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="sheet-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-label="Spielstand importieren">
+      <div className="sheet" role="dialog" aria-modal="true" aria-label={t('import.title')}>
         <div className="sheet-head">
-          <h2>Spielstand importieren</h2>
-          <p>Level, XP, Bank, Gold, Shop-Käufe und Werkzeuge werden übernommen.</p>
+          <h2>{t('import.title')}</h2>
+          <p>{t('import.subtitle')}</p>
         </div>
 
         {!save && (
@@ -75,8 +76,8 @@ export function ImportSheet({ onClose }: { onClose: () => void }) {
               onClick={() => file.current?.click()}
             >
               <GameIcon src="game/icons/Icons/Bank.webp" size={34} />
-              <b>Spielstand-Datei hierher ziehen</b>
-              <span>oder klicken und eine .sav-Datei wählen</span>
+              <b>{t('import.drop')}</b>
+              <span>{t('import.dropHint')}</span>
               <input
                 ref={file}
                 type="file"
@@ -90,19 +91,19 @@ export function ImportSheet({ onClose }: { onClose: () => void }) {
             </div>
             <div className="path-hint">
               <span>
-                Liegt unter <code>{SAVE_DIR}&lt;Steam-ID&gt;/saves/</code> — im Dateidialog ⇧⌘G drücken und den Pfad einfügen.
+                {t('import.pathBefore')} <code>{SAVE_DIR}&lt;Steam-ID&gt;/saves/</code> {t('import.pathAfter')}
               </span>
               <button className="btn plain small" onClick={() => navigator.clipboard?.writeText(SAVE_DIR.replace('~', '$HOME'))}>
-                Pfad kopieren
+                {t('import.copyPath')}
               </button>
             </div>
 
             <div className="or">
-              <span>oder Export-Text aus dem Spiel</span>
+              <span>{t('import.or')}</span>
             </div>
             <textarea
               className="paste"
-              placeholder="Export-Text des Spielstands (im Spiel: Spielstand exportieren) hier einfügen"
+              placeholder={t('import.pastePlaceholder')}
               value={text}
               onChange={(e) => setText(e.target.value)}
               spellCheck={false}
@@ -110,10 +111,10 @@ export function ImportSheet({ onClose }: { onClose: () => void }) {
           </>
         )}
 
-        {busy && <p className="muted">Wird gelesen …</p>}
+        {busy && <p className="muted">{t('import.reading')}</p>}
         {error && (
           <p className="note bad" style={{ height: 'auto', padding: '6px 10px', borderRadius: 8 }}>
-            <Sym name="warn" size={14} /> {error}
+            <Sym name="warn" size={14} /> {t(error)}
           </p>
         )}
 
@@ -128,20 +129,20 @@ export function ImportSheet({ onClose }: { onClose: () => void }) {
                 setResult(null)
               }}
             >
-              Anderen wählen
+              {t('import.other')}
             </button>
           )}
           <span className="spacer" />
           <button className="btn" onClick={onClose}>
-            Abbrechen
+            {t('common.cancel')}
           </button>
           {save ? (
             <button className="btn primary" onClick={apply}>
-              Profil ersetzen
+              {t('import.apply')}
             </button>
           ) : (
             <button className="btn primary" disabled={!text.trim() || busy} onClick={() => load(text)}>
-              Lesen
+              {t('import.read')}
             </button>
           )}
         </div>
@@ -152,40 +153,32 @@ export function ImportSheet({ onClose }: { onClose: () => void }) {
 
 function Preview({ save, result }: { save: SaveData; result: ImportResult }) {
   const { index } = useGame()
+  const { t, locale } = useI18n()
   const p = result.profile
   const skills = index.data.skills.filter((s) => (p.levels[s.id] ?? 1) > 1)
   const totalLevel = Object.values(p.levels).reduce((a, b) => a + b, 0)
+  const dateFmt = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' })
   return (
     <div className="preview">
       <div className="preview-who">
         <div>
-          <b>{save.character || 'Ohne Namen'}</b>
+          <b>{save.character || t('live.unnamed')}</b>
           <span className="muted">
             {' '}
             · {save.gamemode}
             {save.isDemo ? ' · Demo' : ''}
           </span>
         </div>
-        <span className="muted">{save.savedAt ? `gespeichert ${dateFmt.format(save.savedAt)}` : ''}</span>
+        <span className="muted">{save.savedAt ? t('live.saved', { time: dateFmt.format(save.savedAt) }) : ''}</span>
       </div>
       <div className="preview-facts">
-        <span>
-          <b>{totalLevel}</b> Gesamtlevel
-        </span>
+        <span>{t('import.fact.level', { n: totalLevel })}</span>
         <span>
           <GameIcon src={index.currencies.get(GP)?.icon} size={14} /> <b>{fmtInt(p.currencies[GP] ?? 0)}</b> GP
         </span>
-        <span>
-          <b>{Object.keys(p.inventory).length}</b> Items in der Bank
-        </span>
-        <span>
-          <b>{Object.keys(p.owned).length}</b> Käufe
-        </span>
-        {p.equipped && p.equipped.length > 0 && (
-          <span>
-            <b>{p.equipped.length}</b> Werkzeuge
-          </span>
-        )}
+        <span>{t('import.fact.bank', { n: Object.keys(p.inventory).length })}</span>
+        <span>{t('import.fact.purchases', { n: Object.keys(p.owned).length })}</span>
+        {p.equipped && p.equipped.length > 0 && <span>{t('import.fact.tools', { n: p.equipped.length })}</span>}
       </div>
       {skills.length > 0 && (
         <div className="preview-skills">
@@ -198,18 +191,15 @@ function Preview({ save, result }: { save: SaveData; result: ImportResult }) {
       )}
       {result.pendingLevelUps.map((u) => (
         <p key={u.skill} className="preview-note">
-          {index.skills.get(u.skill)?.name}: Die XP reichen schon für Level {u.byXp} — das Spiel zeigt noch {u.saved}, bis wieder XP
-          dazukommen. Übernommen wird {u.byXp}.
+          {t('import.pendingLevel', { skill: index.skills.get(u.skill)?.name ?? u.skill, byXp: u.byXp, saved: u.saved })}
         </p>
       ))}
       {save.warnings.map((w) => (
-        <p key={w} className="preview-note bad">
-          {w}
+        <p key={JSON.stringify(w)} className="preview-note bad">
+          {t(w)}
         </p>
       ))}
-      {result.unknownItems.length > 0 && (
-        <p className="preview-note">{result.unknownItems.length} Items kennt der Planer nicht (neuere Spielversion?) — Daten neu extrahieren.</p>
-      )}
+      {result.unknownItems.length > 0 && <p className="preview-note">{t('import.unknownItems', { n: result.unknownItems.length })}</p>}
     </div>
   )
 }
