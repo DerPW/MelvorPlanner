@@ -10,6 +10,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.8.1',
+    date: '2026-11-02',
+    de: {
+      title: 'Alternative je Schritt',
+      items: [
+        'Jeder Schritt im Ablauf hat „Alternative ›“: nimmt für genau diesen Schritt die nächstbeste Möglichkeit (z. B. Shrimp statt Seed Bait fürs Cooking-Training). „‹“ holt die vorige zurück.',
+        'Auch Vorstufen („dafür eine Vorstufe“) lassen sich so einzeln anders beschaffen.',
+      ],
+    },
+    en: {
+      title: 'Alternative per step',
+      items: [
+        'Every step in the list has “Alternative ›”: it takes the next best option for exactly that step (e.g. Shrimp instead of Seed Bait for Cooking training). “‹” brings the previous one back.',
+        'Prerequisites (“one prerequisite”) can be sourced differently the same way.',
+      ],
+    },
+  },
+  {
     version: '0.8.0',
     date: '2026-11-02',
     de: {

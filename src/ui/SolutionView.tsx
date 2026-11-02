@@ -352,13 +352,72 @@ function stepKeys(solution: Solution): string[] {
 }
 
 /** Der Ablauf: Phasen mit abhakbaren Schritten */
-/** „Diesen Weg meiden“ — die Route reicht es an die Schritte durch */
-const AvoidContext = createContext<((key: string) => void) | null>(null)
+/** Alternativen je Schritt — die Route reicht ihre gemiedenen Wege durch */
+export interface AvoidApi {
+  /** gemiedene Schlüssel, in der Reihenfolge, in der sie dazukamen */
+  avoided: string[]
+  avoid: (key: string) => void
+  allow: (key: string) => void
+}
+const AvoidContext = createContext<AvoidApi | null>(null)
+
+/** Was ein Schritt liefert: ein Item oder Training in einem Skill */
+type StepGoal = { item?: Id; skill?: Id | null }
+
+/** „Alternative ‹ ›“ für einen Schritt: › meidet seinen Weg, ‹ erlaubt den
+ *  zuletzt gemiedenen Weg wieder, der dasselbe liefert (dasselbe Item bzw.
+ *  Training im selben Skill) */
+function useAlternative(key: string | undefined, goal: StepGoal) {
+  const api = useContext(AvoidContext)
+  const { index } = useGame()
+  if (!api || !key) return null
+  const same = (k: string) => {
+    if (k.startsWith('purchase:')) {
+      const p = index.purchases.get(k.slice(9))
+      return !!goal.item && !!p?.items.some((i) => i.item === goal.item)
+    }
+    const r = index.recipes.get(k)
+    if (!r) return false
+    return goal.item ? r.outputs.some((o) => o.item === goal.item) : !!goal.skill && r.skill === goal.skill
+  }
+  const back = [...api.avoided].reverse().find(same)
+  return { next: () => api.avoid(key), back: back ? () => api.allow(back) : undefined }
+}
+
+function AltControl({ alt, compact }: { alt: ReturnType<typeof useAlternative>; compact?: boolean }) {
+  const t = useT()
+  if (!alt) return null
+  return (
+    <span className={`step-alt ${compact ? 'compact' : ''}`} onClick={(e) => e.stopPropagation()}>
+      {alt.back && (
+        <button title={t('alt.backHint')} aria-label={t('alt.backHint')} onClick={alt.back}>
+          <Sym name="chevron" size={10} className="flip" />
+        </button>
+      )}
+      <button title={t('alt.otherHint')} aria-label={t('alt.otherHint')} onClick={alt.next}>
+        {!compact && <span>{t('alt.other')}</span>}
+        <Sym name="chevron" size={10} />
+      </button>
+    </span>
+  )
+}
+
+/** Vorstufe in einer Kette: Text plus eigene Alternative */
+function ChainEntry({ r, n }: { r: Recipe; n: number }) {
+  const out = r.outputs[0]?.item
+  const alt = useAlternative(avoidKey(r), { item: out })
+  return (
+    <span>
+      <GameIcon src={r.icon} size={14} entity={out ? `item:${out}` : null} /> {fmtInt(Math.ceil(n))}× <SourceText r={r} />
+      <AltControl alt={alt} compact />
+    </span>
+  )
+}
 
 /** Schlüssel, unter dem ein Rezept gemieden wird: Shop-Quellen meiden den Kauf */
 export const avoidKey = (r: Recipe) => (r.purchase ? `purchase:${r.purchase}` : r.id)
 
-export function SolutionFlow({ solution, scope, onAvoid }: { solution: Solution; scope: string; onAvoid?: (key: string) => void }) {
+export function SolutionFlow({ solution, scope, alternatives }: { solution: Solution; scope: string; alternatives?: AvoidApi }) {
   const { state, dispatch } = useGame()
   const t = useT()
   const key = (k: string) => `${scope}:${k}`
@@ -388,7 +447,7 @@ export function SolutionFlow({ solution, scope, onAvoid }: { solution: Solution;
           </span>
         )}
       </div>
-      <AvoidContext.Provider value={onAvoid ?? null}>{rows}</AvoidContext.Provider>
+      <AvoidContext.Provider value={alternatives ?? null}>{rows}</AvoidContext.Provider>
     </>
   )
 }
@@ -452,6 +511,7 @@ function PhaseBlock({ phase, index, keyFor }: { phase: Phase; index: number; key
           <StepRow
             k={keyFor(buyKey(index))}
             avoid={isGoal(phase.why) ? undefined : `purchase:${phase.purchase.id}`}
+            goal={{ item: phase.purchase.items[0]?.item }}
             entity={`purchase:${phase.purchase.id}`}
             icon={phase.purchase.icon}
             title={<TNodes k="flow.buy" nodes={{ name: <Ref entity={`purchase:${phase.purchase.id}`}>{phase.purchase.name}</Ref> }} />}
@@ -563,6 +623,7 @@ function SegmentRow({ seg, route, k, share }: { seg: RouteSegment; route: Route;
     <StepRow
       k={k}
       avoid={avoidKey(r)}
+      goal={{ skill: route.goal.kind === 'level' ? route.goal.skill : r.skill }}
       icon={r.icon}
       entity={r.outputs[0] ? `item:${r.outputs[0].item}` : undefined}
       title={
@@ -597,14 +658,9 @@ function SegmentRow({ seg, route, k, share }: { seg: RouteSegment; route: Route;
           )}
           {open && (
             <span className="chain">
-              {chain.map(([id, n]) => {
-                const cr = index.recipes.get(id)!
-                return (
-                  <span key={id}>
-                    <GameIcon src={cr.icon} size={14} entity={cr.outputs[0] ? `item:${cr.outputs[0].item}` : null} /> {fmtInt(Math.ceil(n))}× <SourceText r={cr} />
-                  </span>
-                )
-              })}
+              {chain.map(([id, n]) => (
+                <ChainEntry key={id} r={index.recipes.get(id)!} n={n} />
+              ))}
             </span>
           )}
         </>
@@ -631,6 +687,7 @@ function MakeRow({ step, k, levels }: { step: MakeStep; k: string; levels: Recor
     <StepRow
       k={k}
       avoid={(index.producers.get(step.item) ?? []).filter((x) => !x.demoLocked).length > 1 || r.purchase ? avoidKey(r) : undefined}
+      goal={{ item: step.item }}
       entity={`item:${step.item}`}
       icon={item?.icon ?? r.icon}
       title={
@@ -664,6 +721,7 @@ function StepRow({
   meta,
   entity,
   avoid,
+  goal,
 }: {
   k: string
   icon: string | null | undefined
@@ -674,10 +732,12 @@ function StepRow({
   entity?: string
   /** Schlüssel zum Meiden dieses Wegs (Rezept oder Kauf) */
   avoid?: string
+  /** Was der Schritt liefert — dazu passt „‹“ (vorige Alternative) */
+  goal?: StepGoal
 }) {
   const { state, dispatch } = useGame()
   const t = useT()
-  const onAvoid = useContext(AvoidContext)
+  const alt = useAlternative(avoid, goal ?? {})
   const done = !!state.done[k]
   return (
     <li className={`step ${done ? 'done' : ''}`} data-entity={entity}>
@@ -687,14 +747,12 @@ function StepRow({
       <GameIcon src={icon} size={26} entity={entity} />
       <div className="what">
         <b>{title}</b>
-        <div className="sub">{sub}</div>
+        <div className="sub">
+          {sub}
+          <AltControl alt={alt} />
+        </div>
       </div>
       <div className="meta">{meta}</div>
-      {onAvoid && avoid && (
-        <button className="avoid-btn" title={t('alt.avoidStep')} aria-label={t('alt.avoidStep')} onClick={() => onAvoid(avoid)}>
-          <Sym name="avoid" size={13} />
-        </button>
-      )}
     </li>
   )
 }

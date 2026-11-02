@@ -127,7 +127,17 @@ export function RouteView({ id }: { id: string }) {
           </div>
         )}
         <div className="fade-in" key={tab}>
-          {tab === 'flow' && <SolutionFlow solution={solution} scope={id} onAvoid={(k) => !avoid.includes(k) && setAvoid([...avoid, k])} />}
+          {tab === 'flow' && (
+            <SolutionFlow
+              solution={solution}
+              scope={id}
+              alternatives={{
+                avoided: avoid,
+                avoid: (k) => !avoid.includes(k) && setAvoid([...avoid, k]),
+                allow: (k) => setAvoid(avoid.filter((x) => x !== k)),
+              }}
+            />
+          )}
           {tab === 'tree' && plan?.kind === 'craft' && <TreeTable plan={plan.plan} levels={plan.at.levels} solution={solution} />}
           {tab === 'materials' && plan?.kind === 'craft' && <Materials plan={plan.plan} />}
         </div>
@@ -172,7 +182,7 @@ function AlternativeBar({ route, onNext, onPrev }: { route: RouteTarget; onNext:
         <button className="icon-btn" disabled={n <= 1 || busy} title={t('alt.prev')} aria-label={t('alt.prev')} onClick={onPrev}>
           <Sym name="chevron" size={12} className="flip" />
         </button>
-        <span className="alt-n">{n === 1 && !avoid.length ? t('alt.best') : t('alt.way', { n })}</span>
+        <span className="alt-n">{avoid.length ? t('alt.way', { n }) : t('alt.best')}</span>
         <button className="icon-btn" disabled={busy} title={t('alt.next')} aria-label={t('alt.next')} onClick={next}>
           <Sym name="chevron" size={12} />
         </button>

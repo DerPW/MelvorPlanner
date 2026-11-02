@@ -1141,10 +1141,17 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
 .chip-x { display: grid; place-items: center; width: 16px; height: 16px; border: 0; border-radius: 8px; background: transparent; color: var(--text-2); }
 .chip-x:hover { background: var(--hover); color: var(--text); }
 .alt-hint { font-size: 11px; }
-.step:has(.avoid-btn) { grid-template-columns: 16px 26px minmax(0, 1fr) auto 22px; }
-.avoid-btn { width: 22px; height: 22px; border: 0; border-radius: 6px; display: grid; place-items: center; background: transparent; color: var(--text-3); opacity: 0; transition: opacity 0.15s ease, background 0.15s ease; }
-.step:hover .avoid-btn, .avoid-btn:focus-visible { opacity: 1; }
-.avoid-btn:hover { background: var(--hover); color: var(--warn); }
+/* „Alternative ‹ ›“ an Schritten und Vorstufen */
+.step-alt { display: inline-flex; align-items: center; gap: 1px; margin-left: 2px; border-radius: 7px; background: var(--control); vertical-align: middle; }
+.step-alt button {
+  display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 6px;
+  border: 0; border-radius: 7px; background: transparent;
+  font: inherit; font-size: 11px; color: var(--text-2);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.step-alt button:hover { background: var(--hover); color: var(--text); }
+.step-alt.compact button { height: 18px; padding: 0 4px; }
+.step-alt.compact { margin-left: 4px; }
 
 /* ---------------------------------------------------------------- Ausrüstungs-Vergleich */
 
