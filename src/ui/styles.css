@@ -1238,6 +1238,12 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
 .lv-num { display: flex; flex-direction: column; align-items: flex-end; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .lv-num b { font-size: 12.5px; font-weight: 600; }
 .lv-num .warn { color: var(--warn); font-weight: 600; }
+.lv-table { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.lv-table th { padding: 0 4px 5px; font-size: 11px; font-weight: 500; color: var(--text-3); text-align: right; }
+.lv-table td { padding: 5px 4px; border-top: 0.5px solid var(--separator); text-align: right; white-space: nowrap; }
+.lv-table td:first-child { text-align: left; color: var(--text-2); max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+.lv-table td.up { color: var(--ok); font-weight: 600; }
+.lv-list > p.muted:last-child { margin-top: 6px; }
 .lv-route .lc-route { padding: 10px 12px; gap: 4px; font-size: 12.5px; }
 .lv-route > .muted { margin: 0 4px; font-size: 12.5px; }
 

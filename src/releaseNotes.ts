@@ -10,6 +10,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.11.2',
+    date: '2026-11-02',
+    de: {
+      title: 'Intervalle und Boni in der Live-Ansicht',
+      items: [
+        'Live: „Je Aktion“ zeigt Zeit, XP, Ertrag (und Erfolgschance beim Kochen und Thieving) — als Grundwert, mit Boni und gemessen. Gemessen wird über die XP/h, daraus die Aktionen je Stunde.',
+        'Live: „Boni auf diese Aktion“ listet jeden wirkenden Bonus mit Wert und Quelle (Shop-Kauf, Werkzeug, Gilde); was der Planer nicht einrechnet, ist markiert.',
+      ],
+    },
+    en: {
+      title: 'Intervals and bonuses in the live view',
+      items: [
+        'Live: “Per action” shows time, XP, yield (and success chance for cooking and thieving) — base, with bonuses and measured. The measurement goes via XP/h, giving actions per hour.',
+        'Live: “Bonuses on this action” lists every bonus that applies, with value and source (shop purchase, tool, guild); what the planner does not count is marked.',
+      ],
+    },
+  },
+  {
     version: '0.11.1',
     date: '2026-11-02',
     de: {

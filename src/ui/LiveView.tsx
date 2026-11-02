@@ -5,9 +5,12 @@
 import { useState } from 'react'
 import { xpForLevel } from '../core/experience'
 import { liveStock } from '../core/live'
+import { actionTime, successChance, yieldOf } from '../core/planner'
+import type { Recipe } from '../core/types'
 import { fmtDurationShort, fmtInt } from '../core/format'
 import { useI18n } from '../i18n'
-import { GameIcon, Sym, Toolbar, useNow } from './components'
+import { GameIcon, Ref, Sym, Toolbar, useNow } from './components'
+import { modLabel, modScope, modValue } from './bonusText'
 import { clockAt, leftNow, Measuring, StepBar, statusLine, totalLeft, useTrack } from './LiveTrack'
 import { routeIcon, routeLabel } from './routeText'
 import { useGame } from './state'
@@ -103,7 +106,7 @@ export function LiveView() {
         {flow && (flow.gains.length > 0 || flow.uses.length > 0) && (
           <div className="lv-cols">
             {/* Bestände sekündlich weitergerechnet, beim nächsten Spielstand korrigiert */}
-            <FlowList title={t('live.gains')} rows={flow.gains.map((g) => ({ ...g, stock: liveStock(g.stock, g.perHour, lastAt, now), sign: '+' }))} />
+            <FlowList title={t('live.gains')} empty={t('live.noGains')} rows={flow.gains.map((g) => ({ ...g, stock: liveStock(g.stock, g.perHour, lastAt, now), sign: '+' }))} />
             <FlowList
               title={t('live.uses')}
               empty={t('live.noUses')}
@@ -115,6 +118,14 @@ export function LiveView() {
                 first: u.item === flow.stop?.item,
               }))}
             />
+          </div>
+        )}
+
+        {/* Was eine Aktion dauert und bringt, und welche Boni darauf wirken */}
+        {action?.recipe && !action.recipe.combat && (
+          <div className="lv-cols">
+            <PerAction recipe={action.recipe} />
+            <ActionBonuses recipe={action.recipe} />
           </div>
         )}
 
@@ -185,6 +196,99 @@ function FlowList({ title, rows, empty }: { title: string; empty?: string; rows:
           </span>
         </div>
       ))}
+    </section>
+  )
+}
+
+/** Je Aktion: Grundwert, mit Boni, gemessen. Gemessen wird über die XP/h —
+ *  daraus die Aktionen je Stunde, daraus Zeit und Ertrag je Aktion */
+function PerAction({ recipe }: { recipe: Recipe }) {
+  const { index, baseIndex, state } = useGame()
+  const { t, locale } = useI18n()
+  const { rates } = useTrack()
+  const p = state.profile
+  const base = baseIndex.recipes.get(recipe.id) ?? recipe
+  const sec = new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const num = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 })
+  const pct = (x: number) => `${num.format(x * 100)} %`
+  const xpEach = recipe.xp * successChance(recipe, p)
+  const xpH = recipe.skill ? (rates?.xpPerHour[recipe.skill] ?? 0) : 0
+  const perHour = xpH > 0 && xpEach > 0 ? xpH / xpEach : null
+  const out = recipe.outputs.find((o) => !o.extra)?.item ?? recipe.outputs[0]?.item
+  const rows: { label: string; base: number; now: number; measured: number | null; fmt: (x: number) => string; lower?: boolean }[] = [
+    { label: t('live.time'), base: actionTime(base, p), now: actionTime(recipe, p), measured: perHour ? 3_600_000 / perHour : null, fmt: (ms) => `${sec.format(ms / 1000)} s`, lower: true },
+    { label: 'XP', base: base.xp, now: recipe.xp, measured: null, fmt: (x) => num.format(x) },
+  ]
+  if (out)
+    rows.push({
+      label: index.items.get(out)?.name ?? out,
+      base: yieldOf(base, out, p),
+      now: yieldOf(recipe, out, p),
+      measured: perHour && rates && (rates.itemsPerHour[out] ?? 0) > 0 ? rates.itemsPerHour[out] / perHour : null,
+      fmt: (x) => `${num.format(x)}×`,
+    })
+  if (recipe.success) rows.push({ label: t('live.success'), base: successChance(base, p), now: successChance(recipe, p), measured: null, fmt: pct })
+  return (
+    <section className="lv-list">
+      <div className="lv-sec-title">{t('live.perAction')}</div>
+      <table className="lv-table">
+        <thead>
+          <tr>
+            <th />
+            <th>{t('live.base')}</th>
+            <th>{t('live.withBonus')}</th>
+            <th>{t('live.measured')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const gain = r.lower ? r.base - r.now : r.now - r.base
+            return (
+              <tr key={r.label}>
+                <td>{r.label}</td>
+                <td className="num">{r.fmt(r.base)}</td>
+                <td className={`num ${gain > 1e-9 ? 'up' : ''}`}>{r.fmt(r.now)}</td>
+                <td className="num">{r.measured !== null ? r.fmt(r.measured) : '—'}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+      {perHour && <p className="muted">{t('live.actionsPerHour', { n: fmtInt(perHour) })}</p>}
+    </section>
+  )
+}
+
+/** Boni, die auf die laufende Aktion wirken — mit Quelle */
+function ActionBonuses({ recipe }: { recipe: Recipe }) {
+  const { index, bonus, state } = useGame()
+  const { t } = useI18n()
+  const list = bonus.perRecipe.get(recipe.id) ?? []
+  const entityOf = (s: (typeof list)[number]['source']) =>
+    s.kind === 'purchase' ? `purchase:${s.id}` : s.kind === 'item' ? `item:${s.id}` : s.skill ? `skill:${s.skill}` : null
+  return (
+    <section className="lv-list">
+      <div className="lv-sec-title">{t('live.bonuses')}</div>
+      {!state.options.bonuses ? (
+        <p className="muted">{t('live.bonusesOff')}</p>
+      ) : list.length === 0 ? (
+        <p className="muted">{t('live.noBonuses')}</p>
+      ) : (
+        list.map((a, i) => (
+          <div key={i} className="lv-row" title={modScope(index, a.mod, t)}>
+            <GameIcon src={a.source.icon ?? (a.source.skill ? index.skills.get(a.source.skill)?.icon : null)} size={22} entity={entityOf(a.source)} />
+            <span className="grow">
+              <b>
+                {modValue(a.mod, a.value)} {modLabel(a.mod, t)}
+              </b>
+              <span className="muted">
+                <Ref entity={entityOf(a.source)}>{a.source.name}</Ref>
+                {!a.supported && ` · ${t('bonus.notCounted')}`}
+              </span>
+            </span>
+          </div>
+        ))
+      )}
     </section>
   )
 }
