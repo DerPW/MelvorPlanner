@@ -53,6 +53,8 @@ export interface State {
   /** Ausrüstung: zwei Teile im A/B-Vergleich, offener Reiter */
   compare: { a: Id | null; b: Id | null }
   gearTab: GearTab
+  /** Zielmonster der Ausrüstungs-Ansicht (null = das mit den meisten XP) */
+  gearTarget: Id | null
   /** Vorige Ansichten für „Zurück" (nicht gespeichert) */
   history: View[]
   /** Brotkrumen: der Pfad über Verweise bis zur jetzigen Ansicht (nicht gespeichert) */
@@ -92,6 +94,9 @@ export type Action =
   | { type: 'compareItem'; item: Id }
   | { type: 'setCompare'; a?: Id | null; b?: Id | null }
   | { type: 'gearTab'; tab: GearTab }
+  | { type: 'gearTarget'; enemy: Id | null }
+  /** Optimale Ausrüstung gegen dieses Monster öffnen */
+  | { type: 'optimizeFor'; enemy: Id }
   | { type: 'back' }
 
 export const emptyProfile = (): Profile => ({ levels: {}, inventory: {}, currencies: {}, owned: {}, farmingPlots: 4 })
@@ -110,6 +115,7 @@ export const initialState = (): State => ({
   activeRoute: null,
   compare: { a: null, b: null },
   gearTab: 'compare',
+  gearTarget: null,
   history: [],
   trail: [{ kind: 'routes' }],
 })
@@ -216,6 +222,10 @@ export function reducer(s: State, a: Action): State {
       return { ...s, compare: { a: a.a !== undefined ? a.a : (s.compare?.a ?? null), b: a.b !== undefined ? a.b : (s.compare?.b ?? null) } }
     case 'gearTab':
       return { ...s, gearTab: a.tab }
+    case 'gearTarget':
+      return { ...s, gearTarget: a.enemy }
+    case 'optimizeFor':
+      return reducer({ ...s, gearTab: 'optimal', gearTarget: a.enemy }, { type: 'view', view: { kind: 'gear' } })
     case 'setLive':
       return { ...s, live: a.save ? { save: a.save } : null }
   }

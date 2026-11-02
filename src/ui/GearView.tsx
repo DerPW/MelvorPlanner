@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react'
 import { enemyAreas, playerFighter, simulate, type FightResult } from '../core/combat'
 import { fmtDurationShort, fmtInt } from '../core/format'
 import { unmetReqs } from '../core/planner'
-import type { CombatLoadout, Enemy, Id, Item } from '../core/types'
+import type { CombatLoadout, Enemy, Item } from '../core/types'
 import { useI18n } from '../i18n'
 import { DangerTag, LoadoutPanel, useLoadout } from './CombatView'
 import { GameIcon, Ref, Segmented, Select, TabPills, Toolbar } from './components'
@@ -42,7 +42,7 @@ export function GearView() {
     }
     return top?.e.id ?? enemies[0]?.id
   }, [index, state.profile, loadout, enemies])
-  const [chosen, setChosen] = useState<Id | null>(null)
+  const chosen = state.gearTarget ?? null
   const target = enemies.find((e) => e.id === (chosen ?? best)) ?? enemies[0]
 
   const result = useMemo(() => (target && tab === 'upgrades' ? compare(index, state.profile, loadout, target, metric) : null), [index, state.profile, loadout, target, metric, tab])
@@ -74,7 +74,7 @@ export function GearView() {
         {tab === 'upgrades' && <LoadoutPanel />}
         <div className="gear-target">
           <span className="muted">{t('gear.against')}</span>
-          <Select label={t('gear.against')} value={target?.id ?? ''} onChange={(id) => setChosen(id)}>
+          <Select label={t('gear.against')} value={target?.id ?? ''} onChange={(id) => dispatch({ type: 'gearTarget', enemy: id })}>
             {[...enemies]
               .sort((a, b) => a.name.localeCompare(b.name))
               .map((e) => (

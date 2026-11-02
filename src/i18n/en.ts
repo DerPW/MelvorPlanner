@@ -378,6 +378,7 @@ export const en: Record<Key, string> = {
   'gear.tabCompare': 'Compare A/B',
   'gear.tabUpgrades': 'Upgrades',
   'gear.tabOptimal': 'Optimal',
+  'gear.optimizeFor': 'Optimal gear',
   'gear.swap': 'Swap',
   'gear.diffSlots': 'A and B go in different slots — in combat each only replaces its own slot.',
   'gear.diff': 'B − A',

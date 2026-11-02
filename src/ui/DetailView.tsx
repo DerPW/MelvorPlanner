@@ -490,7 +490,7 @@ function InfoSources({ rows }: { rows: InfoSource[] }) {
 const COMBAT = ['MelvorBase:Hitpoints', 'MelvorBase:Attack', 'MelvorBase:Strength', 'MelvorBase:Defence', 'MelvorBase:Ranged', 'MelvorBase:Magic']
 
 function EnemyDetail({ id }: { id: Id }) {
-  const { index } = useGame()
+  const { index, dispatch } = useGame()
   const { t } = useI18n()
   const e = index.data.enemies?.find((x) => x.id === id)
   if (!e) return <Missing />
@@ -518,6 +518,9 @@ function EnemyDetail({ id }: { id: Id }) {
         />
         <Section title={t('combat.simTitle')} hint={t('combat.simHint')}>
           <EnemyFight id={id} />
+          <button className="btn small" onClick={() => dispatch({ type: 'optimizeFor', enemy: id })}>
+            {t('gear.optimizeFor')}
+          </button>
         </Section>
         <Section title={t('detail.combatLevels')}>
           <div className="stat-grid">

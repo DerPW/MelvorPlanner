@@ -296,6 +296,8 @@ function ContextMenu({ target, onClose }: { target: Target; onClose: () => void 
     // Ausrüstung: in den A/B-Vergleich
     if (index.items.get(target.id)?.equipment) items.push(<MenuItem key="cmp" label={t('menu.compare')} onClick={act(() => dispatch({ type: 'compareItem', item: target.id }))} />)
   }
+  if (target.type === 'enemy')
+    items.push(<MenuItem key="opt" label={t('gear.optimizeFor')} onClick={act(() => dispatch({ type: 'optimizeFor', enemy: target.id }))} />)
   if (target.type === 'purchase') {
     const p = index.purchases.get(target.id)
     const owned = state.profile.owned[target.id] > 0

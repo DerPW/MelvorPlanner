@@ -378,6 +378,7 @@ export const de = {
   'gear.tabCompare': 'Vergleich A/B',
   'gear.tabUpgrades': 'Upgrades',
   'gear.tabOptimal': 'Optimal',
+  'gear.optimizeFor': 'Optimale Ausrüstung',
   'gear.swap': 'Tauschen',
   'gear.diffSlots': 'A und B gehören in verschiedene Plätze — im Kampf ersetzt jedes nur seinen Platz.',
   'gear.diff': 'B − A',
