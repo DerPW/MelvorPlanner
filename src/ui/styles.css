@@ -1205,7 +1205,8 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
 .lc-chev { margin-left: auto; color: var(--text-3); }
 .lc-action b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lc-stat { color: var(--text-2); font-variant-numeric: tabular-nums; }
-.lc-stop { display: inline-flex; align-items: center; gap: 5px; color: var(--warn); font-weight: 600; font-variant-numeric: tabular-nums; }
+.lc-stop { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0 5px; color: var(--warn); font-weight: 600; font-variant-numeric: tabular-nums; }
+.lc-stop .muted { font-weight: 400; }
 
 /* Live-Ansicht */
 .live-page { display: flex; flex-direction: column; gap: 16px; }
@@ -1220,6 +1221,7 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
 .lv-tile { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--group); box-shadow: 0 0 0 0.5px var(--separator); }
 .lv-tile span { font-size: 11px; color: var(--text-2); }
 .lv-tile b { font: 600 17px/1.25 var(--font-rounded); font-variant-numeric: tabular-nums; }
+.lv-tile small { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .lv-tile.gold b { color: var(--gold); }
 .lv-tile.warn { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 55%, transparent); }
 .lv-tile.warn b { color: var(--warn); }

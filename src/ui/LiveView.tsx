@@ -8,13 +8,13 @@ import { liveStock } from '../core/live'
 import { fmtDurationShort, fmtInt } from '../core/format'
 import { useI18n } from '../i18n'
 import { GameIcon, Sym, Toolbar, useNow } from './components'
-import { leftNow, Measuring, StepBar, statusLine, totalLeft, useTrack } from './LiveTrack'
+import { clockAt, leftNow, Measuring, StepBar, statusLine, totalLeft, useTrack } from './LiveTrack'
 import { routeIcon, routeLabel } from './routeText'
 import { useGame } from './state'
 
 export function LiveView() {
   const { index, state, dispatch } = useGame()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { tracking, action, rates, progress, flow, lastAt } = useTrack()
   const now = useNow(1000)
   const [perm, setPerm] = useState(() => ('Notification' in window ? Notification.permission : 'denied'))
@@ -86,9 +86,16 @@ export function LiveView() {
         {action && rates && (
           <div className="lv-tiles">
             {xpH > 0 && <Tile label={t('live.xpRate')} value={`${fmtInt(xpH)} XP/h`} />}
-            {nextMs !== null && <Tile label={t('live.nextLevel', { level: (level ?? 1) + 1 })} value={fmtDurationShort(nextMs)} />}
+            {nextMs !== null && <Tile label={t('live.nextLevel', { level: (level ?? 1) + 1 })} value={fmtDurationShort(nextMs)} sub={t('live.at', { time: clockAt(now + nextMs, locale, t, now) })} />}
             {rates.goldPerHour > 1 && <Tile label={t('live.goldRate')} value={`${fmtInt(rates.goldPerHour)} GP/h`} tone="gold" />}
-            {stopMs !== null && <Tile label={t('live.stopsIn')} value={fmtDurationShort(stopMs) || t('live.now')} tone={stopMs < 600_000 ? 'warn' : undefined} />}
+            {stopMs !== null && (
+              <Tile
+                label={t('live.stopsIn')}
+                value={fmtDurationShort(stopMs) || t('live.now')}
+                sub={stopMs > 0 ? t('live.until', { time: clockAt(now + stopMs, locale, t, now) }) : undefined}
+                tone={stopMs < 600_000 ? 'warn' : undefined}
+              />
+            )}
             <Tile label={t('live.since')} value={fmtDurationShort(now - rates.since)} />
           </div>
         )}
@@ -139,11 +146,12 @@ export function LiveView() {
   )
 }
 
-function Tile({ label, value, tone }: { label: string; value: string; tone?: 'gold' | 'warn' }) {
+function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: 'gold' | 'warn' }) {
   return (
     <div className={`lv-tile ${tone ?? ''}`}>
       <span>{label}</span>
       <b>{value}</b>
+      {sub && <small>{sub}</small>}
     </div>
   )
 }
@@ -151,7 +159,8 @@ function Tile({ label, value, tone }: { label: string; value: string; tone?: 'go
 /** Gewinn bzw. Verbrauch je Stunde, mit Bestand; beim Verbrauch, wann er leer ist */
 function FlowList({ title, rows, empty }: { title: string; empty?: string; rows: { item: string; perHour: number; stock: number; sign: string; emptyMs?: number; first?: boolean }[] }) {
   const { index } = useGame()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const now = Date.now()
   return (
     <section className="lv-list">
       <div className="lv-sec-title">{title}</div>
@@ -168,7 +177,11 @@ function FlowList({ title, rows, empty }: { title: string; empty?: string; rows:
               {r.sign}
               {fmtInt(r.perHour)}/h
             </b>
-            {r.emptyMs !== undefined && <span className={r.first ? 'warn' : 'muted'}>{t('live.emptyIn', { time: fmtDurationShort(r.emptyMs) || t('live.now') })}</span>}
+            {r.emptyMs !== undefined && (
+              <span className={r.first ? 'warn' : 'muted'}>
+                {r.emptyMs > 0 ? t('live.emptyInAt', { time: fmtDurationShort(r.emptyMs), clock: clockAt(now + r.emptyMs, locale, t, now) }) : t('live.emptyIn', { time: t('live.now') })}
+              </span>
+            )}
           </span>
         </div>
       ))}

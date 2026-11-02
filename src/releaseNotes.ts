@@ -10,6 +10,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.11.1',
+    date: '2026-11-02',
+    de: {
+      title: 'Uhrzeit, wann das Material leer ist',
+      items: [
+        'Live: Neben „leer in …“ steht die Uhrzeit, wann das Material aufgebraucht ist — in der Verbrauchsliste, in der Kachel „Material reicht noch“ und in der Seitenleiste. Ist es nicht mehr heute, mit Tag („morgen 00:50“, „Do 22:50“).',
+        'Die Kachel „Bis Level“ zeigt ebenso die Uhrzeit des Level-Ups.',
+      ],
+    },
+    en: {
+      title: 'Clock time when materials run out',
+      items: [
+        'Live: next to “empty in …” you see the clock time the materials run out — in the usage list, the “Materials last” tile and the sidebar. Beyond today with the day (“tomorrow 12:50 AM”, “Thu 10:50 PM”).',
+        'The “To level” tile shows the clock time of the level-up, too.',
+      ],
+    },
+  },
+  {
     version: '0.11.0',
     date: '2026-11-02',
     de: {

@@ -48,6 +48,17 @@ interface TrackValue {
 
 const TrackCtx = createContext<TrackValue>({ tracking: null, action: null, rates: null, progress: null, flow: null, lastAt: null })
 
+/** Uhrzeit eines Zeitpunkts: heute „14:32“, sonst mit Tag („morgen 09:10“, „Mi. 09:10“, „12. Nov. 09:10“) */
+export function clockAt(at: number, locale: string, t: T, now = Date.now()): string {
+  const d = new Date(at)
+  const time = d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
+  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
+  const days = Math.round((day(d) - day(new Date(now))) / 86_400_000)
+  if (days <= 0) return time
+  if (days === 1) return t('live.tomorrow', { time })
+  return `${d.toLocaleDateString(locale, days < 7 ? { weekday: 'short' } : { day: 'numeric', month: 'short' })} ${time}`
+}
+
 /** Wie lange etwas, das zum Spielstand `ms` dauerte, jetzt noch dauert */
 export const leftNow = (ms: number, at: number | null, now: number) => Math.max(0, ms - Math.max(0, now - (at ?? now)))
 export const useTrack = () => useContext(TrackCtx)
@@ -261,7 +272,7 @@ function TrackToast({ toast, onClose }: { toast: { title: string; body: string }
  *  Material bald ausgeht, die verfolgte Route. Alles Weitere in der Live-Ansicht. */
 export function LiveCard() {
   const { index, state, dispatch } = useGame()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { tracking, action, rates, progress, flow, lastAt } = useTrack()
   const [perm, setPerm] = useState(() => ('Notification' in window ? Notification.permission : 'denied'))
   const now = useNow(1000)
@@ -306,6 +317,7 @@ export function LiveCard() {
         {stop && stopMs !== null && stopMs < 600_000 && (
           <span className="lc-stop">
             <GameIcon src={index.items.get(stop.item)?.icon} size={14} /> {t('live.emptyIn', { time: fmtDurationShort(stopMs) || t('live.now') })}
+            {stopMs > 0 && <span className="muted">· {clockAt(now + stopMs, locale, t, now)}</span>}
           </span>
         )}
       </button>
