@@ -46,6 +46,8 @@ interface Activity extends Bundle {
   cap: number
   /** Alle Zutaten kommen aus dem Lager */
   fromStock: boolean
+  /** Lager-Verbrauch je Durchlauf, über die ganze Kette (auch Zutaten der Vorstufen) */
+  stockUse: Map<Id, number>
 }
 
 export interface RouteSegment {
@@ -144,7 +146,39 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
 
   for (let guard = 0; guard < 5000 && !reached(); guard++) {
     const p = now()
-    const unit = unitCosts(index, p)
+    // Beschaffen mit Blick ins Lager — auf jeder Ebene der Kette: Reicht der
+    // Bestand für ein paar Durchläufe, kommt die Zutat daraus (keine Zeit),
+    // sonst über die beste Quelle, deren Zutaten wieder so geprüft werden.
+    const acquire = (item: Id, qty: number, stack: Id[]): { b: Bundle; use: Map<Id, number> } | null => {
+      if ((stock.get(item) ?? 0) >= qty * MIN_STOCK_RUNS) return { b: emptyBundle(), use: new Map([[item, qty]]) }
+      if (stack.includes(item)) return null
+      for (const src of rankSources(index, item, p)) {
+        if (!isAvailable(src, p)) continue
+        const per = yieldOf(src, item, p)
+        if (per <= 0) continue
+        const runs = qty / per
+        const subs = src.inputs.map((i) => acquire(i.item, i.qty * runs, [...stack, item]))
+        if (subs.some((x) => !x)) continue
+        const ms = actionTime(src, p) * runs
+        const b: Bundle = {
+          timeMs: ms,
+          xp: new Map(),
+          gold: 0,
+          recipes: new Map([[src.id, runs]]),
+          recipeMs: new Map([[src.id, ms]]),
+          recipeItem: new Map([[src.id, item]]),
+        }
+        if (src.skill && src.xp) addTo(b.xp, src.skill, src.xp * successChance(src, p) * runs)
+        for (const cost of src.costs) if (cost.currency === GP) b.gold -= cost.qty * runs
+        const use = new Map<Id, number>()
+        for (const sub of subs) {
+          merge(b, sub!.b, 1)
+          for (const [k, v] of sub!.use) addTo(use, k, v)
+        }
+        return { b, use }
+      }
+      return null
+    }
 
     let best: Activity | null = null
     for (const r of candidates) {
@@ -162,6 +196,7 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
         rate: 0,
         cap: Infinity,
         fromStock: false,
+        stockUse: new Map(),
       }
       if (r.skill && r.xp) addTo(a.xp, r.skill, r.xp * s)
       for (const c of r.costs) if (c.currency === GP) a.gold -= c.qty
@@ -179,21 +214,19 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
         for (const i of r.inputs) {
           // Reicht das Lager für ein paar Durchläufe, kostet die Zutat nichts — bis es leer ist.
           // Reste unter MIN_STOCK_RUNS bleiben liegen (sonst „1× aus dem Lager“-Schritte)
-          const have = stock.get(i.item) ?? 0
-          if (have >= i.qty * MIN_STOCK_RUNS) {
-            a.cap = Math.min(a.cap, Math.floor(have / i.qty))
-            continue
-          }
-          all = false
-          const c = unit(i.item)
+          const c = acquire(i.item, i.qty, [r.id])
           if (!c) {
             ok = false
             break
           }
-          merge(a, c, i.qty)
+          if (!c.use.has(i.item)) all = false
+          merge(a, c.b, 1)
+          for (const [k, v] of c.use) addTo(a.stockUse, k, v)
         }
         if (!ok) continue
         a.fromStock = all
+        // Nur so oft, wie das Lager für alles reicht, was die Kette daraus nimmt
+        for (const [k, v] of a.stockUse) a.cap = Math.min(a.cap, Math.floor((stock.get(k) ?? 0) / v))
       }
       // Nur, was man sich leisten kann (Shop-Material in der Kette)
       if (a.gold < 0 && gold + a.gold < 0) continue
@@ -220,13 +253,12 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
     n = Math.max(1, Math.min(n, best.cap))
     const used = new Map<Id, number>()
     if (options.includeMaterials) {
-      for (const i of best.recipe.inputs) {
-        const have = stock.get(i.item) ?? 0
-        if (have < i.qty * MIN_STOCK_RUNS) continue
-        const take = Math.min(have, i.qty * n)
-        stock.set(i.item, have - take)
-        addTo(route.consumed, i.item, take)
-        addTo(used, i.item, take)
+      for (const [item, per] of best.stockUse) {
+        const have = stock.get(item) ?? 0
+        const take = Math.min(have, per * n)
+        stock.set(item, have - take)
+        addTo(route.consumed, item, take)
+        addTo(used, item, take)
       }
     }
     if (goal.kind === 'level') {
@@ -325,6 +357,8 @@ function rateOf(seg: RouteSegment, goal: RouteGoal) {
   const gain = goal.kind === 'level' ? (seg.xp.get(goal.skill) ?? 0) : seg.gold
   return seg.timeMs > 0 ? (gain / seg.timeMs) * 3_600_000 : 0
 }
+
+const emptyBundle = (): Bundle => ({ timeMs: 0, xp: new Map(), gold: 0, recipes: new Map(), recipeMs: new Map(), recipeItem: new Map() })
 
 function addTo(map: Map<Id, number>, key: Id, n: number) {
   map.set(key, (map.get(key) ?? 0) + n)

@@ -10,6 +10,22 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.1',
+    date: '2026-11-03',
+    de: {
+      title: 'Lager auf allen Ebenen der Kette',
+      items: [
+        'Routen nehmen Material jetzt auf jeder Ebene der Kette aus dem Lager, nicht nur die direkten Zutaten. Fehlt String, wird er aus Flax im Lager hergestellt, statt Flax neu zu fällen. Was so aus dem Lager kommt, steht unter „Aus dem Lager“ und begrenzt wie bisher, wie oft der Schritt läuft.',
+      ],
+    },
+    en: {
+      title: 'Bank stock at every level of the chain',
+      items: [
+        'Routes now take materials from your bank at every level of the chain, not just the direct ingredients. When String is missing, it is made from Flax in your bank instead of cutting new Flax. What comes from the bank this way shows under “From your bank” and, as before, limits how often the step runs.',
+      ],
+    },
+  },
+  {
     version: '0.14.0',
     date: '2026-11-03',
     de: {
