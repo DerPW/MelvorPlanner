@@ -1347,8 +1347,13 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
 .flow-phases .step:hover { background: var(--hover); }
 .flow-phases .step + .step { box-shadow: 0 -0.5px 0 var(--separator); }
 .flow-phases .step.nested { margin-left: 26px; }
-.flow-phases .seg-group { list-style: none; margin: 6px 0; border-radius: 12px; background: var(--row-alt); box-shadow: 0 0 0 0.5px var(--separator); }
-.flow-phases .seg-group > .steps { padding: 2px 0; }
+/* Schritt mit Vorstufen: ein eigener Kasten mit Luft — Vorstufen gleich weit
+   eingerückt (wofür, sagt „für …“), der Hauptschritt zuletzt */
+.flow-phases .seg-group { list-style: none; margin: 10px 2px; border-radius: 12px; background: var(--row-alt); box-shadow: 0 0 0 0.5px var(--separator); }
+.flow-phases .seg-group > .steps { display: flex; flex-direction: column; gap: 2px; padding: 6px; }
+.flow-phases .seg-group .step { border-radius: 9px; }
+.flow-phases .seg-group .step + .step { box-shadow: none; }
+.flow-phases .seg-group .step.nested { margin-left: 22px; }
 .flow-phases .step .meta { gap: 5px; }
 .flow-phases .step.current { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .flow-phases .step.running { background: color-mix(in srgb, var(--ok) 14%, transparent); }

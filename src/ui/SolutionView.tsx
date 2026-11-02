@@ -301,9 +301,9 @@ export function stepKeys(solution: Solution): string[] {
 
 /** Vorstufen eines Abschnitts in Herstell-Reihenfolge: Tiefensuche ab dem
  *  Hauptrezept, jede Vorstufe nach ihren eigenen Zutaten („erst Sand kaufen,
- *  dann Glas, dann die Kugel“). Dazu die Tiefe (fürs Einrücken) und wofür sie
- *  gebraucht wird; eine Zutat für mehrere steht beim ersten. */
-export function chainOrder(index: GameIndex, seg: RouteSegment): { id: Id; runs: number; depth: number; feeds: Id[] }[] {
+ *  dann Glas, dann die Kugel“). Dazu, wofür sie gebraucht wird; eine Zutat für
+ *  mehrere steht beim ersten. */
+export function chainOrder(index: GameIndex, seg: RouteSegment): { id: Id; runs: number; feeds: Id[] }[] {
   const entries = [...seg.chain].filter(([id]) => id !== seg.recipe.id && index.recipes.has(id))
   const runs = new Map(entries)
   const itemOf = (id: Id) => seg.chainItem.get(id) ?? index.recipes.get(id)?.outputs[0]?.item
@@ -315,19 +315,19 @@ export function chainOrder(index: GameIndex, seg: RouteSegment): { id: Id; runs:
       .filter((o) => o !== id && index.recipes.get(o)?.inputs.some((i) => i.item === itemOf(id)))
       .map(productOf)
       .filter((x): x is Id => !!x)
-  const out: { id: Id; runs: number; depth: number; feeds: Id[] }[] = []
+  const out: { id: Id; runs: number; feeds: Id[] }[] = []
   const seen = new Set<Id>()
-  const visit = (rid: Id, depth: number) => {
+  const visit = (rid: Id) => {
     for (const input of index.recipes.get(rid)?.inputs ?? []) {
       const c = byItem.get(input.item)
       if (!c || seen.has(c)) continue
       seen.add(c)
-      visit(c, depth + 1)
-      out.push({ id: c, runs: runs.get(c)!, depth, feeds: feeds(c) })
+      visit(c)
+      out.push({ id: c, runs: runs.get(c)!, feeds: feeds(c) })
     }
   }
-  visit(seg.recipe.id, 1)
-  for (const [id, n] of entries) if (!seen.has(id)) out.push({ id, runs: n, depth: 1, feeds: feeds(id) })
+  visit(seg.recipe.id)
+  for (const [id, n] of entries) if (!seen.has(id)) out.push({ id, runs: n, feeds: feeds(id) })
   return out
 }
 
@@ -715,7 +715,6 @@ function SegmentRow({ seg, route, k, share }: { seg: RouteSegment; route: Route;
           runs={c.runs}
           ms={seg.chainMs.get(c.id) ?? 0}
           k={chainKey(k, c.id)}
-          depth={c.depth}
           feeds={c.feeds}
         />
       ))}
@@ -776,7 +775,7 @@ function SegmentRow({ seg, route, k, share }: { seg: RouteSegment; route: Route;
 }
 
 /** Vorstufe eines Trainings-Abschnitts: Material beschaffen, eigener Schritt */
-function ChainStep({ r, item, runs, ms, k, depth, feeds }: { r: Recipe; item?: Id; runs: number; ms: number; k: string; depth: number; feeds: Id[] }) {
+function ChainStep({ r, item, runs, ms, k, feeds }: { r: Recipe; item?: Id; runs: number; ms: number; k: string; feeds: Id[] }) {
   const { index, state } = useGame()
   const t = useT()
   const out = item ?? r.outputs[0]?.item
@@ -786,7 +785,6 @@ function ChainStep({ r, item, runs, ms, k, depth, feeds }: { r: Recipe; item?: I
     <StepRow
       k={k}
       nested
-      depth={depth}
       avoid={avoidKey(r)}
       goal={{ item: out }}
       icon={(out && index.items.get(out)?.icon) || r.icon}
@@ -867,7 +865,6 @@ function StepRow({
   avoid,
   goal,
   nested,
-  depth = 1,
 }: {
   k: string
   icon: string | null | undefined
@@ -882,8 +879,6 @@ function StepRow({
   goal?: StepGoal
   /** Vorstufe eines anderen Schritts (eingerückt) */
   nested?: boolean
-  /** wie tief in der Kette (1 = Zutat des Hauptschritts) — rückt weiter ein */
-  depth?: number
 }) {
   const { state, dispatch } = useGame()
   const t = useT()
@@ -894,11 +889,7 @@ function StepRow({
   const running = track?.live.has(k)
   const liveStep = running && track?.step?.key === k ? track.step : null
   return (
-    <li
-      className={`step ${done ? 'done' : ''} ${nested ? 'nested' : ''} ${now ? 'current' : ''} ${running ? 'running' : ''}`}
-      style={nested && depth > 1 ? { marginLeft: 26 * depth } : undefined}
-      data-entity={entity}
-    >
+    <li className={`step ${done ? 'done' : ''} ${nested ? 'nested' : ''} ${now ? 'current' : ''} ${running ? 'running' : ''}`} data-entity={entity}>
       <button className="check" role="checkbox" aria-checked={done} aria-label={t('flow.markDone')} onClick={() => dispatch({ type: 'toggleDone', key: k })}>
         {done && <Sym name="check" size={12} />}
       </button>

@@ -10,6 +10,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.3',
+    date: '2026-11-03',
+    de: {
+      title: 'Ruhigere Vorstufen',
+      items: ['Ablauf: Vorstufen sind jetzt gleich weit eingerückt statt treppenartig — wofür sie sind, sagt „für …“. Im Kasten eines Schritts haben die Zeilen mehr Luft, die Kästen mehr Abstand zueinander.'],
+    },
+    en: {
+      title: 'Calmer preparation steps',
+      items: ['Flow: preparation steps are now indented evenly instead of as a staircase — “for …” says what they are for. Rows inside a step’s box have more room, and the boxes more space between them.'],
+    },
+  },
+  {
     version: '0.14.2',
     date: '2026-11-03',
     de: {
