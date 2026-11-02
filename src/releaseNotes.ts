@@ -10,6 +10,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.9.1',
+    date: '2026-11-02',
+    de: {
+      title: 'Ausrüstung frei wählbar',
+      items: [
+        'Behoben: Mit Live-Verbindung sprang eine selbst gewählte Waffe (oder andere Ausrüstung) sofort auf die aus dem Spiel zurück.',
+        'Selbst gewählte Ausrüstung bleibt jetzt stehen, bis du „Ausrüstung aus dem Spiel“ klickst — ein Hinweis zeigt, dass sie gilt (für Kampf, Vergleich und Routen).',
+      ],
+    },
+    en: {
+      title: 'Pick any gear',
+      items: [
+        'Fixed: with the live connection, a weapon (or other gear) you picked jumped right back to the one from the game.',
+        'Gear you pick now stays until you click “Gear from the game” — a note shows it is in use (for combat, comparison and routes).',
+      ],
+    },
+  },
+  {
     version: '0.9.0',
     date: '2026-11-02',
     de: {

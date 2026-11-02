@@ -140,7 +140,7 @@ export function DangerTag({ f }: { f: FightResult }) {
 
 /** Ausrüstung je Platz, Haltung, Zauber, Essen und die Werte daraus */
 export function LoadoutPanel() {
-  const { index, state } = useGame()
+  const { index, state, dispatch } = useGame()
   const { t } = useI18n()
   const { loadout, set } = useLoadout()
   const player = playerFighter(index, state.profile, loadout)
@@ -154,65 +154,78 @@ export function LoadoutPanel() {
   const level = combatLevel(player.style, player.levels)
 
   return (
-    <div className="loadout">
-      <div className="gear-grid">
-        {c.slots.map((slot) => (
-          <div key={slot.id} style={{ gridColumn: slot.x + 1, gridRow: slot.y + 1 }}>
-            <SlotButton slot={slot} item={player.gear[slot.id] ?? null} occupiedBy={occupier(player.gear, slot.id)} />
-          </div>
-        ))}
-      </div>
-      <div className="loadout-side">
-        <div className="form-group">
-          <div className="form-row">
-            <span className="grow">{t('combat.stance')}</span>
-            <Segmented<string>
-              value={stance.id}
-              onChange={(id) => set({ stances: { ...loadout.stances, [type]: id } })}
-              options={stances.map((s) => ({ value: s.id, label: s.name }))}
-            />
-          </div>
-          {player.style.spells && (
+    <>
+      {state.profile.combatManual && (
+        <div className="loadout-manual">
+          <Sym name="warn" size={13} />
+          <span className="grow">{t(state.profile.combatSave ? 'combat.manual' : 'combat.manualNoSave')}</span>
+          {state.profile.combatSave && (
+            <button className="btn small" onClick={() => dispatch({ type: 'resetCombat' })}>
+              {t('combat.useSave')}
+            </button>
+          )}
+        </div>
+      )}
+      <div className="loadout">
+        <div className="gear-grid">
+          {c.slots.map((slot) => (
+            <div key={slot.id} style={{ gridColumn: slot.x + 1, gridRow: slot.y + 1 }}>
+              <SlotButton slot={slot} item={player.gear[slot.id] ?? null} occupiedBy={occupier(player.gear, slot.id)} />
+            </div>
+          ))}
+        </div>
+        <div className="loadout-side">
+          <div className="form-group">
             <div className="form-row">
-              <span className="grow">{t('combat.spell')}</span>
-              <Select label={t('combat.spell')} value={loadout.spell ?? ''} onChange={(spell) => set({ spell: spell || null })}>
+              <span className="grow">{t('combat.stance')}</span>
+              <Segmented<string>
+                value={stance.id}
+                onChange={(id) => set({ stances: { ...loadout.stances, [type]: id } })}
+                options={stances.map((s) => ({ value: s.id, label: s.name }))}
+              />
+            </div>
+            {player.style.spells && (
+              <div className="form-row">
+                <span className="grow">{t('combat.spell')}</span>
+                <Select label={t('combat.spell')} value={loadout.spell ?? ''} onChange={(spell) => set({ spell: spell || null })}>
+                  <option value="">—</option>
+                  {spells.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.maxHit})
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            )}
+            <div className="form-row">
+              <span className="grow">{t('combat.food')}</span>
+              <Select label={t('combat.food')} value={loadout.food ?? ''} onChange={(food) => set({ food: food || null })}>
                 <option value="">—</option>
-                {spells.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.maxHit})
+                {foods.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name} (+{f.food!.healing} HP{state.profile.inventory[f.id] ? ` · ${fmtInt(state.profile.inventory[f.id])}×` : ''})
                   </option>
                 ))}
               </Select>
             </div>
-          )}
-          <div className="form-row">
-            <span className="grow">{t('combat.food')}</span>
-            <Select label={t('combat.food')} value={loadout.food ?? ''} onChange={(food) => set({ food: food || null })}>
-              <option value="">—</option>
-              {foods.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name} (+{f.food!.healing} HP{state.profile.inventory[f.id] ? ` · ${fmtInt(state.profile.inventory[f.id])}×` : ''})
-                </option>
-              ))}
-            </Select>
           </div>
+          <div className="stat-grid compact">
+            <Stat label={t('combat.level')} value={`${level} · ${player.style.name}`} />
+            <Stat label="HP" value={fmtInt(player.maxHp)} />
+            <Stat label={t('combat.accuracy')} value={fmtInt(player.accuracy)} />
+            <Stat label={t('combat.maxHit')} value={fmtInt(player.baseMaxHit)} />
+            <Stat label={t('combat.interval')} value={`${fmtNum(Math.round(player.intervalMs / 10) / 100)} s`} />
+            <Stat label={t('combat.protection')} value={fmtInt(player.protection)} />
+          </div>
+          {player.problems.map((p, i) => (
+            <p key={i} className="note bad">
+              <Sym name="warn" size={13} /> {t(p)}
+            </p>
+          ))}
+          <p className="muted small-note">{t('combat.notCounted')}</p>
         </div>
-        <div className="stat-grid compact">
-          <Stat label={t('combat.level')} value={`${level} · ${player.style.name}`} />
-          <Stat label="HP" value={fmtInt(player.maxHp)} />
-          <Stat label={t('combat.accuracy')} value={fmtInt(player.accuracy)} />
-          <Stat label={t('combat.maxHit')} value={fmtInt(player.baseMaxHit)} />
-          <Stat label={t('combat.interval')} value={`${fmtNum(Math.round(player.intervalMs / 10) / 100)} s`} />
-          <Stat label={t('combat.protection')} value={fmtInt(player.protection)} />
-        </div>
-        {player.problems.map((p, i) => (
-          <p key={i} className="note bad">
-            <Sym name="warn" size={13} /> {t(p)}
-          </p>
-        ))}
-        <p className="muted small-note">{t('combat.notCounted')}</p>
       </div>
-    </div>
+    </>
   )
 }
 

@@ -1270,3 +1270,7 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
 .flow-phases .step.nested { margin-left: 26px; }
 .flow-phases .step .meta { gap: 5px; }
 .flow-phases .step.current { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+
+.loadout-manual { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; padding: 8px 12px; border-radius: 10px; font-size: 12px; color: var(--text-2); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.loadout-manual .sym { color: var(--warn); }
+.loadout-manual .grow { flex: 1; min-width: 0; }

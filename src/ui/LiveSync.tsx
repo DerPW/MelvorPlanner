@@ -45,6 +45,11 @@ export function LiveSyncProvider({ children }: { children: ReactNode }) {
   const running = useRef(false)
   const profileRef = useRef(state.profile)
   profileRef.current = state.profile
+  // Der Index wird bei jeder Ausrüstungs-/Level-Änderung neu gebaut (Monster-
+  // Quellen) — das darf die Verbindung nicht neu starten, sonst liest sie
+  // sofort wieder ein und überschreibt, was man gerade eingestellt hat
+  const indexRef = useRef(baseIndex)
+  indexRef.current = baseIndex
   const selected = state.live?.save ?? null
 
   useEffect(() => {
@@ -90,7 +95,7 @@ export function LiveSyncProvider({ children }: { children: ReactNode }) {
       try {
         const data = await fetchSave(target.name)
         if (stopped) return
-        dispatch({ type: 'importProfile', profile: profileFromSave(baseIndex, data, profileRef.current).profile })
+        dispatch({ type: 'importProfile', profile: profileFromSave(indexRef.current, data, profileRef.current).profile })
         seen.current[`p:${target.name}`] = target.mtime
         const snap = snapshotOf(data)
         setLive((l) => ({
@@ -111,7 +116,7 @@ export function LiveSyncProvider({ children }: { children: ReactNode }) {
       stopped = true
       clearInterval(timer)
     }
-  }, [selected, baseIndex, dispatch])
+  }, [selected, dispatch])
 
   return <LiveContext.Provider value={live}>{children}</LiveContext.Provider>
 }

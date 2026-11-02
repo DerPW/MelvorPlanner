@@ -81,6 +81,14 @@ export function profileFromSave(index: GameIndex, save: SaveData, current: Profi
     levels[skill] = Math.max(saved, byXp)
   }
   const unknownItems = Object.keys(save.bank).filter((id) => !index.items.has(id))
+  const fromSave = {
+    gear: Object.fromEntries(Object.entries(save.combat.gear).map(([slot, g]) => [slot, g.item])),
+    qty: Object.fromEntries(Object.entries(save.combat.gear).map(([slot, g]) => [slot, g.qty])),
+    stances: save.combat.stances,
+    food: save.combat.food,
+    spell: save.combat.spell,
+    hp: save.combat.hp,
+  }
   return {
     profile: {
       levels,
@@ -93,14 +101,10 @@ export function profileFromSave(index: GameIndex, save: SaveData, current: Profi
       farmingPlots: current.farmingPlots,
       guildRanks: current.guildRanks,
       unlocked: current.unlocked,
-      combat: {
-        gear: Object.fromEntries(Object.entries(save.combat.gear).map(([slot, g]) => [slot, g.item])),
-        qty: Object.fromEntries(Object.entries(save.combat.gear).map(([slot, g]) => [slot, g.qty])),
-        stances: save.combat.stances,
-        food: save.combat.food,
-        spell: save.combat.spell,
-        hp: save.combat.hp,
-      },
+      // Selbst gewählte Ausrüstung bleibt; die aus dem Spiel wird trotzdem gemerkt
+      combat: current.combatManual && current.combat ? current.combat : fromSave,
+      combatSave: fromSave,
+      combatManual: current.combatManual && !!current.combat,
       source: {
         character: save.character,
         savedAt: save.savedAt?.toISOString() ?? null,

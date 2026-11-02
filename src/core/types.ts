@@ -368,6 +368,10 @@ export interface Profile {
   guildRanks?: Record<Id, number>
   /** Kampf: Ausrüstung je Platz (Item-Id), Haltung je Waffentyp, Essen, Zauber */
   combat?: CombatLoadout
+  /** Ausrüstung laut Spielstand; `combat` weicht davon ab, solange `combatManual` gilt */
+  combatSave?: CombatLoadout
+  /** Selbst gewählt — das Einlesen des Spielstands lässt `combat` dann stehen */
+  combatManual?: boolean
   /** Freigeschaltete Skills/Bereiche, von Hand oder vom Planer gesetzt;
    *  fehlt ein Eintrag, wird er aus dem Stand geschätzt (isUnlocked) */
   unlocked?: Record<Id, boolean>

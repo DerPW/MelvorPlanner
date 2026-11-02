@@ -61,8 +61,10 @@ export type Action =
   | { type: 'setOwned'; purchase: Id; owned: boolean }
   | { type: 'setPlots'; plots: number }
   | { type: 'setGuildRank'; skill: Id; rank: number }
-  /** Kampf-Ausrüstung, Haltung, Zauber, Essen */
+  /** Kampf-Ausrüstung, Haltung, Zauber, Essen — selbst gewählt */
   | { type: 'setCombat'; loadout: CombatLoadout }
+  /** Zurück zur Ausrüstung aus dem Spielstand */
+  | { type: 'resetCombat' }
   /** Freischaltung von Hand festlegen; null = wieder schätzen */
   | { type: 'setUnlocked'; feature: Id; unlocked: boolean | null }
   | { type: 'resetProfile' }
@@ -145,7 +147,9 @@ export function reducer(s: State, a: Action): State {
       return { ...s, profile: { ...p, owned } }
     }
     case 'setCombat':
-      return { ...s, profile: { ...p, combat: a.loadout } }
+      return { ...s, profile: { ...p, combat: a.loadout, combatManual: true } }
+    case 'resetCombat':
+      return { ...s, profile: { ...p, combat: p.combatSave ?? p.combat, combatManual: false } }
     case 'setUnlocked': {
       const unlocked = { ...p.unlocked }
       if (a.unlocked === null) delete unlocked[a.feature]
