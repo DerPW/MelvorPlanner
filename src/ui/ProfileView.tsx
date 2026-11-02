@@ -3,6 +3,7 @@ import { MAX_LEVEL, xpForLevel } from '../core/experience'
 import { fmtInt } from '../core/format'
 import { GP } from '../core/route'
 import { GameIcon, Stepper, Switch, Sym, Toolbar } from './components'
+import { ImportSheet } from './ImportSheet'
 import { ItemSearch } from './ItemSearch'
 import { useGame } from './state'
 
@@ -10,6 +11,7 @@ export function ProfileView() {
   const { index, state, dispatch } = useGame()
   const p = state.profile
   const [unlockFilter, setUnlockFilter] = useState('')
+  const [importing, setImporting] = useState(false)
   const skills = index.data.skills
   const unlocks = useMemo(
     () =>
@@ -22,11 +24,22 @@ export function ProfileView() {
 
   return (
     <>
-      <Toolbar title="Profil" subtitle="Dein Stand — alle Pläne rechnen von hier aus">
+      <Toolbar
+        title="Profil"
+        subtitle={
+          p.source
+            ? `Aus dem Spielstand „${p.source.character}"${p.source.savedAt ? ` · gespeichert ${new Date(p.source.savedAt).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' })}` : ''}`
+            : 'Dein Stand — alle Pläne rechnen von hier aus'
+        }
+      >
         <button className="btn plain" onClick={() => confirm('Profil auf Anfang zurücksetzen?') && dispatch({ type: 'resetProfile' })}>
           <Sym name="reset" size={13} /> Zurücksetzen
         </button>
+        <button className="btn primary" onClick={() => setImporting(true)}>
+          Spielstand importieren
+        </button>
       </Toolbar>
+      {importing && <ImportSheet onClose={() => setImporting(false)} />}
       <div className="content narrow-content">
         <div className="group-title">Allgemein</div>
         <div className="form-group">
@@ -58,7 +71,7 @@ export function ProfileView() {
         </div>
 
         <div className="group-title">
-          Skills <span className="muted">Import aus dem Spielstand kommt später</span>
+          Skills <span className="muted">{p.levelCap && p.levelCap < MAX_LEVEL ? `höchstens Level ${p.levelCap} in dieser Version` : ''}</span>
         </div>
         <div className="form-group skill-grid">
           {skills.map((s) => {
@@ -68,9 +81,9 @@ export function ProfileView() {
                 <GameIcon src={s.icon} size={22} />
                 <span className="grow">
                   {s.name}
-                  <div className="hint">{fmtInt(xpForLevel(level))} XP</div>
+                  <div className="hint">{fmtInt(p.xp?.[s.id] ?? xpForLevel(level))} XP</div>
                 </span>
-                <Stepper narrow label={`${s.name} Level`} value={level} min={1} max={MAX_LEVEL} onChange={(lv) => dispatch({ type: 'setLevel', skill: s.id, level: lv })} />
+                <Stepper narrow label={`${s.name} Level`} value={level} min={1} max={p.levelCap ?? MAX_LEVEL} onChange={(lv) => dispatch({ type: 'setLevel', skill: s.id, level: lv })} />
               </div>
             )
           })}
@@ -98,6 +111,21 @@ export function ProfileView() {
             )
           })}
         </div>
+
+        {p.equipped && p.equipped.length > 0 && (
+          <>
+            <div className="group-title">Werkzeuggürtel</div>
+            <div className="form-group">
+              {p.equipped.map((id) => (
+                <div className="form-row" key={id}>
+                  <GameIcon src={index.items.get(id)?.icon} size={22} />
+                  <span className="grow">{index.items.get(id)?.name ?? id}</span>
+                  <span className="muted">ausgerüstet</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
 
         <div className="group-title" style={{ justifyContent: 'space-between' }}>
           <span>

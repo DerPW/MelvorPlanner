@@ -20,6 +20,20 @@ hinterlässt. Steckt ein Skill fest, sucht der Planer die billigste
 Freischaltung (z. B. „Farming braucht Samen → Samen gibt es nur per
 Thieving 35 → erst Thieving trainieren").
 
+## Spielstand importieren
+
+Profil → „Spielstand importieren": `.sav`-Datei hineinziehen oder den
+Export-Text aus dem Spiel einfügen. Übernommen werden Level und genaue XP,
+Bank, Gold, Shop-Käufe und ausgerüstete Werkzeuge, dazu die Level-Grenze der
+Version (Demo: 60). Die Dateien liegen unter
+`~/Library/Application Support/Games By Malcs/Melvor Idle 2/steam/<Steam-ID>/saves/`.
+
+Format (aus dem Spielcode): Brotli( Version · Kopf · Einheiten → Komponenten ),
+Einheiten und Komponenten in Blöcken mit Längenangabe — gelesen wird nur, was
+der Planer braucht, der Rest wird übersprungen. Das Spiel schließt den
+Brotli-Strom nie ab; deshalb `brotli-dec-wasm` als Strom-Decoder, der alles
+bis dahin liefert. Geprüft mit SaveVersion 28 (Demo 0.11.4).
+
 ## Loslegen
 
 ```bash
@@ -68,12 +82,13 @@ XP-Kurve: `XP(L) = ⌊¼ · Σ_{i=1}^{L−1} ⌊i + 300 · 2^(i/7)⌋⌋` (wie T
 Spielcode bestätigt).
 
 Noch nicht drin: Kampf/Stats (braucht einen Kampfsimulator), Monster-Drops,
-Hunting, Ranching, Astrology, Boni/Modifikatoren, Import des Spielstands.
+Hunting, Ranching, Astrology, Boni/Modifikatoren.
 
 ## Aufbau
 
 - `scripts/extract-game-data.mjs` — Godot-Paket lesen, Rezepte vereinheitlichen
 - `src/core/` — Rechenkern ohne UI: `planner` (Crafting-Baum), `route`
-  (Level/Gold-Simulation), `solve` (Ziele → Phasen), `experience`
+  (Level/Gold-Simulation), `solve` (Ziele → Phasen), `experience`, `save`
+  (Spielstand lesen), `saveImport` (Datei/Text → Profil)
 - `src/ui/` — Oberfläche (React, eigenes CSS im macOS-Stil, Farben aus den
   UI-Texturen des Spiels)

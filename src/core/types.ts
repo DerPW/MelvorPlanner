@@ -119,6 +119,14 @@ export interface Profile {
   owned: Record<Id, number>
   /** Farming-Felder, die gleichzeitig wachsen */
   farmingPlots?: number
+  /** Genaue XP je Skill (aus dem Spielstand); sonst gilt der Level-Anfang */
+  xp?: Record<Id, number>
+  /** Ausgerüstete Werkzeuge (Werkzeuggürtel) */
+  equipped?: Id[]
+  /** Höchstes Level dieser Spielversion (Demo 60) */
+  levelCap?: number
+  /** Woher der Stand kommt */
+  source?: { character: string; savedAt: string | null; importedAt: string; version: number }
 }
 
 export interface ItemGoal {

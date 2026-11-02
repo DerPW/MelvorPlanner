@@ -3,7 +3,7 @@
 // Herstellen. Jede Phase arbeitet mit dem Stand, den die vorige hinterlässt
 // (Level, Gold, Lager, Käufe).
 
-import { levelForXp, xpForLevel } from './experience'
+import { MAX_LEVEL, levelForXp, xpForLevel } from './experience'
 import { add, levelOf, makePlan, unmetReqs, type GameIndex, type Plan, type SourceChoices } from './planner'
 import { GP, planRoute, unitCosts, type Route, type RouteOptions } from './route'
 import type { Id, ItemGoal, Profile, Purchase, Req } from './types'
@@ -176,10 +176,16 @@ export function solve(index: GameIndex, target: Target, profile: Profile, choice
     for (const [item, n] of plan.stockUsed) inv[item] = Math.max(0, (inv[item] ?? 0) - n)
     for (const g of goals) inv[g.item] = (inv[g.item] ?? 0) + g.qty
     const levels = { ...p.levels }
-    for (const [skill, xp] of plan.xp) levels[skill] = levelForXp(xpForLevel(levels[skill] ?? 1) + xp)
+    const xpNow = { ...p.xp }
+    const cap = p.levelCap ?? MAX_LEVEL
+    for (const [skill, xp] of plan.xp) {
+      const before = xpNow[skill] ?? xpForLevel(levels[skill] ?? 1)
+      xpNow[skill] = before + xp
+      levels[skill] = Math.max(levels[skill] ?? 1, Math.min(cap, levelForXp(before + xp)))
+    }
     const currencies = { ...p.currencies }
     for (const [c, n] of plan.spent) currencies[c] = (currencies[c] ?? 0) - n
-    p = { ...p, inventory: inv, levels, currencies }
+    p = { ...p, inventory: inv, levels, xp: xpNow, currencies }
   }
 
   switch (target.kind) {
@@ -231,9 +237,12 @@ export function solutionXp(s: Solution): Map<Id, number> {
 
 export function cloneProfile(p: Profile): Profile {
   return {
+    ...p,
     levels: { ...p.levels },
     inventory: { ...p.inventory },
     currencies: { ...p.currencies },
     owned: { ...(p.owned ?? {}) },
+    xp: p.xp ? { ...p.xp } : undefined,
+    equipped: p.equipped ? [...p.equipped] : undefined,
   }
 }

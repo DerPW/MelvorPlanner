@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      brotli-dec-wasm:
+        specifier: ^2.3.2
+        version: 2.3.2
       react:
         specifier: ^19.1.0
         version: 19.3.1
@@ -480,6 +483,9 @@ packages:
     resolution: {integrity: sha512-Aqr8mA1kIvyJ3UY5YAY7ib8LSo1DmDMbMnVqGPtsKW1LxaFQFwn9Eb3yvq2fUKJsRvaXjnAV7R5osqETapzNiA==}
     engines: {node: '>=6.0.0'}
     hasBin: true
+
+  brotli-dec-wasm@2.3.2:
+    resolution: {integrity: sha512-5H+k8eVLIJY6B4olN2HP9QzJAxcplf0jV7mWnkpxvOSeUE9Npg3dQ2pgLn30a9MUFHNro1iSmtdu6VNdlb+TIw==}
 
   browserslist@4.29.5:
     resolution: {integrity: sha512-khTmKu5NGYTotqcYo8Bew2k4RAE9PuXRSFRXG2lQBrCEQHyeQ/vX6gKMxfokwywBsLiXZMnHsmWMG1pnO8J7uQ==}
@@ -1005,6 +1011,8 @@ snapshots:
       - supports-color
 
   baseline-browser-mapping@2.11.34: {}
+
+  brotli-dec-wasm@2.3.2: {}
 
   browserslist@4.29.5:
     dependencies:

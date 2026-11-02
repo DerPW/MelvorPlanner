@@ -65,14 +65,17 @@ export interface Route {
 const NOT_AN_ACTIVITY = new Set(['shop', 'upgrade', 'mill', 'farming'])
 
 export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, options: RouteOptions): Route {
+  const cap = profile.levelCap ?? MAX_LEVEL
   const level: Record<Id, number> = {}
   const xp: Record<Id, number> = {}
   for (const s of index.data.skills) {
-    level[s.id] = Math.min(MAX_LEVEL, Math.max(1, profile.levels[s.id] ?? 1))
-    xp[s.id] = xpForLevel(level[s.id])
+    level[s.id] = Math.min(cap, Math.max(1, profile.levels[s.id] ?? 1))
+    // Genaue XP aus dem Spielstand nur, solange sie zum Level passen
+    const exact = profile.xp?.[s.id]
+    xp[s.id] = exact != null && Math.min(cap, levelForXp(exact)) === level[s.id] ? exact : xpForLevel(level[s.id])
   }
   let gold = profile.currencies[GP] ?? 0
-  const now = (): Profile => ({ ...profile, levels: { ...level }, currencies: { ...profile.currencies, [GP]: gold } })
+  const now = (): Profile => ({ ...profile, levels: { ...level }, xp: { ...xp }, currencies: { ...profile.currencies, [GP]: gold } })
 
   const route: Route = {
     goal,
@@ -93,8 +96,8 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
     route.reached = route.alreadyDone = true
     return route
   }
-  if (goal.kind === 'level' && goal.level > MAX_LEVEL) {
-    route.stopReason = `Höchstes Level ist ${MAX_LEVEL}.`
+  if (goal.kind === 'level' && goal.level > cap) {
+    route.stopReason = `Höchstes Level in dieser Version ist ${cap}.`
     return route
   }
 
@@ -160,7 +163,7 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
         ? Math.ceil((xpForLevel(goal.level) - xp[goal.skill]) / best.xp.get(goal.skill)!)
         : Math.ceil((goal.amount - gold) / best.gold)
     for (const [s, per] of best.xp) {
-      if (per <= 0 || level[s] >= MAX_LEVEL) continue
+      if (per <= 0 || level[s] >= cap) continue
       n = Math.min(n, Math.ceil((xpForLevel(level[s] + 1) - xp[s]) / per))
     }
     if (best.gold < 0) n = Math.min(n, Math.floor(gold / -best.gold))
@@ -173,7 +176,7 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
     const from = goal.kind === 'level' ? level[goal.skill] : gold
     for (const [s, per] of best.xp) {
       xp[s] += per * n
-      level[s] = Math.min(MAX_LEVEL, levelForXp(xp[s]))
+      level[s] = Math.min(cap, levelForXp(xp[s]))
       addTo(route.xp, s, per * n)
     }
     gold += best.gold * n

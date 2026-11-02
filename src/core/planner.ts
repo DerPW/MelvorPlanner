@@ -84,7 +84,7 @@ export function unmetReqs(reqs: Req[], profile: Profile): Req[] {
   return reqs.filter((q) => {
     if (q.type === 'level') return levelOf(profile, q.skill) < q.level
     if (q.type === 'purchase') return !(profile.owned[q.purchase] > 0)
-    if (q.type === 'item') return !(profile.inventory[q.item] > 0)
+    if (q.type === 'item') return !(profile.inventory[q.item] > 0) && !profile.equipped?.includes(q.item)
     return false
   })
 }
@@ -261,7 +261,7 @@ export function makePlan(index: GameIndex, goals: ItemGoal[], profile: Profile, 
     for (const q of r.reqs) {
       if (q.type === 'level') plan.levels.set(q.skill, Math.max(plan.levels.get(q.skill) ?? 0, q.level))
       else if (q.type === 'purchase' && !(profile.owned[q.purchase] > 0)) plan.purchases.add(q.purchase)
-      else if (q.type === 'item' && !(profile.inventory[q.item] > 0)) plan.tools.add(q.item)
+      else if (q.type === 'item' && unmetReqs([q], profile).length) plan.tools.add(q.item)
       else if (q.type === 'other') other.add(q.text)
     }
     if (r.purchase && !(profile.owned[r.purchase] > 0)) {

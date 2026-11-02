@@ -42,6 +42,7 @@ export type Action =
   | { type: 'setOwned'; purchase: Id; owned: boolean }
   | { type: 'setPlots'; plots: number }
   | { type: 'resetProfile' }
+  | { type: 'importProfile'; profile: Profile }
   | { type: 'choose'; item: Id; recipe: Id | null }
   | { type: 'setOption'; options: Partial<RouteOptions> }
   | { type: 'toggleDone'; key: string }
@@ -94,8 +95,12 @@ export function reducer(s: State, a: Action): State {
         routes: s.routes.filter((r) => r.id !== a.id),
         view: s.view.kind === 'route' && s.view.id === a.id ? { kind: 'plan' } : s.view,
       }
-    case 'setLevel':
-      return { ...s, profile: { ...p, levels: { ...p.levels, [a.skill]: a.level } } }
+    case 'setLevel': {
+      // Von Hand gesetzt: die genauen XP aus dem Spielstand gelten nicht mehr
+      const xp = p.xp ? { ...p.xp } : undefined
+      if (xp) delete xp[a.skill]
+      return { ...s, profile: { ...p, levels: { ...p.levels, [a.skill]: a.level }, xp } }
+    }
     case 'setCurrency':
       return { ...s, profile: { ...p, currencies: { ...p.currencies, [a.currency]: Math.max(0, a.qty) } } }
     case 'setStock': {
@@ -114,6 +119,8 @@ export function reducer(s: State, a: Action): State {
       return { ...s, profile: { ...p, farmingPlots: Math.max(1, a.plots) } }
     case 'resetProfile':
       return { ...s, profile: emptyProfile() }
+    case 'importProfile':
+      return { ...s, profile: a.profile }
     case 'choose': {
       const choices = { ...s.choices }
       if (a.recipe) choices[a.item] = a.recipe
