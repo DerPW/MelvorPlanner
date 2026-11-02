@@ -70,6 +70,22 @@ Gold); Raten kommen aus der ersten und letzten Aufnahme derselben Aktion
 Rezept zu, vergleicht sie mit dem Block der aktiven Route, der gerade dran ist
 (`flowGroups`/`currentGroups`), rechnet die Restzeit mit gemessenem Tempo und
 benachrichtigt, wenn ein Block fertig ist und die Aktion nicht mehr passt.
+Zwischen zwei Spielständen wird sekündlich mit der gemessenen Rate
+weitergerechnet (Restzeiten, Bestände, Level); Verbrauch samt gewähltem Essen
+ergibt, wann das Material ausgeht. Die Live-Ansicht (`src/ui/LiveView.tsx`)
+zeigt dazu Werte und Boni der Aktion wie das Spiel-Panel (`statLines` in
+`src/core/bonuses.ts`).
+
+## Mastery, Statistiken, Guide, Quests
+
+Wie die Kopf-Knöpfe der Skill-Seiten im Spiel. Gelesen wird nur der
+Fortschritt (`save.ts`: MasteryGuild, Statistics, Quests) — Punkte, Ränge und
+Summen rechnet `src/core/mastery.ts` bzw. die Ansicht so, wie das Spiel sie
+beim Laden rechnet. Der Gilden-Rang je Skill (für die Boni) kommt daraus.
+Was die Statistiken bedeuten, steht nur im Spielcode; `src/core/statDefs.ts`
+hält die Tabelle (Art, Format, Bezeichnung). Die Guide-Texte stehen nur in den
+Godot-Szenen der Spieldatei — `scripts/godot-scene.mjs` liest sie bei der
+Extraktion.
 
 ## Oberfläche
 
@@ -182,6 +198,7 @@ Hunting, Ranching, Astrology; Gilden-Rang aus dem Spielstand lesen.
 - `src/core/` — Rechenkern ohne UI: `planner` (Crafting-Baum), `route`
   (Level/Gold-Simulation), `solve` (Ziele → Phasen), `bonuses` (Boni →
   Rezepte neu berechnen), `experience`, `save` (Spielstand lesen),
-  `saveImport` (Datei/Text → Profil)
+  `saveImport` (Datei/Text → Profil), `live` (Messung), `mastery`, `statDefs`
+- `scripts/godot-scene.mjs` — Godot-Szenen (RSRC) lesen, für die Tutorials
 - `src/ui/` — Oberfläche (React, eigenes CSS im macOS-Stil, Farben aus den
   UI-Texturen des Spiels)

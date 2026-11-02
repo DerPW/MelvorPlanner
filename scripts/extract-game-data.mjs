@@ -779,6 +779,11 @@ fs.rmSync(OUT_DIR, { recursive: true, force: true })
 fs.mkdirSync(ICON_DIR, { recursive: true })
 
 let written = 0
+// Symbole der Oberfläche, die keine Spieldaten nennen (Kopf-Knöpfe, Einheiten)
+for (const n of ['Statistics_64', 'Settings_64', 'codex', 'Mastery_Icon', 'GuideBook', 'Quests', 'QuestStepIcon', 'TimeInterval_48', 'doublingicon_48', 'XP_Icon_48', 'Slayer', 'Prayer', 'Agility', 'Astrology', 'Herblore', 'Ranching', 'Hunting'])
+  icon(`res://Assets/Icons/${n}.png`)
+icon('res://Assets/Items/Lemon.png')
+
 const missing = []
 for (const res of icons) {
   const tex = textureBytes(pck, res)

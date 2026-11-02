@@ -82,6 +82,7 @@ export function SkillView({ skill }: { skill: Id }) {
           .filter(Boolean)
           .join(' · ')}
       >
+        <SkillHeaderButtons skill={skill} />
         <Segmented<Sort>
           value={sort}
           onChange={setSort}
@@ -192,5 +193,31 @@ export function SkillView({ skill }: { skill: Id }) {
         </table>
       </div>
     </>
+  )
+}
+
+/** Kopf-Knöpfe wie im Spiel: Mastery, Statistiken, Guide — soweit es sie für den Skill gibt */
+function SkillHeaderButtons({ skill }: { skill: Id }) {
+  const { index, dispatch } = useGame()
+  const t = useT()
+  const ui = (name: string) => `game/icons/Icons/${name}.webp`
+  const buttons = [
+    (index.data.mastery?.[skill]?.tasks.length ?? 0) > 0 && { kind: 'mastery' as const, icon: ui('Mastery_Icon'), label: t('mastery.title') },
+    index.data.statistics?.[skill] && { kind: 'stats' as const, icon: ui('Statistics_64'), label: t('stats.title') },
+    index.data.tutorials?.[skill] && { kind: 'guide' as const, icon: ui('GuideBook'), label: t('guide.title') },
+  ].filter((b): b is { kind: 'mastery' | 'stats' | 'guide'; icon: string; label: string } => !!b)
+  if (!buttons.length) return null
+  return (
+    <div className="skill-head-buttons">
+      {buttons.map((b) => (
+        <button
+          key={b.kind}
+          className="btn plain small"
+          onClick={() => dispatch({ type: 'view', view: b.kind === 'stats' ? { kind: 'stats', entity: skill } : { kind: b.kind, skill } })}
+        >
+          <img src={b.icon} alt="" width={16} height={16} /> {b.label}
+        </button>
+      ))}
+    </div>
   )
 }

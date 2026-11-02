@@ -10,6 +10,32 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.12.0',
+    date: '2026-11-03',
+    de: {
+      title: 'Mastery, Statistiken, Guide und Quests',
+      items: [
+        'Mastery: je Skill die Mastery Guild wie im Spiel — Rangleiter mit den Punkten ab jedem Rang und seinen Boni, die Aufgaben je Kategorie mit Fortschritt aus dem Spielstand, offen/erledigt filterbar, „Planen“ für Aufgaben mit Item. Die Übersicht zeigt alle Gilden mit Rang und Punkten bis zum nächsten.',
+        'Statistiken: je Skill und Bereich (Charakter, Bank, Shop, Kampf …) die Werte wie im Spiel-Menü — Zeiten, Zähler, Währungen — und zusätzlich, welche Items gewonnen, verbraucht, gefunden oder verkauft wurden.',
+        'Guide: die Erklärungen des Spiels je Skill mit Schwierigkeit in Zitronen; der Kampf-Guide mit seinen Reitern.',
+        'Quests: Akt 1 der Demo mit Zustand je Quest, den Schritten, Zielen mit Fortschritt, Abgaben mit Lagerbestand und „Planen“, Belohnungen und den Dialogen zum Aufklappen. Freigeschaltet ab Smithing, Fletching und Runecrafting Level 5 — vorher mit Schloss.',
+        'Skill-Seiten haben die Knöpfe Mastery, Statistiken und Guide wie im Spiel.',
+        'Live: Die laufende Aktion verlinkt nur noch auf ein Item, wenn sie genau ein festes Produkt hat — beim Thieving (Beutetabelle) auf die Skill-Seite statt auf den ersten Beute-Eintrag.',
+      ],
+    },
+    en: {
+      title: 'Mastery, statistics, guide and quests',
+      items: [
+        'Mastery: each skill’s Mastery Guild like in the game — the rank ladder with the points each rank needs and its bonuses, the tasks per category with progress from your save, filterable open/done, “Plan” for tasks with an item. The overview shows every guild with its rank and points to the next.',
+        'Statistics: per skill and area (character, bank, shop, combat …) the values of the in-game menu — times, counters, currencies — plus which items were gained, used, found or sold.',
+        'Guide: the game’s explanations per skill with the lemon difficulty; the combat guide with its tabs.',
+        'Quests: Act 1 of the demo with each quest’s state, its steps, goals with progress, hand-ins with your stock and “Plan”, rewards and collapsible dialogue. Unlocked at Smithing, Fletching and Runecrafting level 5 — locked until then.',
+        'Skill pages have the Mastery, Statistics and Guide buttons like in the game.',
+        'Live: the running action only links to an item when it has exactly one fixed product — for thieving (loot table) to the skill page instead of the first loot entry.',
+      ],
+    },
+  },
+  {
     version: '0.11.9',
     date: '2026-11-02',
     de: {

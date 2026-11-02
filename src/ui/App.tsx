@@ -16,6 +16,10 @@ import { GearView } from './GearView'
 import { ShopView } from './ShopView'
 import { WikiView } from './WikiView'
 import { LiveView } from './LiveView'
+import { MasteryView } from './MasteryView'
+import { StatsView } from './StatsView'
+import { GuideView } from './GuideView'
+import { QuestsView } from './QuestsView'
 import { DetailView } from './DetailView'
 import { EntityHover } from './EntityHover'
 import { ImportSheet } from './ImportSheet'
@@ -55,7 +59,13 @@ export function App({ index }: { index: GameIndex }) {
           ? `${view.type}:${view.id}`
           : view.kind === 'wiki'
             ? `wiki:${view.section ?? ''}:${view.group ?? ''}`
-            : view.kind
+            : view.kind === 'mastery' || view.kind === 'guide'
+              ? `${view.kind}:${view.skill ?? ''}`
+              : view.kind === 'stats'
+                ? `stats:${view.entity ?? ''}`
+                : view.kind === 'quests'
+                  ? `quests:${view.quest ?? ''}`
+                  : view.kind
   let main
   if (view.kind === 'profile') main = <ProfileView />
   else if (view.kind === 'combat') main = <CombatView />
@@ -65,6 +75,10 @@ export function App({ index }: { index: GameIndex }) {
   else if (view.kind === 'wiki') main = <WikiView section={view.section} group={view.group} />
   else if (view.kind === 'completion') main = <CompletionView />
   else if (view.kind === 'live') main = <LiveView />
+  else if (view.kind === 'mastery') main = <MasteryView skill={view.skill} />
+  else if (view.kind === 'stats') main = <StatsView entity={view.entity} />
+  else if (view.kind === 'guide') main = <GuideView skill={view.skill} />
+  else if (view.kind === 'quests') main = <QuestsView quest={view.quest} />
   else if (view.kind === 'skill') main = <SkillView skill={view.skill} />
   else if (view.kind === 'detail') main = <DetailView type={view.type} id={view.id} />
   else if (view.kind === 'route' && state.routes.some((r) => r.id === view.id)) main = <RouteView id={view.id} />
@@ -125,7 +139,8 @@ function Sidebar() {
       <div className="sidebar-scroll">
         <div className="side-section" style={{ marginTop: 4 }}>
           <NavRow kind="routes" icon={ui('CompletionLog')} label={t('home.title')} badge={state.routes.length || undefined} />
-          <NavRow kind="wiki" icon={ui('GuideBook')} label={t('wiki.title')} />
+          <NavRow kind="wiki" icon={ui('codex')} label={t('wiki.title')} />
+          <NavRow kind="guide" icon={ui('GuideBook')} label={t('guide.title')} />
         </div>
         <div className="side-section">
           <div className="side-label">{t('nav.game')}</div>
@@ -134,8 +149,11 @@ function Sidebar() {
           <NavRow kind="shop" icon={ui('Shop')} label={t('shop.title')} locked={!!featureLock(index, state.profile, 'MelvorBase:Shop')} />
           <NavRow kind="combat" icon={ui('Combat')} label={t('combat.title')} locked={!!featureLock(index, state.profile, 'MelvorBase:Combat')} />
           <NavRow kind="gear" icon={index.items.get('MelvorBase:IronHelmet')?.icon ?? ui('Combat')} label={t('gear.title')} />
+          <NavRow kind="mastery" icon={ui('Mastery_Icon')} label={t('mastery.title')} />
+          <NavRow kind="stats" icon={ui('Statistics_64')} label={t('stats.title')} />
+          <NavRow kind="quests" icon={ui('Quests')} label={t('quests.title')} locked={!!featureLock(index, state.profile, 'MelvorBase:Quests')} />
           <NavRow kind="completion" icon={ui('Milestones')} label={t('completion.title')} />
-          <NavRow kind="profile" icon={ui('Mastery_Icon')} label={t('profile.title')} />
+          <NavRow kind="profile" icon={ui('Settings_64')} label={t('profile.title')} />
         </div>
 
         <div className="side-section">
@@ -221,7 +239,7 @@ function LiveNav() {
   return <NavRow kind="live" icon={icon} label={t('live.view')} extra={dot} />
 }
 
-function NavRow({ kind, icon, label, badge, locked, extra }: { kind: 'routes' | 'wiki' | 'live' | 'bank' | 'shop' | 'combat' | 'gear' | 'completion' | 'profile'; icon: string | null | undefined; label: string; badge?: number; locked?: boolean; extra?: React.ReactNode }) {
+function NavRow({ kind, icon, label, badge, locked, extra }: { kind: 'routes' | 'wiki' | 'guide' | 'live' | 'bank' | 'shop' | 'combat' | 'gear' | 'mastery' | 'stats' | 'quests' | 'completion' | 'profile'; icon: string | null | undefined; label: string; badge?: number; locked?: boolean; extra?: React.ReactNode }) {
   const { state, dispatch } = useGame()
   return (
     <button className={`side-row ${state.view.kind === kind ? 'active' : ''} ${locked ? 'locked' : ''}`} onClick={() => dispatch({ type: 'view', view: { kind }, root: true })}>

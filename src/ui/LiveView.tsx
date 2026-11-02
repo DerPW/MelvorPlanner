@@ -50,7 +50,10 @@ export function LiveView() {
   const share = level && hi > lo ? Math.min(1, Math.max(0, (xpNow - lo) / (hi - lo))) : 0
   const nextMs = level && xpH > 0 ? Math.max(0, ((hi - xpNow) / xpH) * 3_600_000) : null
   const icon = action?.recipe?.icon ?? action?.enemy?.icon ?? skill?.icon ?? null
-  const entity = action?.enemy ? `enemy:${action.enemy.id}` : action?.recipe?.outputs[0] ? `item:${action.recipe.outputs[0].item}` : skill ? `skill:${skill.id}` : null
+  // Link: Monster, sonst das eine feste Produkt (Holz, Erz …); bei Beute-Tabellen
+  // (Thieving, Angeln mit mehreren Fischen) die Skill-Seite statt des ersten Eintrags
+  const products = action?.recipe?.outputs.filter((o) => !o.extra) ?? []
+  const entity = action?.enemy ? `enemy:${action.enemy.id}` : products.length === 1 ? `item:${products[0].item}` : skill ? `skill:${skill.id}` : null
   const stopMs = flow?.stop ? leftNow(flow.stop.emptyMs, lastAt, now) : null
   const foodMs = flow?.foodOut ? leftNow(flow.foodOut.emptyMs, lastAt, now) : null
   const ls = tracking?.status === 'onTrack' ? tracking.live : null

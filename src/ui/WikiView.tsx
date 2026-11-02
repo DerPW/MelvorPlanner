@@ -194,7 +194,7 @@ const byName = (a: Entry, b: Entry) => a.name.localeCompare(b.name)
 
 /** Name und Symbol einer Wiki-Seite — für Titel und Brotkrumen */
 export function wikiStation(index: GameIndex, t: T, v: { section?: WikiKind; group?: string }): { label: string; icon: string | null } {
-  if (!v.section) return { label: t('wiki.title'), icon: ui('GuideBook') }
+  if (!v.section) return { label: t('wiki.title'), icon: ui('codex') }
   if (!v.group) return { label: wikiKindLabel(t, v.section), icon: KIND_ICON[v.section] }
   const list = wikiEntries(index, v.section, t).filter((x) => x.group === v.group)
   const icon = real(list[0]?.groupIcon) ?? list.map((x) => real(x.icon)).find(Boolean)
