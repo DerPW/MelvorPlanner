@@ -9,6 +9,8 @@
 //
 // Die Zeit- und Ertragsformeln unten sind aus dem Spielcode der Demo 0.11.4
 // nachgebaut (Grundwerte, ohne Boni) — Quelle steht jeweils am Rezepttyp.
+// Zum Release: einfach neu laufen lassen. Taucht ein Objekttyp auf, der Items
+// erzeugt und hier nicht behandelt wird, steht er am Ende als Warnung da.
 
 import fs from 'node:fs'
 import os from 'node:os'
@@ -83,7 +85,7 @@ class Pck {
   }
 }
 
-// `res://Assets/Items/X.png` → WebP-Bytes der ersten Mip-Stufe aus der .ctex
+// `res://Assets/Items/X.png` → Bild-Bytes der ersten Mip-Stufe aus der .ctex
 function textureBytes(pck, resPath) {
   const rel = resPath.replace(/^res:\/\//, '')
   const imp = pck.file(rel + '.import')
@@ -122,6 +124,11 @@ for (const p of packages) {
   console.log(`Datenpaket ${p} (${ns})`)
 }
 const all = (type) => [...(objects[type] ?? new Map()).entries()]
+const handled = new Set()
+const each = (type, fn) => {
+  handled.add(type)
+  for (const [id, o] of all(type)) fn(id, o)
+}
 
 const icons = new Set()
 const icon = (res) => {
@@ -133,246 +140,268 @@ const iconUrl = (res) => 'game/icons/' + res.replace(/^res:\/\/(Assets\/)?/, '')
 
 const isDemoLocked = (o) =>
   JSON.stringify(o.Requirements ?? []).includes('DemoLocked') ||
-  JSON.stringify(o.Products ?? o.Product ?? []).includes('DemoPlaceholderItem')
+  JSON.stringify(o.Products ?? o.Product ?? o.Provides ?? []).includes('DemoPlaceholderItem')
 
-// Level-Anforderung + übrige Anforderungen als lesbarer Text
+const short = (id) => String(id).replace(/^MelvorBase:/, '')
+
+// Anforderungen strukturiert: Level, Shop-Kauf, sonst lesbarer Text.
+// `skill`/`level` = die höchste Level-Anforderung (für Tabellen).
 function requirements(o) {
+  const reqs = []
   let skill = null
   let level = 0
-  const other = []
   for (const r of o.Requirements ?? []) {
+    const d = r.Data ?? {}
     if (r.Type === 'MelvorBase:Level') {
-      const s = r.Data.Component.Entity
-      if (r.Data.Level >= level) {
+      const s = d.Component?.Entity
+      reqs.push({ type: 'level', skill: s, level: d.Level })
+      if (d.Level >= level) {
         skill = s
-        level = r.Data.Level
+        level = d.Level
       }
     } else if (r.Type === 'MelvorBase:ShopPurchase') {
-      const sp = objects.ShopPurchase?.get(r.Data.ShopPurchase)
-      other.push(`Shop: ${sp?.DisplayName ?? r.Data.ShopPurchase}`)
-    } else if (r.Type !== 'MelvorBase:DemoLocked') {
-      other.push(r.Type.replace(/^MelvorBase:/, ''))
+      const sp = objects.ShopPurchase?.get(d.ShopPurchase)
+      reqs.push({ type: 'purchase', purchase: d.ShopPurchase, name: sp?.DisplayName ?? short(d.ShopPurchase) })
+    } else if (r.Type === 'MelvorBase:DemoLocked') {
+      // eigenes Feld demoLocked
+    } else if (r.Type === 'MelvorBase:ToolbeltItemEquipped' && d.Item) {
+      reqs.push({ type: 'item', item: d.Item })
+    } else {
+      const detail = d.Quest ?? d.Item ?? d.Enemy ?? d.Statistic ?? d.Animal ?? null
+      reqs.push({ type: 'other', text: short(r.Type) + (detail ? `: ${short(detail)}` : '') })
     }
   }
-  return { skill, level, other }
+  return { reqs, skill, level }
 }
 
 const qtyList = (list) => (list ?? []).map((i) => ({ item: i.Item, qty: i.Quantity }))
 const costList = (list) => (list ?? []).map((c) => ({ currency: c.Currency, qty: c.Quantity }))
+const products = (list) => (list ?? []).map((p) => ({ item: p.Item, qty: p.Quantity, chance: p.Chance ?? 1 }))
 
 // Artisan-Rezepte gehören über die Rezeptliste der Skill-Konfiguration zu einem Skill
-const artisanSkill = new Map()
+const recipeSkill = new Map()
 for (const [entity, cfg] of Object.entries(entityConfig)) {
-  for (const r of cfg.Recipes ?? []) if (!artisanSkill.has(r.Id)) artisanSkill.set(r.Id, entity)
+  for (const r of cfg.Recipes ?? []) if (!recipeSkill.has(r.Id)) recipeSkill.set(r.Id, entity)
 }
 
 const recipes = []
-const push = (r) => recipes.push(r)
+function push(type, id, o, fields) {
+  const req = requirements(o)
+  recipes.push({
+    id: `${type}:${id}`,
+    name: o.DisplayName,
+    icon: null,
+    skill: req.skill,
+    level: req.level,
+    reqs: req.reqs,
+    inputs: [],
+    costs: [],
+    outputs: [],
+    timeMs: 0,
+    xp: o.BaseExperience ?? 0,
+    demoLocked: isDemoLocked(o),
+    ...fields,
+  })
+  const r = recipes.at(-1)
+  // Rezepte ohne eigenes Symbol zeigen ihr Ergebnis
+  if (!r.icon && r.outputs[0]) r.icon = icon(objects.Item.get(r.outputs[0].item)?.Icon)
+}
 
 // Artisan + Kochen: ein Durchlauf = Intervall × Schritte (ArtisanActionComponent,
 // RecipeHealth = max(1, Steps)). XP gibt es je erfolgreichem Durchlauf.
+// Kochen: Erfolg = clamp((69 + Level) / (69 + Schwierigkeit)) (CookingActionStats),
+// Zutaten gehen auch beim Misserfolg weg.
 for (const type of ['ArtisanRecipe', 'CookingRecipe']) {
-  for (const [id, o] of all(type)) {
-    const req = requirements(o)
-    push({
-      id: `${type}:${id}`,
-      kind: type === 'CookingRecipe' ? 'cooking' : 'artisan',
-      name: o.DisplayName,
+  each(type, (id, o) => {
+    const cooking = type === 'CookingRecipe'
+    push(type, id, o, {
+      kind: cooking ? 'cooking' : 'artisan',
       icon: icon(o.Icon),
-      skill: artisanSkill.get(id) ?? req.skill ?? (type === 'CookingRecipe' ? 'MelvorBase:Cooking' : null),
-      level: req.level,
-      otherReqs: req.other,
+      skill: recipeSkill.get(id) ?? requirements(o).skill ?? (cooking ? 'MelvorBase:Cooking' : null),
       inputs: qtyList(o.Ingredients?.Items),
       costs: costList(o.Ingredients?.Currencies),
-      outputs: (o.Products ?? []).map((p) => ({ item: p.Item, qty: p.Quantity, chance: p.Chance ?? 1 })),
+      outputs: products(o.Products),
       timeMs: o.BaseInterval * Math.max(1, o.Steps ?? 1),
-      xp: o.BaseExperience,
-      // Kochen: Erfolg = clamp((69 + Level) / (69 + Schwierigkeit)) (CookingActionStats)
-      difficulty: type === 'CookingRecipe' ? (o.Difficulty ?? 0) : undefined,
-      demoLocked: isDemoLocked(o),
+      ...(cooking ? { success: { kind: 'cooking', difficulty: o.Difficulty ?? 0 } } : {}),
     })
-  }
+  })
 }
+
+// Kräuterkunde: Vorbereiten → Erhitzen → Rühren → Abfüllen nacheinander
+// (HerbloreActionComponent.GetIntervalForRecipeState), XP am Ende.
+each('HerbloreRecipe', (id, o) => {
+  push('HerbloreRecipe', id, o, {
+    kind: 'artisan',
+    icon: icon(o.Icon),
+    skill: 'MelvorBase:Herblore',
+    inputs: qtyList(o.Ingredients?.Items),
+    costs: costList(o.Ingredients?.Currencies),
+    outputs: products(o.Products),
+    timeMs: (o.BasePreparingInterval ?? 0) + (o.BaseHeatingInterval ?? 0) + (o.BaseStirringInterval ?? 0) + (o.BaseBottlingInterval ?? 0),
+  })
+})
 
 // Holzfällen: jeder Schlag ein Intervall, der Baum fällt nach BaseMaxHealth
 // Schlägen (WoodcuttingActionComponent) — erst dann gibt es Holz und XP.
-for (const [id, o] of all('WoodcuttingRecipe')) {
-  const req = requirements(o)
-  push({
-    id: `WoodcuttingRecipe:${id}`,
+each('WoodcuttingRecipe', (id, o) => {
+  push('WoodcuttingRecipe', id, o, {
     kind: 'woodcutting',
-    name: o.DisplayName,
     icon: icon(o.Media),
     skill: 'MelvorBase:Woodcutting',
-    level: o.Level ?? req.level,
-    otherReqs: req.other,
-    inputs: [],
-    costs: [],
+    level: o.Level ?? requirements(o).level,
     outputs: [{ item: o.Product.Item, qty: o.Product.Quantity, chance: 1 }],
     timeMs: o.BaseInterval * Math.max(1, o.BaseMaxHealth ?? 1),
-    xp: o.BaseExperience,
-    demoLocked: isDemoLocked(o),
   })
-}
+})
 
 // Bergbau: je Schlag mit Chance p sofort fertig, sonst Fortschritt += p; bei
 // ≥ 0,9999 fertig (MiningActionComponent). Erwartete Schläge = (1 − (1−p)^n) / p.
-for (const [id, o] of all('MiningRecipe')) {
-  const req = requirements(o)
+each('MiningRecipe', (id, o) => {
   const p = o.BaseProductChance ?? 1
   const n = Math.ceil(0.9999 / p - 1e-9)
   const hits = p >= 1 ? 1 : (1 - (1 - p) ** n) / p
-  push({
-    id: `MiningRecipe:${id}`,
+  push('MiningRecipe', id, o, {
     kind: 'mining',
-    name: o.DisplayName,
     icon: icon(o.Media),
     skill: 'MelvorBase:Mining',
-    level: req.level,
-    otherReqs: req.other,
-    inputs: [],
-    costs: [],
     outputs: [{ item: o.Product.Item, qty: o.Product.Quantity, chance: 1 }],
     timeMs: o.BaseInterval * hits,
-    xp: o.BaseExperience,
-    demoLocked: isDemoLocked(o),
   })
-}
+})
 
 // Angeln: Intervall gleichverteilt zwischen Min und Max; mit FishChance ein
 // Fisch, gewichtet unter RandomProducts, sonst Müll. XP je Wurf.
-for (const [id, o] of all('FishingRecipe')) {
-  const req = requirements(o)
+each('FishingRecipe', (id, o) => {
   const total = (o.RandomProducts ?? []).reduce((s, p) => s + p.Weight, 0) || 1
   const location = objects.FishingLocation?.get(o.Location)
-  push({
-    id: `FishingRecipe:${id}`,
+  const first = o.RandomProducts?.[0] && objects.Item.get(o.RandomProducts[0].Item)
+  push('FishingRecipe', id, o, {
     kind: 'fishing',
     name: location ? `${o.DisplayName} (${location.DisplayName})` : o.DisplayName,
-    icon: icon(o.RandomProducts?.[0] ? objects.Item.get(o.RandomProducts[0].Item)?.Icon : o.Icon),
+    icon: icon(first?.Icon ?? o.Icon),
     skill: 'MelvorBase:Fishing',
-    level: req.level,
-    otherReqs: req.other,
-    inputs: [],
-    costs: [],
     outputs: (o.RandomProducts ?? []).map((p) => ({
       item: p.Item,
       qty: (p.MinQuantity + p.MaxQuantity) / 2,
       chance: (o.FishChance ?? 1) * (p.Weight / total),
     })),
     timeMs: ((o.BaseMinInterval ?? 0) + (o.BaseMaxInterval ?? 0)) / 2,
-    xp: o.BaseExperience,
-    demoLocked: isDemoLocked(o),
   })
-}
+})
 
 // Feuermachen: verbrennt Holz, Nebenprodukte (Asche, Kohle) mit Chance.
-for (const [id, o] of all('FiremakingRecipe')) {
-  const req = requirements(o)
-  push({
-    id: `FiremakingRecipe:${id}`,
+each('FiremakingRecipe', (id, o) => {
+  push('FiremakingRecipe', id, o, {
     kind: 'firemaking',
     name: `${o.DisplayName} verbrennen`,
     icon: icon(o.Icon),
     skill: 'MelvorBase:Firemaking',
-    level: req.level,
-    otherReqs: req.other,
     inputs: qtyList(o.Ingredients?.Items),
     costs: costList(o.Ingredients?.Currencies),
-    outputs: (o.Products ?? []).map((p) => ({ item: p.Item, qty: p.Quantity, chance: p.Chance ?? 1 })),
+    outputs: products(o.Products),
     timeMs: o.BaseInterval,
-    xp: o.BaseExperience,
-    demoLocked: isDemoLocked(o),
+    currencyOutputs: o.CurrencyReward
+      ? [{ currency: o.CurrencyReward.Currency, qty: o.CurrencyReward.Quantity ?? ((o.CurrencyReward.MinQuantity ?? 0) + (o.CurrencyReward.MaxQuantity ?? 0)) / 2, chance: 1 }]
+      : undefined,
   })
-}
+})
+
+// Thieving: Erfolg = min(1, (100 + Level) / (100 + Wahrnehmung))
+// (ThievingActionStats); Fehlschlag = 2 s Betäubung obendrauf, keine Beute,
+// keine XP. Beute bei Erfolg: Gold mit Chance, gewöhnliche/seltene Tabelle.
+each('ThievingRecipe', (id, o) => {
+  const table = (rows, chance) => {
+    const total = (rows ?? []).reduce((s, r) => s + r.Weight, 0) || 1
+    return (rows ?? []).map((r) => ({ item: r.Item, qty: (r.MinQuantity + r.MaxQuantity) / 2, chance: chance * (r.Weight / total) }))
+  }
+  const cr = o.CurrencyReward
+  push('ThievingRecipe', id, o, {
+    kind: 'thieving',
+    icon: icon(o.Media),
+    skill: 'MelvorBase:Thieving',
+    outputs: [...table(o.CommonDropTable, o.BaseCommonLootChance ?? 0), ...table(o.RareDropTable, o.BaseRareLootChance ?? 0)],
+    currencyOutputs: cr ? [{ currency: cr.Currency, qty: (cr.MinQuantity + cr.MaxQuantity) / 2, chance: o.BaseCurrencyLootChance ?? 1 }] : [],
+    timeMs: o.BaseInterval,
+    success: { kind: 'thieving', perception: o.Perception ?? 0, stunMs: 2000 },
+  })
+})
 
 // Farming: Wachstum ist Wartezeit, kein aktives Tun. Ertrag je Feld.
-for (const [id, o] of all('FarmingRecipe')) {
-  const req = requirements(o)
-  push({
-    id: `FarmingRecipe:${id}`,
+each('FarmingRecipe', (id, o) => {
+  push('FarmingRecipe', id, o, {
     kind: 'farming',
-    name: o.DisplayName,
     icon: icon(o.Icon),
     skill: 'MelvorBase:Farming',
-    level: req.level,
-    otherReqs: req.other,
     inputs: qtyList(o.Ingredients?.Items),
     costs: costList(o.Ingredients?.Currencies),
     outputs: [{ item: o.Product.Item, qty: o.Product.Quantity, chance: 1 }],
     timeMs: o.BaseInterval,
     passive: true,
-    xp: o.BaseExperience,
-    demoLocked: isDemoLocked(o),
   })
-}
+})
 
-for (const [id, o] of all('GrainMillRecipe')) {
-  const req = requirements(o)
-  push({
-    id: `GrainMillRecipe:${id}`,
+each('GrainMillRecipe', (id, o) => {
+  push('GrainMillRecipe', id, o, {
     kind: 'mill',
-    name: o.DisplayName,
     icon: icon(o.Icon),
-    skill: 'MelvorBase:Farming',
-    level: req.level,
-    otherReqs: req.other,
     inputs: qtyList(o.Ingredients?.Items),
     costs: costList(o.Ingredients?.Currencies),
     outputs: [{ item: o.Product.Item, qty: o.Product.Quantity, chance: 1 }],
-    timeMs: 0,
-    xp: o.BaseExperience ?? 0,
-    demoLocked: isDemoLocked(o),
   })
-}
+})
 
-for (const [id, o] of all('ShopPurchase')) {
-  const items = o.Provides?.Items ?? []
-  if (!items.length) continue
+// Shop: jeder Kauf ist eine Freischaltung; die, die Items liefern, zusätzlich
+// eine Item-Quelle.
+const purchases = []
+each('ShopPurchase', (id, o) => {
   const req = requirements(o)
-  push({
-    id: `ShopPurchase:${id}`,
-    kind: 'shop',
+  const items = qtyList(o.Provides?.Items)
+  purchases.push({
+    id,
     name: o.DisplayName,
     icon: icon(o.Icon),
-    skill: req.skill,
-    level: req.level,
-    otherReqs: req.other,
-    inputs: qtyList(o.Costs?.Items),
+    description: o.Description ?? null,
+    category: objects.ShopSubcategory?.get(o.Subcategory)?.DisplayName ?? (o.Subcategory ? short(o.Subcategory) : null),
     costs: costList(o.Costs?.Currencies),
-    outputs: items.map((i) => ({ item: i.Item, qty: i.Quantity, chance: 1 })),
-    timeMs: 0,
-    xp: 0,
-    buyLimit: o.DefaultBuyLimit || undefined,
+    inputs: qtyList(o.Costs?.Items),
+    reqs: req.reqs,
+    items,
+    buyLimit: o.DefaultBuyLimit || null,
     demoLocked: isDemoLocked(o),
   })
-}
+  if (items.length) {
+    push('ShopPurchase', id, o, {
+      kind: 'shop',
+      icon: icon(o.Icon),
+      inputs: qtyList(o.Costs?.Items),
+      costs: costList(o.Costs?.Currencies),
+      outputs: items.map((i) => ({ ...i, chance: 1 })),
+      xp: 0,
+      purchase: id,
+    })
+  }
+})
 
-for (const [id, o] of all('ItemUpgrade')) {
-  const req = requirements(o)
-  push({
-    id: `ItemUpgrade:${id}`,
+each('ItemUpgrade', (id, o) => {
+  const item = objects.Item.get(o.UpgradedItem)
+  push('ItemUpgrade', id, o, {
     kind: 'upgrade',
-    name: objects.Item.get(o.UpgradedItem)?.DisplayName?.Singular ?? id,
-    icon: icon(objects.Item.get(o.UpgradedItem)?.Icon),
-    skill: req.skill,
-    level: req.level,
-    otherReqs: req.other,
+    name: item?.DisplayName?.Singular ?? short(id),
+    icon: icon(item?.Icon),
     inputs: qtyList(o.Costs?.Items),
     costs: costList(o.Costs?.Currencies),
     outputs: [{ item: o.UpgradedItem, qty: o.QuantityPerUpgrade ?? 1, chance: 1 }],
-    timeMs: 0,
     xp: 0,
-    demoLocked: isDemoLocked(o),
   })
-}
+})
 
 // Items
+handled.add('Item')
 const items = all('Item')
   .filter(([id]) => !id.endsWith(':DemoPlaceholderItem'))
   .map(([id, o]) => ({
     id,
-    name: o.DisplayName?.Singular ?? o.DisplayName ?? id,
+    name: o.DisplayName?.Singular ?? o.DisplayName ?? short(id),
     icon: icon(o.Icon),
     sells: o.SellsFor ? { currency: o.SellsFor.Currency, qty: o.SellsFor.Quantity } : null,
   }))
@@ -383,26 +412,23 @@ for (const [entity, cfg] of Object.entries(entityConfig)) if (cfg.MasteryGuildRa
 const nav = new Map(all('SkillNavigationOption').map(([, o]) => [o.Entity, o]))
 const skills = [...skillIds].sort().map((id) => {
   const n = nav.get(id)
-  const short = id.split(':')[1]
-  const fallback = [`${short}.png`, `${short}_64.png`].find((f) => pck.files.has(`Assets/Icons/${f}.import`))
-  return {
-    id,
-    name: n?.DisplayName ?? short,
-    icon: icon(n?.Icon ?? (fallback ? `res://Assets/Icons/${fallback}` : null)),
-  }
+  const s = short(id)
+  const fallback = [`${s}.png`, `${s}_64.png`].find((f) => pck.files.has(`Assets/Icons/${f}.import`))
+  return { id, name: n?.DisplayName ?? s, icon: icon(n?.Icon ?? (fallback ? `res://Assets/Icons/${fallback}` : null)) }
 })
 
-const currencies = all('Currency').map(([id, o]) => ({
-  id,
-  name: o.DisplayName,
-  short: o.DisplayNameShort,
-  icon: icon(o.Icon),
-}))
+const currencies = all('Currency').map(([id, o]) => ({ id, name: o.DisplayName, short: o.DisplayNameShort, icon: icon(o.Icon) }))
+handled.add('Currency')
 
 // Ein paar Spiel-Symbole für die Oberfläche
 for (const name of ['Bank', 'Milestones', 'CompletionLog', 'GuideBook', 'Mastery_Icon', 'CheckeredFlag', 'Ingredient', 'Shop', 'Quests']) {
   if (pck.files.has(`Assets/Icons/${name}.png.import`)) icon(`res://Assets/Icons/${name}.png`)
 }
+
+// Was erzeugt Items, wird hier aber nicht gerechnet? (Hinweis fürs Release)
+const unhandled = Object.entries(objects)
+  .filter(([type, byId]) => !handled.has(type) && [...byId.values()].some((o) => /"(Products?|RandomProducts|DropTable|Loot\w*|Provides)"/.test(JSON.stringify(o))))
+  .map(([type, byId]) => `${type} (${byId.size})`)
 
 // ---------------------------------------------------------------------------
 // Schreiben
@@ -425,9 +451,10 @@ for (const res of icons) {
 }
 
 const plist = pckPath.includes('.app/') ? path.join(pckPath.split('.app/')[0] + '.app', 'Contents/Info.plist') : null
-const version = plist && fs.existsSync(plist)
-  ? fs.readFileSync(plist, 'utf8').match(/CFBundleShortVersionString<\/key>\s*<string>([^<]+)/)?.[1]
-  : undefined
+const version =
+  plist && fs.existsSync(plist)
+    ? fs.readFileSync(plist, 'utf8').match(/CFBundleShortVersionString<\/key>\s*<string>([^<]+)/)?.[1]
+    : undefined
 
 const data = {
   meta: {
@@ -440,12 +467,14 @@ const data = {
   skills,
   items,
   recipes,
+  purchases,
 }
 fs.writeFileSync(path.join(OUT_DIR, 'data.json'), JSON.stringify(data))
 
 const locked = recipes.filter((r) => r.demoLocked).length
 console.log(
-  `${items.length} Items, ${recipes.length} Rezepte (${locked} in der Demo gesperrt), ` +
+  `${items.length} Items, ${recipes.length} Rezepte (${locked} gesperrt), ${purchases.length} Shop-Käufe, ` +
     `${skills.length} Skills, ${written} Icons` +
     (missing.length ? `, ${missing.length} Icons ohne Textur` : ''),
 )
+if (unhandled.length) console.warn(`⚠︎ Noch nicht gerechnet (erzeugen Items): ${unhandled.join(', ')}`)
