@@ -40,7 +40,8 @@ export function withItem(index: GameIndex, profile: Profile, loadout: CombatLoad
   return f
 }
 
-export type Scope = 'owned' | 'wearable' | 'all'
+/** Aus dem Lager, mit jetzigen Leveln tragbar, alles — oder alles bis zu einem Level */
+export type Scope = 'owned' | 'wearable' | 'all' | { cap: number }
 
 export interface Pick {
   slot: string
@@ -56,7 +57,13 @@ export interface Optimum {
   f: FightResult
   value: number
   picks: Pick[]
+  /** Level, die das Set verlangt und die noch fehlen */
+  levels: { skill: Id; level: number }[]
 }
+
+/** Level-Anforderungen eines Teils */
+const levelReqs = (i: Item) => (i.equipment?.reqs ?? []).flatMap((q) => (q.type === 'level' ? [{ skill: q.skill, level: q.level }] : []))
+const levelOfReqs = (i: Item) => Math.max(1, ...levelReqs(i).map((l) => l.level))
 
 /** Beste Kombination: erst die besten Waffen (je mit bester Haltung), dann
  *  für jede die übrigen Plätze nacheinander (zwei Durchgänge) — gierig, aber
@@ -67,12 +74,23 @@ export function optimize(index: GameIndex, profile: Profile, loadout: CombatLoad
   const equipped = new Set(Object.values(loadout.gear))
   const owned = (i: Item) => (profile.inventory[i.id] ?? 0) > 0 || equipped.has(i.id)
   const wearable = (i: Item) => unmetReqs(i.equipment?.reqs ?? [], profile).length === 0
-  const allowed = (i: Item) => (scope === 'all' ? true : scope === 'wearable' ? wearable(i) : owned(i) && wearable(i))
+  // Mit Level-Grenze: Level-Anforderungen bis dahin, alles andere muss schon erfüllt sein
+  const cap = typeof scope === 'object' ? scope.cap : null
+  const withinCap = (i: Item) => levelOfReqs(i) <= cap! && unmetReqs((i.equipment?.reqs ?? []).filter((q) => q.type !== 'level'), profile).length === 0
+  const allowed = (i: Item) => (cap !== null ? withinCap(i) : scope === 'all' ? true : scope === 'wearable' ? wearable(i) : owned(i) && wearable(i))
+  // Eine Stufe „bis Lv n" heißt: du hast dann auch die Level — fürs Auswählen angehoben
+  const levelsAt = (base: Profile, raise: { skill: Id; level: number }[]): Profile => {
+    const levels = { ...base.levels }
+    for (const r of raise) levels[r.skill] = Math.max(levels[r.skill] ?? 1, r.level)
+    return { ...base, levels }
+  }
+  const gating = [...new Set(index.data.items.flatMap((i) => (i.equipment ? levelReqs(i).map((l) => l.skill) : [])))]
+  const chooser = cap !== null ? levelsAt(profile, gating.map((skill) => ({ skill, level: cap }))) : profile
   const slots = index.data.combat.slots
   const pool = (fits: string) => index.data.items.filter((i) => i.equipment?.type === fits && i.id !== 'MelvorBase:DefaultWeapon' && allowed(i))
   // Zweites Kriterium: weniger erlittener Schaden — sonst bliebe Rüstung bei XP/h oder GP/h weg
-  const run = (lo: CombatLoadout) => {
-    const f = simulate(index, playerFighter(index, profile, lo, darkness), enemy)
+  const run = (lo: CombatLoadout, prof: Profile = chooser) => {
+    const f = simulate(index, playerFighter(index, prof, lo, darkness), enemy)
     const v = f.danger === 'deadly' ? (dir > 0 ? 0 : Infinity) : metricOf(f, metric)
     return { f, v, d: metric === 'damage' ? f.killMs : perHour(f).damage }
   }
@@ -136,7 +154,16 @@ export function optimize(index: GameIndex, profile: Profile, loadout: CombatLoad
   }
   if (!best) return null
   const result: CombatLoadout = { ...loadout, gear: best.gear, stances: best.stances }
-  const f = run(result).f
+  // Gerechnet mit genau den Leveln, die das Set verlangt (nicht mehr)
+  const needed = new Map<Id, number>()
+  for (const id of Object.values(best.gear)) {
+    const it = index.items.get(id)
+    if (it) for (const l of levelReqs(it)) needed.set(l.skill, Math.max(needed.get(l.skill) ?? 0, l.level))
+  }
+  const levels = [...needed].filter(([s, l]) => (profile.levels[s] ?? 1) < l).map(([skill, level]) => ({ skill, level }))
+  const finalProfile = levelsAt(profile, levels)
+  const final = run(result, finalProfile)
+  const f = final.f
 
   // Alternativen: fehlt ein gewähltes Teil, das beste aus dem Lager für den Platz
   const picks: Pick[] = slots.map((slot) => {
@@ -154,6 +181,37 @@ export function optimize(index: GameIndex, profile: Profile, loadout: CombatLoad
     }
     return { slot: slot.id, item, owned: item ? owned(item) : true, wearable: item ? wearable(item) : true, alternative }
   })
-  return { loadout: result, f, value: best.v, picks }
+  return { loadout: result, f, value: final.v, picks, levels }
+}
+
+export interface Tier {
+  key: string
+  kind: 'owned' | 'wearable' | 'level'
+  cap?: number
+  result: Optimum
+}
+
+/** Stufenleiter: aus dem Lager, jetzt tragbar, dann je Level-Grenze bis zur
+ *  Grenze der Version — nur Stufen, die etwas ändern und besser sind */
+export function gearTiers(index: GameIndex, profile: Profile, loadout: CombatLoadout, enemy: Enemy, metric: Metric): Tier[] {
+  const dir = better(metric)
+  const top = profile.levelCap ?? 99
+  const reqLevels = new Set(index.data.items.filter((i) => i.equipment).map(levelOfReqs))
+  const caps = [10, 20, 30, 40, 50, 60, 70, 80, 90, 99, 120].filter((c) => c <= top && [...reqLevels].some((l) => l > c - 10 && l <= c))
+  if (!caps.includes(top) && [...reqLevels].some((l) => l <= top && l > (caps.at(-1) ?? 0))) caps.push(top)
+  const out: Tier[] = []
+  const add = (key: string, kind: Tier['kind'], scope: Scope, cap?: number) => {
+    const result = optimize(index, profile, loadout, enemy, metric, scope)
+    if (!result) return
+    const prev = out.at(-1)?.result
+    const sameGear = prev && JSON.stringify(prev.loadout.gear) === JSON.stringify(result.loadout.gear)
+    const gain = prev ? dir * (result.value - prev.value) : Infinity
+    if (prev && (sameGear || !(gain > Math.abs(prev.value) * 0.005))) return
+    out.push({ key, kind, cap, result })
+  }
+  add('owned', 'owned', 'owned')
+  add('wearable', 'wearable', 'wearable')
+  for (const c of caps) add(`lv${c}`, 'level', { cap: c }, c)
+  return out
 }
 

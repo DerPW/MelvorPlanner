@@ -5,14 +5,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { enemyAreas, perHour, playerFighter, simulate, type FightResult } from '../core/combat'
 import { fmtDurationShort, fmtInt, fmtNum } from '../core/format'
-import { better, metricOf, optimize, slotFor, withItem, xpRate, type Metric, type Optimum, type Scope } from '../core/gear'
+import { better, gearTiers, metricOf, slotFor, withItem, xpRate, type Metric, type Tier } from '../core/gear'
 import { unmetReqs } from '../core/planner'
 import type { Enemy, Id, Item } from '../core/types'
 
 export { better, metricOf, xpRate, type Metric }
 import { useI18n, type T } from '../i18n'
 import { DangerTag, useLoadout } from './CombatView'
-import { GameIcon, Ref, Sym, TabPills } from './components'
+import { GameIcon, Ref, Sym } from './components'
 import { Needs } from './SolutionView'
 import { planItem, useGame } from './state'
 
@@ -242,48 +242,79 @@ export function OptimalGear({ enemy, metric }: { enemy: Enemy; metric: Metric })
   const { index, state, dispatch } = useGame()
   const { t } = useI18n()
   const { loadout, set } = useLoadout()
-  const [scope, setScope] = useState<Scope>('owned')
-  const [result, setResult] = useState<Optimum | null>(null)
+  const [tiers, setTiers] = useState<Tier[]>([])
+  const [chosen, setChosen] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const current = useMemo(() => simulate(index, playerFighter(index, state.profile, loadout, enemyAreas(index, enemy.id).darkness), enemy), [index, state.profile, loadout, enemy])
 
-  // Rechnen kostet ein paar tausend Simulationen — erst zeichnen, dann rechnen
+  // Die Leiter kostet ein paar tausend Simulationen — erst zeichnen, dann rechnen
   useEffect(() => {
     setBusy(true)
     const id = setTimeout(() => {
-      setResult(optimize(index, state.profile, loadout, enemy, metric, scope))
+      setTiers(gearTiers(index, state.profile, loadout, enemy, metric))
       setBusy(false)
     }, 30)
     return () => clearTimeout(id)
-  }, [index, state.profile, loadout, enemy, metric, scope])
+  }, [index, state.profile, loadout, enemy, metric])
 
   const now = metricOf(current, metric)
+  // Vorwahl: die erste Stufe, die etwas bringt
+  const tier = tiers.find((x) => x.key === chosen) ?? tiers.find((x) => better(metric) * (x.result.value - now) > 0.5) ?? tiers[0]
+  const result = tier?.result ?? null
   const missing = result?.picks.filter((p) => p.item && !p.owned) ?? []
   return (
     <>
       <div className="opt-controls">
-        <TabPills<Scope>
-          value={scope}
-          onChange={setScope}
-          options={[
-            { value: 'owned', label: t('gear.scopeOwned') },
-            { value: 'wearable', label: t('gear.scopeWearable') },
-            { value: 'all', label: t('gear.scopeAll') },
-          ]}
-        />
+        <span className="muted">{t('gear.ladderHint')}</span>
         {busy && <span className="muted">{t('gear.computing')}</span>}
+      </div>
+      <div className={`tier-ladder ${busy ? 'stale' : ''}`}>
+        {tiers.map((x) => {
+          const gain = x.result.value - now
+          const miss = x.result.picks.filter((p) => p.item && !p.owned).length
+          return (
+            <button key={x.key} className={`tier ${x === tier ? 'active' : ''}`} onClick={() => setChosen(x.key)}>
+              <span className="tier-name">{x.kind === 'owned' ? t('gear.scopeOwned') : x.kind === 'wearable' ? t('gear.tierNow') : t('gear.tierLevel', { n: x.cap ?? 0 })}</span>
+              <b>{fmtMetric(metric, x.result.value)}</b>
+              <span className={`tier-gain ${better(metric) * gain > 0.5 ? 'up' : ''}`}>{better(metric) * gain > 0.5 ? `${gain > 0 ? '+' : '−'}${metric === 'time' ? fmtDurationShort(Math.abs(gain)) : fmtInt(Math.abs(gain))}` : t('gear.same')}</span>
+              <span className="tier-icons">
+                {Object.values(x.result.loadout.gear)
+                  .slice(0, 10)
+                  .map((id) => (
+                    <GameIcon key={id} src={index.items.get(id)?.icon} size={16} />
+                  ))}
+              </span>
+              <span className="tier-meta">
+                {x.result.levels.length > 0 && <span>{x.result.levels.map((l) => `${index.skills.get(l.skill)?.name} ${l.level}`).join(' · ')}</span>}
+                {miss > 0 ? <span className="warn">{t('gear.missingN', { n: miss })}</span> : <span className="ok">{t('gear.complete')}</span>}
+              </span>
+            </button>
+          )
+        })}
       </div>
       {result && (
         <div className={`opt-result ${busy ? 'stale' : ''}`}>
           <div className="opt-head">
             <div>
-              <span className="muted">{t('gear.optValue')}</span>
+              <span className="muted">
+                {tier.kind === 'owned' ? t('gear.scopeOwned') : tier.kind === 'wearable' ? t('gear.tierNow') : t('gear.tierLevel', { n: tier.cap ?? 0 })}
+              </span>
               <b>{fmtMetric(metric, result.value)}</b>
               <span className={`delta ${better(metric) * (result.value - now) > 0.5 ? 'up' : ''}`}>
                 {t('gear.vsNow', { now: fmtMetric(metric, now) })}
               </span>
             </div>
             <DangerTag f={result.f} />
+            {result.levels.length > 0 && (
+              <span className="opt-levels">
+                {t('gear.needsLevels')}{' '}
+                {result.levels.map((l) => (
+                  <Ref key={l.skill} entity={`skill:${l.skill}`}>
+                    {index.skills.get(l.skill)?.name} {l.level}
+                  </Ref>
+                ))}
+              </span>
+            )}
             <span className="spacer" />
             {missing.length > 0 && (
               <button className="btn small plain" onClick={() => missing.forEach((m) => m.item && dispatch(planItem(m.item.id)))}>
@@ -331,7 +362,7 @@ export function OptimalGear({ enemy, metric }: { enemy: Enemy; metric: Metric })
                 ))}
             </tbody>
           </table>
-          <p className="muted small-note">{t('gear.optHint')}</p>
+          <p className="muted small-note">{t(tier.kind === 'level' ? 'gear.tierHint' : 'gear.optHint')}</p>
         </div>
       )}
     </>

@@ -10,6 +10,28 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.10.1',
+    date: '2026-11-02',
+    de: {
+      title: 'Ausrüstungs-Stufen, Wiki-Filter',
+      items: [
+        '„Optimal“ ist jetzt eine Stufenleiter: aus dem Lager, jetzt tragbar, dann je Level-Grenze (bis 10, 20, 30 …) das beste Set — mit Wert, Gewinn gegenüber jetzt, nötigen Leveln und fehlenden Teilen. So siehst du, ob eine Zwischenstufe reicht, bevor du aufs Endset sparst.',
+        'Jede Stufe ist mit den Leveln gerechnet, die ihr Set verlangt; ein Klick zeigt das Set mit „Route planen“ und „Übernehmen“.',
+        'Optimale Ausrüstung direkt von der Monster-Seite und aus dem Kontextmenü von Monstern.',
+        'Wiki: Kategorien als gruppierte Liste links statt einer Wand aus Knöpfen.',
+      ],
+    },
+    en: {
+      title: 'Gear tiers, wiki filter',
+      items: [
+        '“Optimal” is now a tier ladder: from your bank, wearable now, then the best set per level cap (up to 10, 20, 30 …) — with value, gain over now, required levels and missing pieces. See whether an intermediate tier is enough before saving up for the end set.',
+        'Each tier is calculated with the levels its set requires; a click shows the set with “Plan route” and “Use this”.',
+        'Optimal gear straight from the monster page and the monster context menu.',
+        'Wiki: categories as a grouped list on the left instead of a wall of buttons.',
+      ],
+    },
+  },
+  {
     version: '0.10.0',
     date: '2026-11-02',
     de: {
