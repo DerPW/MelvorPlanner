@@ -4,7 +4,7 @@ import { fmtInt } from '../core/format'
 import { GP } from '../core/route'
 import { useI18n, type LangSetting } from '../i18n'
 import { modLabel, modScope, modValue } from './bonusText'
-import { GameIcon, Select, Stepper, Switch, Sym, Toolbar } from './components'
+import { GameIcon, Ref, Select, Stepper, Switch, Sym, Toolbar } from './components'
 import { ItemSearch } from './ItemSearch'
 import { useLive } from './LiveSync'
 import { useGame } from './state'
@@ -165,7 +165,7 @@ export function ProfileView() {
               <div className="form-row" key={s.id}>
                 <GameIcon src={s.icon} size={22} entity={`skill:${s.id}`} />
                 <span className="grow">
-                  {s.name}
+                  <Ref entity={`skill:${s.id}`}>{s.name}</Ref>
                   <div className="hint">{fmtInt(p.xp?.[s.id] ?? xpForLevel(level))} XP</div>
                 </span>
                 <Stepper
@@ -191,7 +191,9 @@ export function ProfileView() {
             return (
               <div className="form-row" key={skill}>
                 <GameIcon src={s.icon} size={22} entity={`skill:${skill}`} />
-                <span className="grow">{s.name}</span>
+                <span className="grow">
+                  <Ref entity={`skill:${skill}`}>{s.name}</Ref>
+                </span>
                 <Select
                   label={t('guild.rankOf', { skill: s.name })}
                   value={String(p.guildRanks?.[skill] ?? 0)}
@@ -227,7 +229,7 @@ export function ProfileView() {
                     entity={source.kind === 'purchase' ? `purchase:${source.id}` : source.kind === 'item' ? `item:${source.id}` : source.skill ? `skill:${source.skill}` : null}
                   />
                   <span className="grow">
-                    {source.name}
+                    <Ref entity={source.kind === 'purchase' ? `purchase:${source.id}` : source.kind === 'item' ? `item:${source.id}` : source.skill ? `skill:${source.skill}` : null}>{source.name}</Ref>
                     {count > 1 && <span className="muted"> ×{count}</span>}
                     <div className="bonus-mods">
                       {source.mods.map((m, i) => (
@@ -304,7 +306,7 @@ export function ProfileView() {
             <div className="form-row" key={u.id}>
               <GameIcon src={u.icon} size={22} entity={`purchase:${u.id}`} />
               <span className="grow">
-                {u.name}
+                <Ref entity={`purchase:${u.id}`}>{u.name}</Ref>
                 <div className="hint">
                   {u.category}
                   {u.costs.map((c) => ` · ${fmtInt(c.qty)} ${index.currencies.get(c.currency)?.short ?? ''}`)}

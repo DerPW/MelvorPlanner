@@ -2,7 +2,7 @@ import { fmtDurationShort, fmtInt, fmtNum } from '../core/format'
 import { actionTime, rankSources, unmetReqs, yieldOf } from '../core/planner'
 import type { Id } from '../core/types'
 import { useT } from '../i18n'
-import { GameIcon, LevelTag, Stepper, Sym } from './components'
+import { GameIcon, LevelTag, Ref, Stepper, Sym } from './components'
 import { Needs, SourceText, sourceEntity } from './SolutionView'
 import { itemRoute, planItem, useGame } from './state'
 
@@ -32,7 +32,9 @@ export function Inspector({ item: id }: { item: Id }) {
         <div className="insp-icon">
           <GameIcon src={item.icon} size={60} entity={`item:${id}`} />
         </div>
-        <h2>{item.name}</h2>
+        <h2>
+          <Ref entity={`item:${id}`}>{item.name}</Ref>
+        </h2>
         <button className="link" onClick={() => dispatch({ type: 'view', view: { kind: 'detail', type: 'item', id } })}>
           {t('insp.details')} <Sym name="chevron" size={10} />
         </button>

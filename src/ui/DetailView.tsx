@@ -8,7 +8,7 @@ import { GP } from '../core/route'
 import type { Id, InfoSource, Mod, NamedValue, Req } from '../core/types'
 import { useI18n } from '../i18n'
 import { modLabel, modScope, modValue } from './bonusText'
-import { GameIcon, LevelTag, Stepper, Switch, Sym, Toolbar } from './components'
+import { GameIcon, LevelTag, Ref, Stepper, Switch, Sym, Toolbar } from './components'
 import { Needs, recipeAction, SourceText, sourceEntity } from './SolutionView'
 import { itemRoute, newId, planItem, useGame, type DetailType } from './state'
 
@@ -120,7 +120,7 @@ function Reqs({ reqs }: { reqs: Req[] }) {
       {reqs.map((q, i) =>
         q.type === 'level' ? (
           <span key={i} className="chip">
-            <GameIcon src={index.skills.get(q.skill)?.icon} size={14} entity={`skill:${q.skill}`} /> {index.skills.get(q.skill)?.name}
+            <GameIcon src={index.skills.get(q.skill)?.icon} size={14} entity={`skill:${q.skill}`} /> <Ref entity={`skill:${q.skill}`}>{index.skills.get(q.skill)?.name}</Ref>
             <LevelTag level={q.level} have={state.profile.levels[q.skill] ?? 1} />
           </span>
         ) : q.type === 'purchase' ? (
