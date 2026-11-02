@@ -15,6 +15,7 @@ function station(index: GameIndex, state: State, v: View, t: T): { label: string
   if (v.kind === 'routes') return { label: t('home.title'), icon: ui('CompletionLog'), entity: null }
   if (v.kind === 'profile') return { label: t('profile.title'), icon: ui('Bank'), entity: null }
   if (v.kind === 'combat') return { label: t('combat.title'), icon: ui('Combat'), entity: null }
+  if (v.kind === 'gear') return { label: t('gear.title'), icon: index.items.get('MelvorBase:IronHelmet')?.icon ?? ui('Combat'), entity: null }
   if (v.kind === 'skill') {
     const s = index.skills.get(v.skill)
     return { label: s?.name ?? v.skill, icon: s?.icon ?? null, entity: `skill:${v.skill}` }

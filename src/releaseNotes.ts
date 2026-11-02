@@ -10,6 +10,26 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.8.0',
+    date: '2026-11-02',
+    de: {
+      title: 'Ausrüstungs-Vergleich',
+      items: [
+        'Neue Ansicht „Ausrüstung“: Jedes passende Teil je Platz wird gegen deine jetzige Ausrüstung gerechnet — an einem Monster deiner Wahl (vorgewählt: das mit den meisten XP).',
+        'Wählbar, worauf es ankommt: XP/h, Zeit je Kill, GP/h oder Schaden/h. Neue Waffen werden mit ihrer besten Haltung gerechnet.',
+        '„Beste Upgrades“ über alle Plätze, tragbare zuerst; fehlende Level stehen als „braucht …“ daneben, Teile im Lager sind markiert. Rechtsklick → „Route dorthin planen“.',
+      ],
+    },
+    en: {
+      title: 'Gear comparison',
+      items: [
+        'New “Gear” view: every fitting piece per slot is compared with your current gear — against a monster of your choice (preselected: the one with the most XP).',
+        'Choose what matters: XP/h, time per kill, GP/h or damage/h. New weapons use their best stance.',
+        '“Best upgrades” across all slots, wearable ones first; missing levels show as “needs …”, pieces in your bank are marked. Right-click → “Plan a route there”.',
+      ],
+    },
+  },
+  {
     version: '0.7.0',
     date: '2026-11-02',
     de: {

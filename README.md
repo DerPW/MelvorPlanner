@@ -52,6 +52,10 @@ und Gold als Quelle, je Kampf-Skill eine Variante mit der passenden Haltung.
 Die Kill-Dauer wird bei jedem `actionTime` mit den aktuellen Leveln neu
 simuliert (`planner.hooks.combatTime`), damit Level-Routen schneller werden.
 
+**Ausrüstungs-Vergleich** (`src/ui/GearView.tsx`): je Platz jedes passende
+Teil eingesetzt und gegen ein Monster simuliert, gemessen an XP/h, Zeit je
+Kill, GP/h oder Schaden/h; Waffen mit ihrer besten Haltung.
+
 **Alternativen**: Der Löser kann Rezepte und Käufe meiden (`avoid`, samt
 allem, was davon abhängt). „›“ (`nextBest`) probiert die Abzweigungen fürs
 Ziel einzeln weg und nimmt die günstigste — so entsteht eine Folge immer

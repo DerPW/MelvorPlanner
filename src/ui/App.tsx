@@ -10,6 +10,7 @@ import { useI18n, type LangSetting } from '../i18n'
 import { GameIcon, Sym } from './components'
 import { Breadcrumbs } from './Breadcrumbs'
 import { CombatView } from './CombatView'
+import { GearView } from './GearView'
 import { DetailView } from './DetailView'
 import { EntityHover } from './EntityHover'
 import { ImportSheet } from './ImportSheet'
@@ -44,6 +45,7 @@ export function App({ index }: { index: GameIndex }) {
   let main
   if (view.kind === 'profile') main = <ProfileView />
   else if (view.kind === 'combat') main = <CombatView />
+  else if (view.kind === 'gear') main = <GearView />
   else if (view.kind === 'skill') main = <SkillView skill={view.skill} />
   else if (view.kind === 'detail') main = <DetailView type={view.type} id={view.id} />
   else if (view.kind === 'route' && state.routes.some((r) => r.id === view.id)) main = <RouteView id={view.id} />
@@ -118,6 +120,10 @@ function Sidebar() {
             <img src={ui('Combat')} alt="" />
             <span className="grow">{t('combat.title')}</span>
             {featureLock(index, state.profile, 'MelvorBase:Combat') && <Sym name="lock" size={12} className="side-lock" />}
+          </button>
+          <button className={`side-row ${v.kind === 'gear' ? 'active' : ''}`} onClick={() => dispatch({ type: 'view', view: { kind: 'gear' }, root: true })}>
+            <img src={index.items.get('MelvorBase:IronHelmet')?.icon ?? ui('Combat')} alt="" />
+            <span className="grow">{t('gear.title')}</span>
           </button>
         </div>
 

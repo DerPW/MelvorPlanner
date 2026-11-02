@@ -24,7 +24,7 @@ export function useLoadout() {
 }
 
 export function CombatView() {
-  const { index, state } = useGame()
+  const { index, state, dispatch } = useGame()
   const { t } = useI18n()
   const [sort, setSort] = useState<Sort>('xp')
   const { loadout } = useLoadout()
@@ -54,6 +54,9 @@ export function CombatView() {
   return (
     <>
       <Toolbar title={t('combat.title')} subtitle={t('combat.subtitle')}>
+        <button className="btn" onClick={() => dispatch({ type: 'view', view: { kind: 'gear' } })}>
+          {t('gear.open')}
+        </button>
         <Segmented<Sort>
           value={sort}
           onChange={setSort}

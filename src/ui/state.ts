@@ -23,6 +23,7 @@ export type View =
   | { kind: 'route'; id: string }
   | { kind: 'profile' }
   | { kind: 'combat' }
+  | { kind: 'gear' }
   | { kind: 'skill'; skill: Id }
   | { kind: 'detail'; type: DetailType; id: Id }
 
