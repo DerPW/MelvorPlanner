@@ -26,12 +26,13 @@ export type View =
   | { kind: 'gear' }
   | { kind: 'bank' }
   | { kind: 'shop' }
-  | { kind: 'wiki' }
+  | { kind: 'wiki'; section?: WikiKind; group?: string }
   | { kind: 'completion' }
   | { kind: 'skill'; skill: Id }
   | { kind: 'detail'; type: DetailType; id: Id }
 
 export type DetailType = 'item' | 'enemy' | 'area' | 'purchase'
+export type WikiKind = DetailType | 'skill'
 
 export type PlanTab = 'flow' | 'tree' | 'materials'
 export type GearTab = 'compare' | 'upgrades' | 'optimal'
@@ -299,7 +300,11 @@ export const sameView = (a: View, b: View) => JSON.stringify(a) === JSON.stringi
 function nextTrail(trail: View[], view: View, root?: boolean): View[] {
   if (root) return [view]
   const i = trail.findIndex((v) => sameView(v, view))
-  return i >= 0 ? trail.slice(0, i + 1) : [...trail, view].slice(-8)
+  if (i >= 0) return trail.slice(0, i + 1)
+  // Wiki: eine Kategorie hängt unter ihrer Art — „Wiki › Items › Waffe“, auch direkt von der Startseite aus
+  const last = trail.at(-1)
+  if (view.kind === 'wiki' && view.section && view.group && last?.kind === 'wiki' && !last.section) return [...trail, { kind: 'wiki' as const, section: view.section }, view].slice(-8)
+  return [...trail, view].slice(-8)
 }
 
 /** Gleiches Ziel (die Menge bzw. das Level zählt mit, außer bei Items) */

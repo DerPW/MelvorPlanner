@@ -8,6 +8,7 @@ import { useT, type T } from '../i18n'
 import { GameIcon, Sym } from './components'
 import { routeEntity, routeIcon, routeLabel } from './routeText'
 import { useGame, type State, type View } from './state'
+import { wikiStation } from './WikiView'
 
 const ui = (name: string) => `game/icons/Icons/${name}.webp`
 
@@ -17,7 +18,7 @@ function station(index: GameIndex, state: State, v: View, t: T): { label: string
   if (v.kind === 'combat') return { label: t('combat.title'), icon: ui('Combat'), entity: null }
   if (v.kind === 'bank') return { label: t('bank.title'), icon: ui('Bank'), entity: null }
   if (v.kind === 'shop') return { label: t('shop.title'), icon: ui('Shop'), entity: null }
-  if (v.kind === 'wiki') return { label: t('wiki.title'), icon: ui('GuideBook'), entity: null }
+  if (v.kind === 'wiki') return { ...wikiStation(index, t, v), entity: null }
   if (v.kind === 'completion') return { label: t('completion.title'), icon: ui('Milestones'), entity: null }
   if (v.kind === 'gear') return { label: t('gear.title'), icon: index.items.get('MelvorBase:IronHelmet')?.icon ?? ui('Combat'), entity: null }
   if (v.kind === 'skill') {

@@ -46,14 +46,22 @@ export function App({ index }: { index: GameIndex }) {
 
   const view = state.view
   const viewKey =
-    view.kind === 'route' ? `route:${view.id}` : view.kind === 'skill' ? `skill:${view.skill}` : view.kind === 'detail' ? `${view.type}:${view.id}` : view.kind
+    view.kind === 'route'
+      ? `route:${view.id}`
+      : view.kind === 'skill'
+        ? `skill:${view.skill}`
+        : view.kind === 'detail'
+          ? `${view.type}:${view.id}`
+          : view.kind === 'wiki'
+            ? `wiki:${view.section ?? ''}:${view.group ?? ''}`
+            : view.kind
   let main
   if (view.kind === 'profile') main = <ProfileView />
   else if (view.kind === 'combat') main = <CombatView />
   else if (view.kind === 'gear') main = <GearView />
   else if (view.kind === 'bank') main = <BankView />
   else if (view.kind === 'shop') main = <ShopView />
-  else if (view.kind === 'wiki') main = <WikiView />
+  else if (view.kind === 'wiki') main = <WikiView section={view.section} group={view.group} />
   else if (view.kind === 'completion') main = <CompletionView />
   else if (view.kind === 'skill') main = <SkillView skill={view.skill} />
   else if (view.kind === 'detail') main = <DetailView type={view.type} id={view.id} />

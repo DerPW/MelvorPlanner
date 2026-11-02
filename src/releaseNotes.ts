@@ -10,6 +10,28 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.10.2',
+    date: '2026-11-02',
+    de: {
+      title: 'Wiki mit Kacheln, ruhigere Ansicht',
+      items: [
+        'Wiki: Die Startseite zeigt je Art (Items, Monster, Gebiete, Shop, Skills) die Kategorien als Kacheln mit Anzahl. Ein Klick führt hinein, die Brotkrumen zeigen den Weg zurück (Wiki › Items › Waffe). „Alle anzeigen“ listet eine Art nach Kategorien gruppiert.',
+        'Die Suche im Wiki geht auf der Startseite über alles, auf einer Unterseite nur über deren Einträge.',
+        'Monster-Gebiete zeigen ein echtes Monster statt eines Fragezeichens; die Gebiete stehen in Spielreihenfolge.',
+        'Ausrüstung: Die Stufenleiter wird beim Live-Abgleich nicht mehr jedes Mal neu gerechnet und blendet sich nicht mehr kurz aus — nur noch, wenn sich Level, Ausrüstung oder Käufe ändern.',
+      ],
+    },
+    en: {
+      title: 'Wiki tiles, calmer view',
+      items: [
+        'Wiki: the start page shows the categories of each kind (items, monsters, areas, shop, skills) as tiles with counts. A click takes you in, the breadcrumbs lead back (Wiki › Items › Weapon). “Show all” lists a kind grouped by category.',
+        'Wiki search covers everything on the start page and only that page’s entries on a sub page.',
+        'Monster areas show a real monster instead of a question mark; areas are listed in game order.',
+        'Gear: the tier ladder is no longer recalculated on every live sync and no longer fades out briefly — only when levels, gear or purchases change.',
+      ],
+    },
+  },
+  {
     version: '0.10.1',
     date: '2026-11-02',
     de: {

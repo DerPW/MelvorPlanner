@@ -242,20 +242,32 @@ export function OptimalGear({ enemy, metric }: { enemy: Enemy; metric: Metric })
   const { index, state, dispatch } = useGame()
   const { t } = useI18n()
   const { loadout, set } = useLoadout()
-  const [tiers, setTiers] = useState<Tier[]>([])
+  const [ladder, setLadder] = useState<{ of: string; tiers: Tier[] } | null>(null)
   const [chosen, setChosen] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
   const current = useMemo(() => simulate(index, playerFighter(index, state.profile, loadout, enemyAreas(index, enemy.id).darkness), enemy), [index, state.profile, loadout, enemy])
 
-  // Die Leiter kostet ein paar tausend Simulationen — erst zeichnen, dann rechnen
+  // Die Leiter kostet ein paar tausend Simulationen. Der Live-Abgleich liefert
+  // alle paar Sekunden ein neues Profil — neu gerechnet wird nur, wenn sich
+  // etwas ändert, das die Leiter betrifft (Level, Ausrüstung, Käufe).
+  const p = state.profile
+  const of = `${enemy.id}/${metric}`
+  const ownedGear = Object.keys(p.inventory).filter((id) => p.inventory[id] > 0 && index.items.get(id)?.equipment)
+  const key = JSON.stringify([of, p.levels, p.levelCap, { ...loadout, hp: null }, ownedGear, p.owned, p.unlocked, state.options.bonuses])
+  const inputs = useRef({ index, profile: p, loadout, enemy, metric })
   useEffect(() => {
-    setBusy(true)
+    inputs.current = { index, profile: p, loadout, enemy, metric }
+  })
+  useEffect(() => {
     const id = setTimeout(() => {
-      setTiers(gearTiers(index, state.profile, loadout, enemy, metric))
-      setBusy(false)
+      const x = inputs.current
+      setLadder({ of: `${x.enemy.id}/${x.metric}`, tiers: gearTiers(x.index, x.profile, x.loadout, x.enemy, x.metric) })
     }, 30)
     return () => clearTimeout(id)
-  }, [index, state.profile, loadout, enemy, metric])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key])
+  const tiers = ladder?.tiers ?? []
+  // Ausgegraut nur, solange die Leiter zu einem anderen Monster oder Maßstab gehört
+  const busy = ladder?.of !== of
 
   const now = metricOf(current, metric)
   // Vorwahl: die erste Stufe, die etwas bringt
