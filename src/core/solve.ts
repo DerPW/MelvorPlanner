@@ -248,6 +248,7 @@ export function solve(fullIndex: GameIndex, target: Target, profile: Profile, ch
     if (route.segments.length) phases.push({ kind: 'route', route, why })
     // Was beim Trainieren anfällt, liegt danach im Lager
     const inventory = { ...p.inventory }
+    for (const [item, n] of route.consumed) inventory[item] = Math.max(0, (inventory[item] ?? 0) - Math.ceil(n))
     for (const [item, n] of route.produced) inventory[item] = (inventory[item] ?? 0) + Math.floor(n)
     p = { ...route.after, inventory, owned: p.owned }
     return route

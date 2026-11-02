@@ -10,6 +10,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.8.2',
+    date: '2026-11-02',
+    de: {
+      title: 'Training mit dem Lager',
+      items: [
+        'Trainingsrouten nehmen Zutaten zuerst aus dem Lager — aber nur so oft, wie es reicht („aus dem Lager“). Ist es leer, wählt der Planer neu: weiter mit Beschaffung oder eine andere Aktivität, wenn die schneller ist.',
+        'Beschaffung steht als eigener Schritt da, eingerückt vor dem Training, mit eigener Zeit und Haken — z. B. „175× Raw Shrimp angeln“ vor „Shrimp kochen“. Auch hier: „Alternative ›“.',
+      ],
+    },
+    en: {
+      title: 'Training with your bank',
+      items: [
+        'Training routes take ingredients from your bank first — but only as often as it lasts (“from bank”). When it runs out the planner picks again: keep going with gathering, or another activity if that is faster.',
+        'Gathering shows as its own step, indented before the training, with its own time and checkbox — e.g. “175× Raw Shrimp fishing” before “Cook Shrimp”. “Alternative ›” works there too.',
+      ],
+    },
+  },
+  {
     version: '0.8.1',
     date: '2026-11-02',
     de: {

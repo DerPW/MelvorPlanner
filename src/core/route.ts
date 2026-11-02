@@ -4,9 +4,11 @@
 // Rate (Ziel-XP bzw. Netto-Gold pro Zeit) unter dem, was mit dem AKTUELLEN
 // Stand freigeschaltet ist. Ein Abschnitt endet, sobald das Ziel erreicht ist
 // oder irgendein beteiligter Skill aufsteigt — dann kann etwas Besseres frei
-// sein („erst X bis Lv n, dann Y"). Material wird wahlweise über dieselbe
-// Quellenwahl wie im Crafting-Plan selbst beschafft; Zeit und XP der Kette
-// zählen mit, auch für die anderen Skills.
+// sein („erst X bis Lv n, dann Y"). Material kommt zuerst aus dem Lager —
+// eine Aktivität läuft höchstens so oft, wie es reicht, dann wird neu gewählt
+// (weiter mit Beschaffung oder etwas anderes). Beschafft wird über dieselbe
+// Quellenwahl wie im Crafting-Plan; Zeit und XP der Kette zählen mit, auch
+// für die anderen Skills.
 
 import { MAX_LEVEL, levelForXp, xpForLevel } from './experience'
 import { actionTime, currencyYield, isAvailable, rankSources, successChance, yieldOf, type GameIndex } from './planner'
@@ -31,11 +33,19 @@ interface Bundle {
   gold: number
   /** Rezept → Durchläufe */
   recipes: Map<Id, number>
+  /** Rezept → Zeit (die Aktivität selbst und jede Vorstufe) */
+  recipeMs: Map<Id, number>
+  /** Rezept → Item, für das es in der Kette läuft (Angelplätze liefern mehrere) */
+  recipeItem: Map<Id, Id>
 }
 
 interface Activity extends Bundle {
   recipe: Recipe
   rate: number
+  /** Durchläufe, die das Lager noch hergibt (Infinity = kein Lager-Material) */
+  cap: number
+  /** Alle Zutaten kommen aus dem Lager */
+  fromStock: boolean
 }
 
 export interface RouteSegment {
@@ -48,6 +58,12 @@ export interface RouteSegment {
   xp: Map<Id, number>
   gold: number
   chain: Map<Id, number>
+  /** Zeit je Rezept der Kette (Vorstufen und die Aktivität selbst) */
+  chainMs: Map<Id, number>
+  /** Item je Vorstufe */
+  chainItem: Map<Id, Id>
+  /** Zutaten aus dem Lager statt beschafft */
+  fromStock: boolean
   ratePerHour: number
 }
 
@@ -59,6 +75,8 @@ export interface Route {
   gold: number
   /** Beim Trainieren hergestellt (Level-Routen; Gold-Routen verkaufen alles) */
   produced: Map<Id, number>
+  /** Aus dem Lager verbraucht */
+  consumed: Map<Id, number>
   before: Profile
   after: Profile
   reached: boolean
@@ -67,6 +85,8 @@ export interface Route {
 }
 
 const NOT_AN_ACTIVITY = new Set(['shop', 'upgrade', 'mill', 'farming'])
+/** So viele Durchläufe muss das Lager hergeben, damit eine Aktivität es nutzt */
+const MIN_STOCK_RUNS = 10
 
 export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, options: RouteOptions): Route {
   const cap = profile.levelCap ?? MAX_LEVEL
@@ -88,6 +108,7 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
     xp: new Map(),
     gold: 0,
     produced: new Map(),
+    consumed: new Map(),
     before: now(),
     after: now(),
     reached: false,
@@ -116,6 +137,9 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
     )
   })
 
+  // Das Lager läuft mit: Zutaten werden daraus genommen, Ergebnisse (Level-Routen) kommen hinein
+  const stock = new Map(Object.entries(profile.inventory).filter(([, n]) => n > 0))
+
   for (let guard = 0; guard < 5000 && !reached(); guard++) {
     const p = now()
     const unit = unitCosts(index, p)
@@ -124,7 +148,19 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
     for (const r of candidates) {
       if (!isAvailable(r, p)) continue
       const s = successChance(r, p)
-      const a: Activity = { recipe: r, timeMs: actionTime(r, p), xp: new Map(), gold: 0, recipes: new Map([[r.id, 1]]), rate: 0 }
+      const own = actionTime(r, p)
+      const a: Activity = {
+        recipe: r,
+        timeMs: own,
+        xp: new Map(),
+        gold: 0,
+        recipes: new Map([[r.id, 1]]),
+        recipeMs: new Map([[r.id, own]]),
+        recipeItem: new Map(),
+        rate: 0,
+        cap: Infinity,
+        fromStock: false,
+      }
       if (r.skill && r.xp) addTo(a.xp, r.skill, r.xp * s)
       for (const c of r.costs) if (c.currency === GP) a.gold -= c.qty
       a.gold += currencyYield(r, GP, p)
@@ -137,7 +173,16 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
       }
       if (options.includeMaterials) {
         let ok = true
+        let all = r.inputs.length > 0
         for (const i of r.inputs) {
+          // Reicht das Lager für ein paar Durchläufe, kostet die Zutat nichts — bis es leer ist.
+          // Reste unter MIN_STOCK_RUNS bleiben liegen (sonst „1× aus dem Lager“-Schritte)
+          const have = stock.get(i.item) ?? 0
+          if (have >= i.qty * MIN_STOCK_RUNS) {
+            a.cap = Math.min(a.cap, Math.floor(have / i.qty))
+            continue
+          }
+          all = false
           const c = unit(i.item)
           if (!c) {
             ok = false
@@ -146,6 +191,7 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
           merge(a, c, i.qty)
         }
         if (!ok) continue
+        a.fromStock = all
       }
       // Nur, was man sich leisten kann (Shop-Material in der Kette)
       if (a.gold < 0 && gold + a.gold < 0) continue
@@ -168,10 +214,23 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
       n = Math.min(n, Math.ceil((xpForLevel(level[s] + 1) - xp[s]) / per))
     }
     if (best.gold < 0) n = Math.min(n, Math.floor(gold / -best.gold))
-    n = Math.max(1, n)
+    // Nur so oft, wie das Lager reicht — danach neu wählen
+    n = Math.max(1, Math.min(n, best.cap))
+    if (options.includeMaterials) {
+      for (const i of best.recipe.inputs) {
+        const have = stock.get(i.item) ?? 0
+        if (have < i.qty * MIN_STOCK_RUNS) continue
+        const used = Math.min(have, i.qty * n)
+        stock.set(i.item, have - used)
+        addTo(route.consumed, i.item, used)
+      }
+    }
     if (goal.kind === 'level') {
       const s = successChance(best.recipe, p)
-      for (const o of best.recipe.outputs) addTo(route.produced, o.item, o.qty * o.chance * s * n)
+      for (const o of best.recipe.outputs) {
+        addTo(route.produced, o.item, o.qty * o.chance * s * n)
+        stock.set(o.item, (stock.get(o.item) ?? 0) + o.qty * o.chance * s * n)
+      }
     }
 
     const from = goal.kind === 'level' ? level[goal.skill] : gold
@@ -186,13 +245,15 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
     const to = goal.kind === 'level' ? level[goal.skill] : gold
 
     const last = route.segments.at(-1)
-    if (last && last.recipe.id === best.recipe.id) {
+    if (last && last.recipe.id === best.recipe.id && last.fromStock === best.fromStock) {
       last.actions += n
       last.timeMs += best.timeMs * n
       last.to = to
       last.gold += best.gold * n
       for (const [s, per] of best.xp) addTo(last.xp, s, per * n)
       for (const [id, per] of best.recipes) addTo(last.chain, id, per * n)
+      for (const [id, ms] of best.recipeMs) addTo(last.chainMs, id, ms * n)
+      for (const [id, item] of best.recipeItem) last.chainItem.set(id, item)
       last.ratePerHour = rateOf(last, goal)
     } else {
       const seg: RouteSegment = {
@@ -204,6 +265,9 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
         xp: scale(best.xp, n),
         gold: best.gold * n,
         chain: scale(best.recipes, n),
+        chainMs: scale(best.recipeMs, n),
+        chainItem: new Map(best.recipeItem),
+        fromStock: best.fromStock,
         ratePerHour: 0,
       }
       seg.ratePerHour = rateOf(seg, goal)
@@ -230,7 +294,15 @@ export function unitCosts(index: GameIndex, p: Profile) {
       if (per <= 0) continue
       const parts = r.inputs.map((i) => ({ qty: i.qty / per, cost: unit(i.item, [...stack, item]) }))
       if (parts.some((x) => !x.cost)) continue
-      const c: Bundle = { timeMs: actionTime(r, p) / per, xp: new Map(), gold: 0, recipes: new Map([[r.id, 1 / per]]) }
+      const ms = actionTime(r, p) / per
+      const c: Bundle = {
+        timeMs: ms,
+        xp: new Map(),
+        gold: 0,
+        recipes: new Map([[r.id, 1 / per]]),
+        recipeMs: new Map([[r.id, ms]]),
+        recipeItem: new Map([[r.id, item]]),
+      }
       if (r.skill && r.xp) addTo(c.xp, r.skill, (r.xp * successChance(r, p)) / per)
       for (const cost of r.costs) if (cost.currency === GP) c.gold -= cost.qty / per
       for (const x of parts) merge(c, x.cost!, x.qty)
@@ -261,4 +333,6 @@ function merge(target: Bundle, src: Bundle, factor: number) {
   target.gold += src.gold * factor
   for (const [s, v] of src.xp) addTo(target.xp, s, v * factor)
   for (const [id, v] of src.recipes) addTo(target.recipes, id, v * factor)
+  for (const [id, v] of src.recipeMs) addTo(target.recipeMs, id, v * factor)
+  for (const [id, item] of src.recipeItem) target.recipeItem.set(id, item)
 }

@@ -1163,3 +1163,8 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
 .gi-empty { width: 22px; height: 22px; border-radius: 6px; background: var(--control); flex: none; }
 .gear-slot-section .group-title .spacer { flex: 1; }
 .gear-slot-section .group-title .muted { font-weight: 400; }
+
+/* Vorstufe eines Trainings: eingerückt, etwas leiser */
+.step.nested { margin-left: 28px; min-height: 38px; }
+.step.nested .what b { font-weight: 500; }
+.step.nested > img { width: 22px !important; height: 22px !important; }

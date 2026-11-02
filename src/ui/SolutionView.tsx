@@ -1,6 +1,6 @@
-import { createContext, Fragment, useContext, useState, type ReactNode } from 'react'
+import { createContext, Fragment, useContext, type ReactNode } from 'react'
 import { fmtDuration, fmtDurationShort, fmtInt } from '../core/format'
-import { isUnlocked, unlockReqFor, unmetReqs, type GameIndex, type MakeStep, type UnlockReq } from '../core/planner'
+import { isUnlocked, unlockReqFor, unmetReqs, yieldOf, type GameIndex, type MakeStep, type UnlockReq } from '../core/planner'
 import { GP, type Route, type RouteSegment } from '../core/route'
 import { isGoal, solutionXp, type Phase, type Solution } from '../core/solve'
 import type { Id, Msg, Profile, Recipe, Req } from '../core/types'
@@ -332,6 +332,7 @@ export function unlockStep(solution: Solution, r: Recipe): number | null {
 
 // Schlüssel der abhakbaren Schritte — einmal hier, damit Zählen und Zeilen übereinstimmen
 const segmentKey = (phase: number, i: number, seg: RouteSegment) => `${phase}:${i}:${seg.recipe.id}`
+const chainKey = (segKey: string, recipe: string) => `${segKey}>${recipe}`
 const makeKey = (phase: number, step: MakeStep) => `${phase}:${step.key}`
 const buyKey = (phase: number) => `${phase}:buy`
 const unlockKey = (phase: number, feature: string) => `${phase}:unlock:${feature}`
@@ -340,7 +341,10 @@ const taskKey = (phase: number) => `${phase}:task`
 function stepKeys(solution: Solution): string[] {
   return solution.phases.flatMap((ph, i) =>
     ph.kind === 'route'
-      ? ph.route.segments.map((s, j) => segmentKey(i, j, s))
+      ? ph.route.segments.flatMap((s, j) => [
+          ...[...s.chain.keys()].filter((id) => id !== s.recipe.id).map((id) => chainKey(segmentKey(i, j, s), id)),
+          segmentKey(i, j, s),
+        ])
       : ph.kind === 'buy'
         ? [buyKey(i)]
         : ph.kind === 'unlock'
@@ -398,18 +402,6 @@ function AltControl({ alt, compact }: { alt: ReturnType<typeof useAlternative>; 
         {!compact && <span>{t('alt.other')}</span>}
         <Sym name="chevron" size={10} />
       </button>
-    </span>
-  )
-}
-
-/** Vorstufe in einer Kette: Text plus eigene Alternative */
-function ChainEntry({ r, n }: { r: Recipe; n: number }) {
-  const out = r.outputs[0]?.item
-  const alt = useAlternative(avoidKey(r), { item: out })
-  return (
-    <span>
-      <GameIcon src={r.icon} size={14} entity={out ? `item:${out}` : null} /> {fmtInt(Math.ceil(n))}× <SourceText r={r} />
-      <AltControl alt={alt} compact />
     </span>
   )
 }
@@ -611,68 +603,93 @@ function RouteBlock({ route, why, phase, keyFor }: { route: Route; why: Msg; pha
 function SegmentRow({ seg, route, k, share }: { seg: RouteSegment; route: Route; k: string; share: number }) {
   const { index } = useGame()
   const t = useT()
-  const [open, setOpen] = useState(false)
   const goal = route.goal
   const r = seg.recipe
   const skill = r.skill ? index.skills.get(r.skill) : null
   const isNew = r.skill && r.level > (route.before.levels[r.skill] ?? 1)
-  const chain = [...seg.chain].filter(([id]) => id !== r.id)
+  // Vorstufen (Material beschaffen) stehen als eigene Schritte davor
+  const chain = [...seg.chain].filter(([id]) => id !== r.id && index.recipes.has(id))
   const goalXp = goal.kind === 'level' ? (seg.xp.get(goal.skill) ?? 0) : 0
+  const ownMs = seg.chainMs.get(r.id) ?? seg.timeMs
 
+  return (
+    <>
+      {chain.map(([id, runs]) => (
+        <ChainStep key={id} r={index.recipes.get(id)!} item={seg.chainItem.get(id)} runs={runs} ms={seg.chainMs.get(id) ?? 0} k={chainKey(k, id)} />
+      ))}
+      <StepRow
+        k={k}
+        avoid={avoidKey(r)}
+        goal={{ skill: route.goal.kind === 'level' ? route.goal.skill : r.skill }}
+        icon={r.icon}
+        entity={r.outputs[0] ? `item:${r.outputs[0].item}` : undefined}
+        title={
+          <>
+            {goal.kind === 'level' ? (
+              <span className="range">
+                Lv {seg.from} → {seg.to}
+              </span>
+            ) : (
+              <span className="range">
+                {fmtInt(seg.from)} → {fmtInt(seg.to)} GP
+              </span>
+            )}{' '}
+            <SourceText r={r} />
+          </>
+        }
+        sub={
+          <>
+            <span>
+              <GameIcon src={skill?.icon} size={14} entity={r.skill ? `skill:${r.skill}` : null} /> {fmtInt(seg.actions)}×
+            </span>
+            <span>
+              {fmtInt(seg.ratePerHour)} {goal.kind === 'level' ? 'XP/h' : 'GP/h'}
+            </span>
+            {goal.kind === 'level' && <span className="muted">{fmtInt(goalXp)} XP</span>}
+            {seg.fromStock && <span className="tag std">{t('flow.fromStock')}</span>}
+            {chain.length > 0 && <span className="muted">{t('flow.withChain', { time: fmtDurationShort(seg.timeMs) })}</span>}
+            {isNew && <span className="tag std">{t('flow.newAt', { level: r.level })}</span>}
+          </>
+        }
+        meta={
+          <>
+            <b>{fmtDurationShort(ownMs)}</b>
+            <span className="bar">
+              <span style={{ width: `${Math.max(3, share * 100)}%` }} />
+            </span>
+          </>
+        }
+      />
+    </>
+  )
+}
+
+/** Vorstufe eines Trainings-Abschnitts: Material beschaffen, eigener Schritt */
+function ChainStep({ r, item, runs, ms, k }: { r: Recipe; item?: Id; runs: number; ms: number; k: string }) {
+  const { index, state } = useGame()
+  const out = item ?? r.outputs[0]?.item
+  const amount = out ? runs * yieldOf(r, out, state.profile) : runs
+  const skill = r.skill ? index.skills.get(r.skill) : null
   return (
     <StepRow
       k={k}
+      nested
       avoid={avoidKey(r)}
-      goal={{ skill: route.goal.kind === 'level' ? route.goal.skill : r.skill }}
-      icon={r.icon}
-      entity={r.outputs[0] ? `item:${r.outputs[0].item}` : undefined}
+      goal={{ item: out }}
+      icon={(out && index.items.get(out)?.icon) || r.icon}
+      entity={out ? `item:${out}` : undefined}
       title={
         <>
-          {goal.kind === 'level' ? (
-            <span className="range">
-              Lv {seg.from} → {seg.to}
-            </span>
-          ) : (
-            <span className="range">
-              {fmtInt(seg.from)} → {fmtInt(seg.to)} GP
-            </span>
-          )}{' '}
-          <SourceText r={r} />
+          {fmtInt(Math.ceil(amount))}× {out ? <ItemName id={out} /> : r.name}
         </>
       }
       sub={
         <>
-          <span>
-            <GameIcon src={skill?.icon} size={14} entity={r.skill ? `skill:${r.skill}` : null} /> {fmtInt(seg.actions)}×
-          </span>
-          <span>
-            {fmtInt(seg.ratePerHour)} {goal.kind === 'level' ? 'XP/h' : 'GP/h'}
-          </span>
-          {goal.kind === 'level' && <span className="muted">{fmtInt(goalXp)} XP</span>}
-          {isNew && <span className="tag std">{t('flow.newAt', { level: r.level })}</span>}
-          {chain.length > 0 && (
-            <button className="link" onClick={() => setOpen(!open)}>
-              {t('flow.chain', { n: chain.length })}
-              <Sym name="chevron" size={10} className={open ? 'rot' : ''} />
-            </button>
-          )}
-          {open && (
-            <span className="chain">
-              {chain.map(([id, n]) => (
-                <ChainEntry key={id} r={index.recipes.get(id)!} n={n} />
-              ))}
-            </span>
-          )}
+          {skill && <GameIcon src={skill.icon} size={14} entity={`skill:${skill.id}`} />}
+          <SourceText r={r} self={out} />
         </>
       }
-      meta={
-        <>
-          <b>{fmtDurationShort(seg.timeMs)}</b>
-          <span className="bar">
-            <span style={{ width: `${Math.max(3, share * 100)}%` }} />
-          </span>
-        </>
-      }
+      meta={<b>{ms > 0 ? fmtDurationShort(ms) : '—'}</b>}
     />
   )
 }
@@ -722,6 +739,7 @@ function StepRow({
   entity,
   avoid,
   goal,
+  nested,
 }: {
   k: string
   icon: string | null | undefined
@@ -734,13 +752,15 @@ function StepRow({
   avoid?: string
   /** Was der Schritt liefert — dazu passt „‹“ (vorige Alternative) */
   goal?: StepGoal
+  /** Vorstufe eines anderen Schritts (eingerückt) */
+  nested?: boolean
 }) {
   const { state, dispatch } = useGame()
   const t = useT()
   const alt = useAlternative(avoid, goal ?? {})
   const done = !!state.done[k]
   return (
-    <li className={`step ${done ? 'done' : ''}`} data-entity={entity}>
+    <li className={`step ${done ? 'done' : ''} ${nested ? 'nested' : ''}`} data-entity={entity}>
       <button className="check" role="checkbox" aria-checked={done} aria-label={t('flow.markDone')} onClick={() => dispatch({ type: 'toggleDone', key: k })}>
         {done && <Sym name="check" size={12} />}
       </button>
