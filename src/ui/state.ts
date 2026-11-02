@@ -43,6 +43,8 @@ export interface State {
   inspectorOpen: boolean
   /** Live-Verbindung: Spielstand-Datei, die mitgelesen wird */
   live: { save: string } | null
+  /** Route, die live verfolgt wird (Schritt, Restzeit, Benachrichtigung beim Wechsel) */
+  activeRoute: string | null
   /** Vorige Ansichten für „Zurück" (nicht gespeichert) */
   history: View[]
   /** Brotkrumen: der Pfad über Verweise bis zur jetzigen Ansicht (nicht gespeichert) */
@@ -75,6 +77,7 @@ export type Action =
   | { type: 'select'; item: Id | null }
   | { type: 'inspector'; open: boolean }
   | { type: 'setLive'; save: string | null }
+  | { type: 'setActiveRoute'; id: string | null }
   | { type: 'back' }
 
 export const emptyProfile = (): Profile => ({ levels: {}, inventory: {}, currencies: {}, owned: {}, farmingPlots: 4 })
@@ -90,6 +93,7 @@ export const initialState = (): State => ({
   selected: null,
   inspectorOpen: true,
   live: null,
+  activeRoute: null,
   history: [],
   trail: [{ kind: 'routes' }],
 })
@@ -114,6 +118,7 @@ export function reducer(s: State, a: Action): State {
       return {
         ...s,
         routes,
+        activeRoute: s.activeRoute === a.id ? null : s.activeRoute,
         view: gone(s.view) ? (next ? { kind: 'route', id: next.id } : { kind: 'routes' }) : s.view,
         history: s.history.filter((v) => !gone(v)),
         trail: gone(s.view) ? [next ? { kind: 'route', id: next.id } : { kind: 'routes' }] : s.trail.filter((v) => !gone(v)),
@@ -182,6 +187,8 @@ export function reducer(s: State, a: Action): State {
       return { ...s, selected: a.item, inspectorOpen: a.item ? true : s.inspectorOpen }
     case 'inspector':
       return { ...s, inspectorOpen: a.open }
+    case 'setActiveRoute':
+      return { ...s, activeRoute: a.id }
     case 'setLive':
       return { ...s, live: a.save ? { save: a.save } : null }
   }

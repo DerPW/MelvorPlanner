@@ -1168,3 +1168,46 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
 .step.nested { margin-left: 28px; min-height: 38px; }
 .step.nested .what b { font-weight: 500; }
 .step.nested > img { width: 22px !important; height: 22px !important; }
+
+/* ---------------------------------------------------------------- Live */
+
+.live-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); animation: pulse 2s ease-in-out infinite; flex: none; }
+.live-dot.off { background: var(--text-3); box-shadow: none; animation: none; }
+.live-card {
+  margin: 6px 10px 4px; padding: 9px 10px; border-radius: 12px;
+  background: color-mix(in srgb, var(--group) 85%, transparent); box-shadow: 0 0 0 0.5px var(--separator);
+  font-size: 11.5px; display: flex; flex-direction: column; gap: 5px;
+  animation: rise-in 0.2s var(--ease) both;
+}
+.lc-title { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--text-2); }
+.lc-action { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.lc-action .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lc-rates { display: flex; flex-wrap: wrap; gap: 3px 9px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.lc-route { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 6px 8px; border: 0; border-radius: 9px; background: var(--control); font: inherit; color: var(--text); text-align: left; }
+.lc-route:hover { background: var(--hover); }
+.lc-route-head { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.lc-route-head .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lc-route-step { color: var(--text-2); }
+.lc-route.onTrack .lc-route-step { color: var(--ok); }
+.lc-route.switch { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 60%, transparent); }
+.lc-route.switch .lc-route-step { color: var(--warn); font-weight: 600; }
+.lc-perm { font-size: 11px; align-self: flex-start; }
+.side-row .live-dot { margin-right: 4px; }
+
+.track-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 0 0 10px; font-size: 12px; }
+.track-bar .btn { display: inline-flex; align-items: center; gap: 7px; }
+.track-line { font-weight: 600; }
+.track-bar.onTrack .track-line { color: var(--ok); }
+.track-bar.switch .track-line { color: var(--warn); }
+
+.step.current { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.step.running { box-shadow: inset 3px 0 0 var(--ok); }
+
+.track-toast {
+  position: fixed; right: 18px; bottom: 18px; z-index: 80; max-width: 360px;
+  display: flex; align-items: flex-start; gap: 10px; padding: 12px 12px 12px 14px;
+  border-radius: 14px; background: var(--raised); box-shadow: var(--shadow-pop);
+  color: var(--warn); animation: pop-in 0.18s var(--ease) both;
+}
+.track-toast b { color: var(--text); font-size: 13px; }
+.track-toast p { margin: 2px 0 0; color: var(--text-2); font-size: 12px; }

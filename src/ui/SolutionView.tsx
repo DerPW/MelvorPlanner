@@ -3,7 +3,7 @@ import { fmtDuration, fmtDurationShort, fmtInt } from '../core/format'
 import { isUnlocked, unlockReqFor, unmetReqs, yieldOf, type GameIndex, type MakeStep, type UnlockReq } from '../core/planner'
 import { GP, type Route, type RouteSegment } from '../core/route'
 import { isGoal, solutionXp, type Phase, type Solution } from '../core/solve'
-import type { Id, Msg, Profile, Recipe, Req } from '../core/types'
+import type { Id, Msg, Profile, Purchase, Recipe, Req } from '../core/types'
 import { useT, type T } from '../i18n'
 import { GameIcon, LevelTag, Ref, Sym } from './components'
 import { useGame } from './state'
@@ -354,6 +354,86 @@ function stepKeys(solution: Solution): string[] {
             : ph.plan.steps.map((s) => makeKey(i, s)),
   )
 }
+
+/** Ein „Jetzt dran“-Block des Ablaufs: ein Trainings-Abschnitt samt
+ *  Vorstufen, ein Herstell-Schritt, ein Kauf oder eine Aufgabe */
+export interface FlowGroup {
+  kind: 'train' | 'make' | 'buy' | 'task'
+  /** Hauptrezept (Training/Herstellen) — gleiche Hauptrezepte gehören zusammen */
+  main: Recipe | null
+  /** Rezepte, deren Ausführung zu diesem Block passt */
+  recipes: Recipe[]
+  keys: string[]
+  /** geplante Zeit */
+  ms: number
+  /** Schritte mit Rezept, Menge und Zeit — für Restzeit und Namen */
+  steps: { recipe: Recipe; item?: Id; amount: number; ms: number; xp?: { skill: Id; amount: number } }[]
+  purchase?: Purchase
+  text?: Msg
+}
+
+/** Der Ablauf als Blöcke, in der Reihenfolge, in der sie dran sind (Freischaltungen sind Meilensteine, keine Blöcke) */
+export function flowGroups(index: GameIndex, solution: Solution): FlowGroup[] {
+  const out: FlowGroup[] = []
+  solution.phases.forEach((ph, i) => {
+    if (ph.kind === 'route') {
+      ph.route.segments.forEach((seg, j) => {
+        const k = segmentKey(i, j, seg)
+        const chain = [...seg.chain].filter(([id]) => id !== seg.recipe.id && index.recipes.has(id))
+        const goalSkill = ph.route.goal.kind === 'level' ? ph.route.goal.skill : null
+        out.push({
+          kind: 'train',
+          main: seg.recipe,
+          recipes: [...chain.map(([id]) => index.recipes.get(id)!), seg.recipe],
+          keys: [...chain.map(([id]) => chainKey(k, id)), k],
+          ms: seg.timeMs,
+          steps: [
+            ...chain.map(([id, runs]) => {
+              const r = index.recipes.get(id)!
+              const item = seg.chainItem.get(id) ?? r.outputs[0]?.item
+              const per = item ? r.outputs.filter((o) => o.item === item).reduce((n, o) => n + o.qty * o.chance, 0) : 1
+              return { recipe: r, item, amount: runs * per, ms: seg.chainMs.get(id) ?? 0 }
+            }),
+            {
+              recipe: seg.recipe,
+              amount: seg.actions,
+              ms: seg.chainMs.get(seg.recipe.id) ?? seg.timeMs,
+              xp: goalSkill ? { skill: goalSkill, amount: seg.xp.get(goalSkill) ?? 0 } : undefined,
+            },
+          ],
+        })
+      })
+    } else if (ph.kind === 'craft') {
+      for (const step of ph.plan.steps)
+        out.push({
+          kind: 'make',
+          main: step.recipe,
+          recipes: [step.recipe],
+          keys: [makeKey(i, step)],
+          ms: step.timeMs,
+          steps: [{ recipe: step.recipe, item: step.item, amount: step.amount, ms: step.timeMs }],
+        })
+    } else if (ph.kind === 'buy') out.push({ kind: 'buy', main: null, recipes: [], keys: [buyKey(i)], ms: 0, steps: [], purchase: ph.purchase })
+    else if (ph.kind === 'task') out.push({ kind: 'task', main: null, recipes: [], keys: [taskKey(i)], ms: 0, steps: [], text: ph.text })
+  })
+  return out
+}
+
+/** Was jetzt dran ist: der erste Block, dazu folgende mit demselben Hauptrezept
+ *  (z. B. erst aus dem Lager, dann mit Beschaffung — die Reihenfolge ist egal) */
+export function currentGroups(groups: FlowGroup[]): FlowGroup[] {
+  const first = groups[0]
+  if (!first) return []
+  const out = [first]
+  for (const g of groups.slice(1)) {
+    if (!first.main || g.main?.id !== first.main.id) break
+    out.push(g)
+  }
+  return out
+}
+
+/** Highlight der Route: diese Schritte sind dran, dieser läuft gerade */
+export const TrackContext = createContext<{ current: Set<string>; live: Set<string> } | null>(null)
 
 /** Der Ablauf: Phasen mit abhakbaren Schritten */
 /** Alternativen je Schritt — die Route reicht ihre gemiedenen Wege durch */
@@ -758,9 +838,12 @@ function StepRow({
   const { state, dispatch } = useGame()
   const t = useT()
   const alt = useAlternative(avoid, goal ?? {})
+  const track = useContext(TrackContext)
   const done = !!state.done[k]
+  const now = track?.current.has(k)
+  const running = track?.live.has(k)
   return (
-    <li className={`step ${done ? 'done' : ''} ${nested ? 'nested' : ''}`} data-entity={entity}>
+    <li className={`step ${done ? 'done' : ''} ${nested ? 'nested' : ''} ${now ? 'current' : ''} ${running ? 'running' : ''}`} data-entity={entity}>
       <button className="check" role="checkbox" aria-checked={done} aria-label={t('flow.markDone')} onClick={() => dispatch({ type: 'toggleDone', key: k })}>
         {done && <Sym name="check" size={12} />}
       </button>

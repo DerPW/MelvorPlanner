@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { snapshotOf, type Snapshot } from '../core/live'
 import { errMsg, SaveError, type SaveData } from '../core/save'
 import type { Msg } from '../core/types'
 import { profileFromSave, readSave } from '../core/saveImport'
@@ -24,9 +25,11 @@ export interface LiveState {
   lastSync: number | null
   error: Msg | null
   busy: boolean
+  /** Momentaufnahmen des mitgelesenen Spielstands (für gemessene Raten), höchstens 1 h */
+  history: Snapshot[]
 }
 
-const LiveContext = createContext<LiveState>({ saves: null, headers: {}, lastSync: null, error: null, busy: false })
+const LiveContext = createContext<LiveState>({ saves: null, headers: {}, lastSync: null, error: null, busy: false, history: [] })
 export const useLive = () => useContext(LiveContext)
 
 async function fetchSave(name: string): Promise<SaveData> {
@@ -37,7 +40,7 @@ async function fetchSave(name: string): Promise<SaveData> {
 
 export function LiveSyncProvider({ children }: { children: ReactNode }) {
   const { baseIndex, state, dispatch } = useGame()
-  const [live, setLive] = useState<LiveState>({ saves: null, headers: {}, lastSync: null, error: null, busy: false })
+  const [live, setLive] = useState<LiveState>({ saves: null, headers: {}, lastSync: null, error: null, busy: false, history: [] })
   const seen = useRef<Record<string, number>>({})
   const running = useRef(false)
   const profileRef = useRef(state.profile)
@@ -46,8 +49,9 @@ export function LiveSyncProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let stopped = false
-    // Neu gewählt oder wieder eingeschaltet: einmal sofort übernehmen
+    // Neu gewählt oder wieder eingeschaltet: einmal sofort übernehmen, Messung neu beginnen
     if (selected) seen.current[`p:${selected}`] = 0
+    setLive((l) => ({ ...l, history: [] }))
     const tick = async () => {
       if (running.current) return
       running.current = true
@@ -88,7 +92,14 @@ export function LiveSyncProvider({ children }: { children: ReactNode }) {
         if (stopped) return
         dispatch({ type: 'importProfile', profile: profileFromSave(baseIndex, data, profileRef.current).profile })
         seen.current[`p:${target.name}`] = target.mtime
-        setLive((l) => ({ ...l, lastSync: Date.now(), error: null, busy: false }))
+        const snap = snapshotOf(data)
+        setLive((l) => ({
+          ...l,
+          lastSync: Date.now(),
+          error: null,
+          busy: false,
+          history: l.history.at(-1)?.at === snap.at ? l.history : [...l.history.filter((s) => snap.at - s.at < 3_600_000), snap],
+        }))
       } catch (e) {
         // Das Spiel schreibt über eine Zwischendatei — beim nächsten Takt nochmal
         if (!stopped) setLive((l) => ({ ...l, error: errMsg(e), busy: false }))

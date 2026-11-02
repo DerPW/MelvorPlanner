@@ -3,6 +3,7 @@
 // gemacht werden muss. Bei Item-Zielen zusätzlich Baum und Material.
 
 import { useMemo, useState } from 'react'
+import { fmtDurationShort } from '../core/format'
 import { MAX_LEVEL } from '../core/experience'
 import type { GameIndex } from '../core/planner'
 import { isGoal, nextBest, solve } from '../core/solve'
@@ -10,7 +11,8 @@ import { useT, type T } from '../i18n'
 import { GameIcon, Ref, Segmented, Select, Stepper, Switch, Sym, Toolbar } from './components'
 import { Materials, TreeTable } from './PlanTables'
 import { routeEntity, routeIcon, routeLabel, routeTarget } from './routeText'
-import { recipeAction, RouteOverview, SolutionFlow, SolutionSummary } from './SolutionView'
+import { statusLine, useTrack } from './LiveTrack'
+import { recipeAction, RouteOverview, SolutionFlow, SolutionSummary, TrackContext } from './SolutionView'
 import { useGame, type PlanTab, type RouteTarget } from './state'
 
 export function RouteView({ id }: { id: string }) {
@@ -110,6 +112,7 @@ export function RouteView({ id }: { id: string }) {
         </div>
       </Toolbar>
       <div className="content">
+        <TrackBar route={route} />
         <AlternativeBar route={route} onNext={setAvoid} onPrev={() => update({ ...route, avoid: route.avoidHistory?.at(-1) ?? [], avoidHistory: route.avoidHistory?.slice(0, -1) ?? [] })} />
         <SolutionSummary solution={solution} />
         <RouteOverview solution={solution} onOpen={plan ? () => dispatch({ type: 'tab', tab: 'flow' }) : undefined} />
@@ -128,15 +131,17 @@ export function RouteView({ id }: { id: string }) {
         )}
         <div className="fade-in" key={tab}>
           {tab === 'flow' && (
-            <SolutionFlow
-              solution={solution}
-              scope={id}
-              alternatives={{
-                avoided: avoid,
-                avoid: (k) => !avoid.includes(k) && setAvoid([...avoid, k]),
-                allow: (k) => setAvoid(avoid.filter((x) => x !== k)),
-              }}
-            />
+            <TrackedFlow routeId={id}>
+              <SolutionFlow
+                solution={solution}
+                scope={id}
+                alternatives={{
+                  avoided: avoid,
+                  avoid: (k) => !avoid.includes(k) && setAvoid([...avoid, k]),
+                  allow: (k) => setAvoid(avoid.filter((x) => x !== k)),
+                }}
+              />
+            </TrackedFlow>
           )}
           {tab === 'tree' && plan?.kind === 'craft' && <TreeTable plan={plan.plan} levels={plan.at.levels} solution={solution} />}
           {tab === 'materials' && plan?.kind === 'craft' && <Materials plan={plan.plan} />}
@@ -198,6 +203,35 @@ function AlternativeBar({ route, onNext, onPrev }: { route: RouteTarget; onNext:
         </span>
       ))}
       {!avoid.length && !busy && !none && <span className="muted alt-hint">{t('alt.hint')}</span>}
+    </div>
+  )
+}
+
+/** Markierung im Ablauf: welche Schritte dran sind und welcher gerade läuft */
+function TrackedFlow({ routeId, children }: { routeId: string; children: React.ReactNode }) {
+  const { tracking } = useTrack()
+  const value = tracking && tracking.route.id === routeId ? { current: tracking.currentKeys, live: tracking.liveKeys } : null
+  return <TrackContext.Provider value={value}>{children}</TrackContext.Provider>
+}
+
+/** „Verfolgen“: diese Route live begleiten — Schritt, Restzeit, Benachrichtigung */
+function TrackBar({ route }: { route: RouteTarget }) {
+  const { state, dispatch } = useGame()
+  const t = useT()
+  const { tracking } = useTrack()
+  const active = state.activeRoute === route.id
+  return (
+    <div className={`track-bar ${active ? `on ${tracking?.status ?? ''}` : ''}`}>
+      <button
+        className={`btn small ${active ? '' : 'plain'}`}
+        onClick={() => dispatch({ type: 'setActiveRoute', id: active ? null : route.id })}
+        title={t(active ? 'track.stop' : 'track.startHint')}
+      >
+        <i className={active ? 'live-dot' : 'live-dot off'} /> {t(active ? 'track.active' : 'track.start')}
+      </button>
+      {active && tracking && <span className="track-line">{statusLine(t, tracking)}</span>}
+      {active && tracking && tracking.status !== 'done' && <span className="muted">{t('track.total', { time: fmtDurationShort(tracking.totalMs) })}</span>}
+      {active && !state.live && <span className="muted">{t('track.needLive')}</span>}
     </div>
   )
 }

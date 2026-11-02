@@ -16,6 +16,7 @@ import { EntityHover } from './EntityHover'
 import { ImportSheet } from './ImportSheet'
 import { Inspector } from './Inspector'
 import { LiveSyncProvider, useLive } from './LiveSync'
+import { LiveCard, TrackProvider } from './LiveTrack'
 import { ProfileView } from './ProfileView'
 import { ReleaseNotes, useReleaseNotesOnUpdate } from './ReleaseNotes'
 import { newRoute, routeEntity, routeIcon, routeLabel } from './routeText'
@@ -55,23 +56,25 @@ export function App({ index }: { index: GameIndex }) {
     <GameContext.Provider value={{ index: bonus.index, baseIndex: gameIndex, bonus, state, dispatch }}>
       <UiContext.Provider value={ui}>
         <LiveSyncProvider>
-          <div className={`window ${state.selected ? '' : 'no-inspector'}`}>
-            <Sidebar />
-            <div className="main-col">
-              <Breadcrumbs />
-              <main className="main view-in" key={viewKey}>
-                {main}
-              </main>
+          <TrackProvider>
+            <div className={`window ${state.selected ? '' : 'no-inspector'}`}>
+              <Sidebar />
+              <div className="main-col">
+                <Breadcrumbs />
+                <main className="main view-in" key={viewKey}>
+                  {main}
+                </main>
+              </div>
+              {state.selected && (
+                <aside className={`inspector ${state.inspectorOpen ? '' : 'closed'}`}>
+                  <Inspector item={state.selected} key={state.selected} />
+                </aside>
+              )}
             </div>
-            {state.selected && (
-              <aside className={`inspector ${state.inspectorOpen ? '' : 'closed'}`}>
-                <Inspector item={state.selected} key={state.selected} />
-              </aside>
-            )}
-          </div>
-          {notesOpen && <ReleaseNotes onClose={() => setNotesOpen(false)} />}
-          {importOpen && <ImportSheet onClose={() => setImportOpen(false)} />}
-          <EntityHover />
+            {notesOpen && <ReleaseNotes onClose={() => setNotesOpen(false)} />}
+            {importOpen && <ImportSheet onClose={() => setImportOpen(false)} />}
+            <EntityHover />
+          </TrackProvider>
         </LiveSyncProvider>
       </UiContext.Provider>
     </GameContext.Provider>
@@ -142,6 +145,7 @@ function Sidebar() {
             >
               <GameIcon src={routeIcon(index, r)} size={18} />
               <span className="grow">{routeLabel(index, r)}</span>
+              {state.activeRoute === r.id && <i className="live-dot" title={t('track.active')} />}
               {r.kind === 'item' && <span className="badge">×{fmtInt(r.qty)}</span>}
               <span
                 className="side-remove"
@@ -190,6 +194,7 @@ function Sidebar() {
         </div>
       </div>
 
+      <LiveCard />
       <SidebarFooter />
     </nav>
   )
