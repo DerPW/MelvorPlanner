@@ -1,4 +1,4 @@
-import { Fragment, useState, type ReactNode } from 'react'
+import { createContext, Fragment, useContext, useState, type ReactNode } from 'react'
 import { fmtDuration, fmtDurationShort, fmtInt } from '../core/format'
 import { isUnlocked, unlockReqFor, unmetReqs, type GameIndex, type MakeStep, type UnlockReq } from '../core/planner'
 import { GP, type Route, type RouteSegment } from '../core/route'
@@ -352,7 +352,13 @@ function stepKeys(solution: Solution): string[] {
 }
 
 /** Der Ablauf: Phasen mit abhakbaren Schritten */
-export function SolutionFlow({ solution, scope }: { solution: Solution; scope: string }) {
+/** „Diesen Weg meiden“ — die Route reicht es an die Schritte durch */
+const AvoidContext = createContext<((key: string) => void) | null>(null)
+
+/** Schlüssel, unter dem ein Rezept gemieden wird: Shop-Quellen meiden den Kauf */
+export const avoidKey = (r: Recipe) => (r.purchase ? `purchase:${r.purchase}` : r.id)
+
+export function SolutionFlow({ solution, scope, onAvoid }: { solution: Solution; scope: string; onAvoid?: (key: string) => void }) {
   const { state, dispatch } = useGame()
   const t = useT()
   const key = (k: string) => `${scope}:${k}`
@@ -382,7 +388,7 @@ export function SolutionFlow({ solution, scope }: { solution: Solution; scope: s
           </span>
         )}
       </div>
-      {rows}
+      <AvoidContext.Provider value={onAvoid ?? null}>{rows}</AvoidContext.Provider>
     </>
   )
 }
@@ -445,6 +451,7 @@ function PhaseBlock({ phase, index, keyFor }: { phase: Phase; index: number; key
         <ol className="steps">
           <StepRow
             k={keyFor(buyKey(index))}
+            avoid={isGoal(phase.why) ? undefined : `purchase:${phase.purchase.id}`}
             entity={`purchase:${phase.purchase.id}`}
             icon={phase.purchase.icon}
             title={<TNodes k="flow.buy" nodes={{ name: <Ref entity={`purchase:${phase.purchase.id}`}>{phase.purchase.name}</Ref> }} />}
@@ -555,6 +562,7 @@ function SegmentRow({ seg, route, k, share }: { seg: RouteSegment; route: Route;
   return (
     <StepRow
       k={k}
+      avoid={avoidKey(r)}
       icon={r.icon}
       entity={r.outputs[0] ? `item:${r.outputs[0].item}` : undefined}
       title={
@@ -622,6 +630,7 @@ function MakeRow({ step, k, levels }: { step: MakeStep; k: string; levels: Recor
   return (
     <StepRow
       k={k}
+      avoid={(index.producers.get(step.item) ?? []).filter((x) => !x.demoLocked).length > 1 || r.purchase ? avoidKey(r) : undefined}
       entity={`item:${step.item}`}
       icon={item?.icon ?? r.icon}
       title={
@@ -654,6 +663,7 @@ function StepRow({
   sub,
   meta,
   entity,
+  avoid,
 }: {
   k: string
   icon: string | null | undefined
@@ -662,9 +672,12 @@ function StepRow({
   meta: React.ReactNode
   /** „item:<id>" — Tooltip und Kontextmenü */
   entity?: string
+  /** Schlüssel zum Meiden dieses Wegs (Rezept oder Kauf) */
+  avoid?: string
 }) {
   const { state, dispatch } = useGame()
   const t = useT()
+  const onAvoid = useContext(AvoidContext)
   const done = !!state.done[k]
   return (
     <li className={`step ${done ? 'done' : ''}`} data-entity={entity}>
@@ -677,6 +690,11 @@ function StepRow({
         <div className="sub">{sub}</div>
       </div>
       <div className="meta">{meta}</div>
+      {onAvoid && avoid && (
+        <button className="avoid-btn" title={t('alt.avoidStep')} aria-label={t('alt.avoidStep')} onClick={() => onAvoid(avoid)}>
+          <Sym name="avoid" size={13} />
+        </button>
+      )}
     </li>
   )
 }

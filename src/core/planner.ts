@@ -38,6 +38,22 @@ export function buildIndex(data: GameData): GameIndex {
   }
 }
 
+/** Quellen und Käufe weglassen („diesen Weg nicht gehen“): Schlüssel sind
+ *  Rezept-Ids und `purchase:<Id>`. Ein gemiedener Kauf nimmt auch die Rezepte
+ *  und Käufe mit, die ihn voraussetzen, und seine Boni. */
+export function avoidSources(index: GameIndex, avoid: string[]): GameIndex {
+  if (!avoid.length) return index
+  const ex = new Set(avoid)
+  const purchase = (id?: string | null) => !!id && ex.has(`purchase:${id}`)
+  const needsAvoided = (reqs: Req[]) => reqs.some((q) => q.type === 'purchase' && purchase(q.purchase))
+  return buildIndex({
+    ...index.data,
+    recipes: index.data.recipes.filter((r) => !ex.has(r.id) && !purchase(r.purchase) && !needsAvoided(r.reqs)),
+    purchases: index.data.purchases.filter((p) => !purchase(p.id) && !needsAvoided(p.reqs)),
+    bonusSources: index.data.bonusSources.filter((b) => !(b.kind === 'purchase' && purchase(b.id))),
+  })
+}
+
 export type UnlockReq = Extract<Req, { type: 'unlock' }>
 
 /** Die Freischaltung eines Skills/Bereichs als Anforderung — null, wenn er von Anfang an frei ist */

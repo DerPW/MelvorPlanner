@@ -30,7 +30,7 @@ export function routeEntity(r: RouteTarget): string | null {
 /** Was das Solver-Ziel ist */
 export function routeTarget(r: RouteTarget): Target {
   if (r.kind === 'item') return { kind: 'items', items: [{ item: r.item, qty: r.qty }] }
-  const { id: _id, ...rest } = r
+  const { id: _id, avoid: _a, avoidHistory: _h, ...rest } = r
   return rest
 }
 

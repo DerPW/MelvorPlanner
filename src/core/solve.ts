@@ -13,7 +13,7 @@
 
 import { applyBonuses } from './bonuses'
 import { MAX_LEVEL, levelForXp, xpForLevel } from './experience'
-import { add, isUnlocked, levelOf, makePlan, unlockReqFor, unmetReqs, type GameIndex, type Plan, type SourceChoices, type UnlockReq } from './planner'
+import { add, avoidSources, isUnlocked, levelOf, makePlan, unlockReqFor, unmetReqs, type GameIndex, type Plan, type SourceChoices, type UnlockReq } from './planner'
 import { GP, planRoute, unitCosts, type Route, type RouteGoal, type RouteOptions } from './route'
 import type { Id, ItemGoal, Msg, Mod, Profile, Purchase, Req } from './types'
 
@@ -70,7 +70,9 @@ const MAX_CANDIDATES = 12
 /** Ein Umweg muss mindestens so viel sparen, sonst lohnt die Unruhe nicht */
 const MIN_GAIN = 0.03
 
-export function solve(baseIndex: GameIndex, target: Target, profile: Profile, choices: SourceChoices, options: RouteOptions): Solution {
+export function solve(fullIndex: GameIndex, target: Target, profile: Profile, choices: SourceChoices, options: RouteOptions, avoid: string[] = []): Solution {
+  // Gemiedene Wege gibt es für diese Rechnung schlicht nicht
+  const baseIndex = avoidSources(fullIndex, avoid)
   // Boni hängen am Stand (Käufe, Werkzeuge, Rang) — je Stand einmal rechnen
   const memo = new Map<string, GameIndex>()
   const indexFor = (q: Profile) => {
@@ -563,4 +565,48 @@ export function cloneProfile(p: Profile): Profile {
     xp: p.xp ? { ...p.xp } : undefined,
     equipped: p.equipped ? [...p.equipped] : undefined,
   }
+}
+
+/** Abzweigungen eines Wegs, die man meiden könnte: Käufe und Shop-Quellen
+ *  überall, dazu die Quellen und Trainings-Aktivitäten, die dem Ziel selbst
+ *  dienen — nicht die Hilfsschritte davor (die meidet man von Hand). Die
+ *  zeitlich größten zuerst. */
+export function avoidableSteps(index: GameIndex, s: Solution, goalPurchase?: Id): string[] {
+  const keys = new Map<string, number>()
+  const note = (k: string, w: number) => keys.set(k, Math.max(keys.get(k) ?? 0, w))
+  for (const ph of s.phases) {
+    const goal = isGoal(ph.why)
+    if (ph.kind === 'buy' && ph.purchase.id !== goalPurchase) note(`purchase:${ph.purchase.id}`, ph.savesMs ?? 1e6)
+    else if (ph.kind === 'craft')
+      for (const step of ph.plan.steps) {
+        const r = step.recipe
+        if (r.purchase) note(`purchase:${r.purchase}`, 1e9)
+        else if (goal && (index.producers.get(step.item) ?? []).filter((x) => !x.demoLocked).length > 1) note(r.id, step.timeMs)
+      }
+    else if (ph.kind === 'route' && goal) for (const seg of ph.route.segments) note(seg.recipe.id, seg.timeMs)
+  }
+  return [...keys].sort((a, b) => b[1] - a[1]).map(([k]) => k)
+}
+
+/** Der nächstbeste Weg: je eine weitere Abzweigung meiden, die schnellste
+ *  Rechnung gewinnt (weniger Probleme vor weniger Zeit). null = keine mehr. */
+export function nextBest(
+  index: GameIndex,
+  target: Target,
+  profile: Profile,
+  choices: SourceChoices,
+  options: RouteOptions,
+  avoid: string[],
+  limit = 8,
+): { avoid: string[]; solution: Solution } | null {
+  const current = solve(index, target, profile, choices, options, avoid)
+  const goalPurchase = target.kind === 'unlock' ? target.purchase : undefined
+  let best: { avoid: string[]; solution: Solution; key: [number, number] } | null = null
+  for (const k of avoidableSteps(index, current, goalPurchase).filter((k) => !avoid.includes(k)).slice(0, limit)) {
+    const next = [...avoid, k]
+    const solution = solve(index, target, profile, choices, options, next)
+    const key: [number, number] = [solution.problems.length, solution.activeMs + solution.passiveMs]
+    if (!best || key[0] < best.key[0] || (key[0] === best.key[0] && key[1] < best.key[1])) best = { avoid: next, solution, key }
+  }
+  return best && { avoid: best.avoid, solution: best.solution }
 }

@@ -2,14 +2,15 @@
 // verdienen, Freischaltungen kaufen, Herstellen, in der Reihenfolge, in der es
 // gemacht werden muss. Bei Item-Zielen zusätzlich Baum und Material.
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { MAX_LEVEL } from '../core/experience'
-import { isGoal, solve } from '../core/solve'
-import { useT } from '../i18n'
+import type { GameIndex } from '../core/planner'
+import { isGoal, nextBest, solve } from '../core/solve'
+import { useT, type T } from '../i18n'
 import { GameIcon, Ref, Segmented, Select, Stepper, Switch, Sym, Toolbar } from './components'
 import { Materials, TreeTable } from './PlanTables'
 import { routeEntity, routeIcon, routeLabel, routeTarget } from './routeText'
-import { RouteOverview, SolutionFlow, SolutionSummary } from './SolutionView'
+import { recipeAction, RouteOverview, SolutionFlow, SolutionSummary } from './SolutionView'
 import { useGame, type PlanTab, type RouteTarget } from './state'
 
 export function RouteView({ id }: { id: string }) {
@@ -18,11 +19,14 @@ export function RouteView({ id }: { id: string }) {
   const route = state.routes.find((r) => r.id === id)!
   const target = useMemo(() => routeTarget(route), [route])
   // Der Löser rechnet Boni selbst — auch die, die unterwegs gekauft werden
+  const avoid = useMemo(() => route.avoid ?? [], [route.avoid])
   const solution = useMemo(
-    () => solve(baseIndex, target, state.profile, state.choices, state.options),
-    [baseIndex, target, state.profile, state.choices, state.options],
+    () => solve(baseIndex, target, state.profile, state.choices, state.options, avoid),
+    [baseIndex, target, state.profile, state.choices, state.options, avoid],
   )
   const update = (r: RouteTarget) => dispatch({ type: 'updateRoute', route: r })
+  /** Einen Weg meiden; der vorige Stand bleibt für „‹“ */
+  const setAvoid = (next: string[]) => update({ ...route, avoid: next, avoidHistory: [...(route.avoidHistory ?? []), avoid] })
   // Baum und Material zeigen den Plan für das Ziel selbst (nach allem Training)
   const plan = route.kind === 'item' ? [...solution.phases].reverse().find((p) => p.kind === 'craft' && isGoal(p.why)) : undefined
   const tab = plan ? state.tab : 'flow'
@@ -106,6 +110,7 @@ export function RouteView({ id }: { id: string }) {
         </div>
       </Toolbar>
       <div className="content">
+        <AlternativeBar route={route} onNext={setAvoid} onPrev={() => update({ ...route, avoid: route.avoidHistory?.at(-1) ?? [], avoidHistory: route.avoidHistory?.slice(0, -1) ?? [] })} />
         <SolutionSummary solution={solution} />
         <RouteOverview solution={solution} onOpen={plan ? () => dispatch({ type: 'tab', tab: 'flow' }) : undefined} />
         {tab === 'flow' && (
@@ -122,11 +127,67 @@ export function RouteView({ id }: { id: string }) {
           </div>
         )}
         <div className="fade-in" key={tab}>
-          {tab === 'flow' && <SolutionFlow solution={solution} scope={id} />}
+          {tab === 'flow' && <SolutionFlow solution={solution} scope={id} onAvoid={(k) => !avoid.includes(k) && setAvoid([...avoid, k])} />}
           {tab === 'tree' && plan?.kind === 'craft' && <TreeTable plan={plan.plan} levels={plan.at.levels} solution={solution} />}
           {tab === 'materials' && plan?.kind === 'craft' && <Materials plan={plan.plan} />}
         </div>
       </div>
     </>
+  )
+}
+
+/** Name eines gemiedenen Wegs */
+function avoidLabel(index: GameIndex, key: string, t: T): string {
+  if (key.startsWith('purchase:')) return index.purchases.get(key.slice(9))?.name ?? key.slice(9)
+  const r = index.recipes.get(key)
+  return r ? recipeAction(t, r) : key
+}
+
+/** „Weg 2 ‹ ›“: der nächstbeste Weg meidet eine weitere Abzweigung, „‹“ geht
+ *  zum vorigen zurück. Gemiedenes steht als Chip da und lässt sich einzeln
+ *  wieder erlauben. */
+function AlternativeBar({ route, onNext, onPrev }: { route: RouteTarget; onNext: (avoid: string[]) => void; onPrev: () => void }) {
+  const { index, baseIndex, state, dispatch } = useGame()
+  const t = useT()
+  const [busy, setBusy] = useState(false)
+  const [none, setNone] = useState(false)
+  const avoid = route.avoid ?? []
+  const n = (route.avoidHistory?.length ?? 0) + 1
+  const next = () => {
+    setBusy(true)
+    setNone(false)
+    // Ein paar ganze Rechnungen — erst zeichnen, dann rechnen
+    setTimeout(() => {
+      const r = nextBest(baseIndex, routeTarget(route), state.profile, state.choices, state.options, avoid)
+      if (r) onNext(r.avoid)
+      else setNone(true)
+      setBusy(false)
+    }, 30)
+  }
+  const allow = (k: string) =>
+    dispatch({ type: 'updateRoute', route: { ...route, avoid: avoid.filter((x) => x !== k), avoidHistory: [...(route.avoidHistory ?? []), avoid] } })
+  return (
+    <div className="alt-bar">
+      <div className="alt-nav">
+        <button className="icon-btn" disabled={n <= 1 || busy} title={t('alt.prev')} aria-label={t('alt.prev')} onClick={onPrev}>
+          <Sym name="chevron" size={12} className="flip" />
+        </button>
+        <span className="alt-n">{n === 1 && !avoid.length ? t('alt.best') : t('alt.way', { n })}</span>
+        <button className="icon-btn" disabled={busy} title={t('alt.next')} aria-label={t('alt.next')} onClick={next}>
+          <Sym name="chevron" size={12} />
+        </button>
+      </div>
+      {busy && <span className="muted">{t('alt.searching')}</span>}
+      {none && !busy && <span className="muted">{t('alt.none')}</span>}
+      {avoid.map((k) => (
+        <span key={k} className="chip avoided" data-entity={k.startsWith('purchase:') ? k : index.recipes.get(k)?.outputs[0] ? `item:${index.recipes.get(k)!.outputs[0].item}` : undefined}>
+          <Sym name="avoid" size={11} /> {t('alt.without', { name: avoidLabel(index, k, t) })}
+          <button className="chip-x" aria-label={t('alt.allow')} title={t('alt.allow')} onClick={() => allow(k)}>
+            <Sym name="close" size={9} />
+          </button>
+        </span>
+      ))}
+      {!avoid.length && !busy && !none && <span className="muted alt-hint">{t('alt.hint')}</span>}
+    </div>
   )
 }

@@ -1128,3 +1128,20 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
 .slot-picker .pop-row.active { background: var(--accent); color: var(--on-accent); }
 .table tr.selected-soft td { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 @media (max-width: 760px) { .loadout { grid-template-columns: 1fr; } }
+
+/* ---------------------------------------------------------------- Alternativen */
+
+.alt-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; font-size: 12px; }
+.alt-nav { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border-radius: 9px; background: var(--control); }
+.alt-nav .icon-btn { width: 24px; height: 24px; }
+.alt-nav .icon-btn:disabled { opacity: 0.35; }
+.alt-n { min-width: 74px; text-align: center; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.sym.flip { transform: rotate(180deg); }
+.chip.avoided { padding-right: 4px; color: var(--text); background: color-mix(in srgb, var(--warn) 14%, transparent); animation: pop-in 0.16s var(--ease) both; }
+.chip-x { display: grid; place-items: center; width: 16px; height: 16px; border: 0; border-radius: 8px; background: transparent; color: var(--text-2); }
+.chip-x:hover { background: var(--hover); color: var(--text); }
+.alt-hint { font-size: 11px; }
+.step:has(.avoid-btn) { grid-template-columns: 16px 26px minmax(0, 1fr) auto 22px; }
+.avoid-btn { width: 22px; height: 22px; border: 0; border-radius: 6px; display: grid; place-items: center; background: transparent; color: var(--text-3); opacity: 0; transition: opacity 0.15s ease, background 0.15s ease; }
+.step:hover .avoid-btn, .avoid-btn:focus-visible { opacity: 1; }
+.avoid-btn:hover { background: var(--hover); color: var(--warn); }

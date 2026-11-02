@@ -7,11 +7,16 @@ import type { CombatLoadout, Id, ItemGoal, Profile } from '../core/types'
 // Eine Route ist ein Ziel — ein Item, ein Level, Gold, ein Kauf — samt dem
 // ganzen Weg dorthin. Früher gab es daneben einen Crafting-Plan, der alle
 // Items zu einem Baum verschmolz; der ist in den Item-Routen aufgegangen.
-export type RouteTarget =
+export type RouteTarget = (
   | { id: string; kind: 'item'; item: Id; qty: number }
   | { id: string; kind: 'level'; skill: Id; level: number }
   | { id: string; kind: 'gold'; amount: number }
   | { id: string; kind: 'unlock'; purchase: Id }
+) & {
+  /** Gemiedene Wege (Rezept-Ids, `purchase:<Id>`) und die vorigen Stände für „‹“ */
+  avoid?: string[]
+  avoidHistory?: string[][]
+}
 
 export type View =
   | { kind: 'routes' }
