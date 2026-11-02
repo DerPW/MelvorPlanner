@@ -34,6 +34,7 @@ export type View =
   | { kind: 'stats'; entity?: Id }
   | { kind: 'guide'; skill?: Id }
   | { kind: 'quests'; quest?: Id }
+  | { kind: 'editor' }
   | { kind: 'skill'; skill: Id }
   | { kind: 'detail'; type: DetailType; id: Id }
 

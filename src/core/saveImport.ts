@@ -53,11 +53,22 @@ function base64ToBytes(text: string): Uint8Array {
   return bytes
 }
 
-/** Datei, Bytes oder eingefügter Export-Text → gelesener Spielstand */
-export async function readSave(input: File | Uint8Array | string): Promise<SaveData> {
+/** Datei, Bytes oder eingefügter Export-Text → entpackte Spielstand-Bytes */
+export async function unpackSave(input: File | Uint8Array | string): Promise<Uint8Array> {
   const compressed =
     typeof input === 'string' ? base64ToBytes(input) : input instanceof Uint8Array ? input : new Uint8Array(await input.arrayBuffer())
-  return parseSave(await brotliDecode(compressed))
+  return brotliDecode(compressed)
+}
+
+/** Datei, Bytes oder eingefügter Export-Text → gelesener Spielstand */
+export async function readSave(input: File | Uint8Array | string): Promise<SaveData> {
+  return parseSave(await unpackSave(input))
+}
+
+/** Bytes wieder packen wie das Spiel (Brotli) — für den Editor */
+export async function packSave(raw: Uint8Array): Promise<Uint8Array> {
+  const brotli = await (await import('brotli-wasm')).default
+  return brotli.compress(raw, { quality: 9 })
 }
 
 export interface ImportResult {

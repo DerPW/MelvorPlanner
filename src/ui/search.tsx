@@ -55,6 +55,7 @@ export const KINDS: Kind[] = [
       { key: 'view:stats', name: c.t('stats.title'), icon: ui('Statistics_64'), keywords: 'statistiken statistics spielzeit zähler', run: () => c.dispatch({ type: 'view', view: { kind: 'stats' }, root: true }) },
       { key: 'view:guide', name: c.t('guide.title'), icon: ui('GuideBook'), keywords: 'guide tutorial anleitung hilfe', run: () => c.dispatch({ type: 'view', view: { kind: 'guide' }, root: true }) },
       { key: 'view:quests', name: c.t('quests.title'), icon: ui('Quests'), keywords: 'quests aufträge akt story', run: () => c.dispatch({ type: 'view', view: { kind: 'quests' }, root: true }) },
+      { key: 'view:editor', name: c.t('edit.title'), icon: ui('Edit'), keywords: 'editor spielstand bearbeiten save cheat ändern', run: () => c.dispatch({ type: 'view', view: { kind: 'editor' }, root: true }) },
       { key: 'view:completion', name: c.t('completion.title'), icon: ui('Milestones'), keywords: 'completion fortschritt log gefunden', run: () => c.dispatch({ type: 'view', view: { kind: 'completion' }, root: true }) },
       { key: 'view:profile', name: c.t('profile.title'), icon: ui('Bank'), keywords: 'profil profile bank lager settings einstellungen', run: () => c.dispatch({ type: 'view', view: { kind: 'profile' }, root: true }) },
       ...c.state.routes.map((r) => ({

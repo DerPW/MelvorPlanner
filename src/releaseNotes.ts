@@ -10,6 +10,26 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.13.0',
+    date: '2026-11-03',
+    de: {
+      title: 'Spielstand-Editor',
+      items: [
+        'Neu: Spielstand-Editor (Seitenleiste unter „Dein Spiel“). Einen Spielstand laden — aus der Live-Verbindung, als .sav-Datei oder als Export-Text —, dann Währungen, Skill-Level/XP, Bank-Bestände und Shop-Käufe ändern.',
+        'Bearbeitet wird nur, was der Rundlauf-Test erlaubt: Der Spielstand wird zerlegt und unverändert wieder zusammengesetzt — nur wenn das Byte für Byte dasselbe ergibt, ist Ändern frei. Alles, was der Editor nicht kennt, bleibt unverändert.',
+        'Heraus kommt ein neuer Spielstand, der zur Kontrolle wieder eingelesen wird — als Datei zum Herunterladen oder als Import-Text fürs Spiel. In den Spielordner wird nie geschrieben.',
+      ],
+    },
+    en: {
+      title: 'Save editor',
+      items: [
+        'New: save editor (sidebar under “Your game”). Load a save — from the live connection, as a .sav file or as export text — then change currencies, skill levels/XP, bank stock and shop purchases.',
+        'Editing is only allowed when the round trip passes: the save is split and rebuilt unchanged — only if that is identical byte for byte can you edit. Everything the editor doesn’t know stays untouched.',
+        'The result is a new save, read back as a check — as a file to download or as import text for the game. Nothing is ever written to the game folder.',
+      ],
+    },
+  },
+  {
     version: '0.12.0',
     date: '2026-11-03',
     de: {

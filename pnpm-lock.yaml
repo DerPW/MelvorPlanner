@@ -11,6 +11,9 @@ importers:
       brotli-dec-wasm:
         specifier: ^2.3.2
         version: 2.3.2
+      brotli-wasm:
+        specifier: 3.0.1
+        version: 3.0.1
       react:
         specifier: ^19.1.0
         version: 19.3.1
@@ -486,6 +489,10 @@ packages:
 
   brotli-dec-wasm@2.3.2:
     resolution: {integrity: sha512-5H+k8eVLIJY6B4olN2HP9QzJAxcplf0jV7mWnkpxvOSeUE9Npg3dQ2pgLn30a9MUFHNro1iSmtdu6VNdlb+TIw==}
+
+  brotli-wasm@3.0.1:
+    resolution: {integrity: sha512-U3K72/JAi3jITpdhZBqzSUq+DUY697tLxOuFXB+FpAE/Ug+5C3VZrv4uA674EUZHxNAuQ9wETXNqQkxZD6oL4A==}
+    engines: {node: '>=v18.0.0'}
 
   browserslist@4.29.5:
     resolution: {integrity: sha512-khTmKu5NGYTotqcYo8Bew2k4RAE9PuXRSFRXG2lQBrCEQHyeQ/vX6gKMxfokwywBsLiXZMnHsmWMG1pnO8J7uQ==}
@@ -1013,6 +1020,8 @@ snapshots:
   baseline-browser-mapping@2.11.34: {}
 
   brotli-dec-wasm@2.3.2: {}
+
+  brotli-wasm@3.0.1: {}
 
   browserslist@4.29.5:
     dependencies:

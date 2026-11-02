@@ -20,6 +20,7 @@ import { MasteryView } from './MasteryView'
 import { StatsView } from './StatsView'
 import { GuideView } from './GuideView'
 import { QuestsView } from './QuestsView'
+import { EditorView } from './EditorView'
 import { DetailView } from './DetailView'
 import { EntityHover } from './EntityHover'
 import { ImportSheet } from './ImportSheet'
@@ -79,6 +80,7 @@ export function App({ index }: { index: GameIndex }) {
   else if (view.kind === 'stats') main = <StatsView entity={view.entity} />
   else if (view.kind === 'guide') main = <GuideView skill={view.skill} />
   else if (view.kind === 'quests') main = <QuestsView quest={view.quest} />
+  else if (view.kind === 'editor') main = <EditorView />
   else if (view.kind === 'skill') main = <SkillView skill={view.skill} />
   else if (view.kind === 'detail') main = <DetailView type={view.type} id={view.id} />
   else if (view.kind === 'route' && state.routes.some((r) => r.id === view.id)) main = <RouteView id={view.id} />
@@ -154,6 +156,7 @@ function Sidebar() {
           <NavRow kind="quests" icon={ui('Quests')} label={t('quests.title')} locked={!!featureLock(index, state.profile, 'MelvorBase:Quests')} />
           <NavRow kind="completion" icon={ui('Milestones')} label={t('completion.title')} />
           <NavRow kind="profile" icon={ui('Settings_64')} label={t('profile.title')} />
+          <NavRow kind="editor" icon={ui('Edit')} label={t('edit.title')} />
         </div>
 
         <div className="side-section">
@@ -239,7 +242,7 @@ function LiveNav() {
   return <NavRow kind="live" icon={icon} label={t('live.view')} extra={dot} />
 }
 
-function NavRow({ kind, icon, label, badge, locked, extra }: { kind: 'routes' | 'wiki' | 'guide' | 'live' | 'bank' | 'shop' | 'combat' | 'gear' | 'mastery' | 'stats' | 'quests' | 'completion' | 'profile'; icon: string | null | undefined; label: string; badge?: number; locked?: boolean; extra?: React.ReactNode }) {
+function NavRow({ kind, icon, label, badge, locked, extra }: { kind: 'routes' | 'wiki' | 'guide' | 'live' | 'bank' | 'shop' | 'combat' | 'gear' | 'mastery' | 'stats' | 'quests' | 'completion' | 'profile' | 'editor'; icon: string | null | undefined; label: string; badge?: number; locked?: boolean; extra?: React.ReactNode }) {
   const { state, dispatch } = useGame()
   return (
     <button className={`side-row ${state.view.kind === kind ? 'active' : ''} ${locked ? 'locked' : ''}`} onClick={() => dispatch({ type: 'view', view: { kind }, root: true })}>

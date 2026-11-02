@@ -7,4 +7,6 @@ export default defineConfig({
   plugins: [react(), melvorSaves()],
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   server: { port: 5178 },
+  // brotli-wasm lädt seine .wasm über import.meta.url — nicht vorbündeln
+  optimizeDeps: { exclude: ['brotli-wasm'] },
 })

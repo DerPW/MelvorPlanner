@@ -31,6 +31,7 @@ function station(index: GameIndex, state: State, v: View, t: T): { label: string
     const q = v.quest ? index.data.quests?.find((x) => x.id === v.quest) : undefined
     return { label: q?.name ?? t('quests.title'), icon: ui(q ? 'QuestStepIcon' : 'Quests'), entity: null }
   }
+  if (v.kind === 'editor') return { label: t('edit.title'), icon: ui('Edit'), entity: null }
   if (v.kind === 'live') return { label: t('live.view'), icon: ui('Mastery_Icon'), entity: null }
   if (v.kind === 'completion') return { label: t('completion.title'), icon: ui('Milestones'), entity: null }
   if (v.kind === 'gear') return { label: t('gear.title'), icon: index.items.get('MelvorBase:IronHelmet')?.icon ?? ui('Combat'), entity: null }

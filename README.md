@@ -129,6 +129,16 @@ und liest bei einer Änderung neu ein — in jedem Browser, solange der Planer
 mit `pnpm dev` (oder `pnpm preview`) läuft. Gilden-Rang und Farming-Felder
 bleiben dabei, wie sie eingestellt sind.
 
+## Spielstand-Editor
+
+`src/core/saveWrite.ts` zerlegt den entpackten Spielstand in Kopf, Einheiten
+und Komponenten (je als Bytes) und setzt ihn wieder zusammen, mit neu
+geschriebenen Längen. Geändert werden nur bekannte Komponenten (Wallet,
+Bank-Inventar, Experience, Shop); der Rest bleibt byte-genau. Bearbeiten ist
+nur frei, wenn der Rundlauf (zerlegen → zusammensetzen) dieselben Bytes ergibt.
+Gepackt wird mit `brotli-wasm`; heraus kommt eine Datei oder der Import-Text
+(Base64) — in den Spielordner schreibt der Planer nie.
+
 ## Boni
 
 Shop-Käufe (gekauft), Werkzeuge im Werkzeuggürtel (ausgerüstet) und
@@ -198,7 +208,7 @@ Hunting, Ranching, Astrology; Gilden-Rang aus dem Spielstand lesen.
 - `src/core/` — Rechenkern ohne UI: `planner` (Crafting-Baum), `route`
   (Level/Gold-Simulation), `solve` (Ziele → Phasen), `bonuses` (Boni →
   Rezepte neu berechnen), `experience`, `save` (Spielstand lesen),
-  `saveImport` (Datei/Text → Profil), `live` (Messung), `mastery`, `statDefs`
+  `saveImport` (Datei/Text → Profil), `saveWrite` (Editor), `live` (Messung), `mastery`, `statDefs`
 - `scripts/godot-scene.mjs` — Godot-Szenen (RSRC) lesen, für die Tutorials
 - `src/ui/` — Oberfläche (React, eigenes CSS im macOS-Stil, Farben aus den
   UI-Texturen des Spiels)
