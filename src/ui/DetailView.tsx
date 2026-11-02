@@ -607,11 +607,11 @@ function RecipeDetail({ id }: { id: Id }) {
   const ms = actionTime(r, p)
   const success = r.success ? successChance(r, p) : null
   // Ergebnis in Gruppen: festes Produkt, Beute (gewöhnlich/selten), nebenbei
-  const groups: { key: string; rows: typeof r.outputs }[] = [
-    { key: 'main', rows: r.outputs.filter((o) => !o.extra && !o.table) },
-    { key: 'common', rows: r.outputs.filter((o) => o.table === 'common') },
-    { key: 'rare', rows: r.outputs.filter((o) => o.table === 'rare') },
-    { key: 'extra', rows: r.outputs.filter((o) => o.extra && !o.table) },
+  const groups: { id: string; rows: typeof r.outputs }[] = [
+    { id: 'main', rows: r.outputs.filter((o) => !o.extra && !o.table) },
+    { id: 'common', rows: r.outputs.filter((o) => o.table === 'common') },
+    { id: 'rare', rows: r.outputs.filter((o) => o.table === 'rare') },
+    { id: 'extra', rows: r.outputs.filter((o) => o.extra && !o.table) },
   ].filter((g) => g.rows.length)
   // Mastery-Aufgaben, die genau diese Aktion meinen
   const tasks = r.skill
@@ -682,10 +682,10 @@ function RecipeDetail({ id }: { id: Id }) {
                   </tr>
                 ))}
                 {groups.map((g) => (
-                  <Fragment key={g.key}>
+                  <Fragment key={g.id}>
                     {groups.length > 1 && (
                       <tr className="static group-row">
-                        <td colSpan={3}>{t(`detail.out.${g.key}`)}</td>
+                        <td colSpan={3}>{t(`detail.out.${g.id}`)}</td>
                       </tr>
                     )}
                     {[...g.rows]
