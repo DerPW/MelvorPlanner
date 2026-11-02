@@ -1,4 +1,3 @@
-import { useMemo, useState } from 'react'
 import { MAX_LEVEL, xpForLevel } from '../core/experience'
 import { fmtInt } from '../core/format'
 import { unlockReqFor } from '../core/planner'
@@ -6,7 +5,6 @@ import { GP } from '../core/route'
 import { useI18n, type LangSetting } from '../i18n'
 import { modLabel, modScope, modValue } from './bonusText'
 import { GameIcon, Ref, Select, Stepper, Switch, Sym, Toolbar } from './components'
-import { ItemSearch } from './ItemSearch'
 import { useLive } from './LiveSync'
 import { featureLock } from './SolutionView'
 import { useGame } from './state'
@@ -16,21 +14,8 @@ export function ProfileView() {
   const { index, baseIndex, bonus, state, dispatch } = useGame()
   const { t, locale, setting, setSetting } = useI18n()
   const p = state.profile
-  const [unlockFilter, setUnlockFilter] = useState('')
   const { openImport } = useUi()
   const skills = index.data.skills
-  const unlocks = useMemo(
-    () =>
-      index.data.purchases
-        .filter((x) => !x.items.length && !x.demoLocked)
-        .filter(
-          (x) =>
-            !unlockFilter ||
-            x.name.toLowerCase().includes(unlockFilter.toLowerCase()) ||
-            (x.category ?? '').toLowerCase().includes(unlockFilter.toLowerCase()),
-        ),
-    [index, unlockFilter],
-  )
   const gp = index.currencies.get(GP)
   const live = useLive()
   const time = (ms: number) => new Date(ms).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'medium' })
@@ -271,35 +256,6 @@ export function ProfileView() {
           </>
         )}
 
-        <div className="group-title" style={{ justifyContent: 'space-between' }}>
-          <span>
-            {t('stock.title')} <span className="muted">{t('stock.count', { n: Object.keys(p.inventory).length })}</span>
-          </span>
-          <ItemSearch
-            placeholder={t('stock.add')}
-            width={220}
-            onPick={(item) => dispatch({ type: 'setStock', item, qty: (p.inventory[item] ?? 0) + 1 })}
-          />
-        </div>
-        <div className="form-group">
-          {Object.keys(p.inventory).length === 0 && <div className="form-row muted">{t('stock.empty')}</div>}
-          {Object.entries(p.inventory).map(([id, n]) => {
-            const item = index.items.get(id)
-            return (
-              <div className="form-row" key={id}>
-                <GameIcon src={item?.icon} size={22} entity={`item:${id}`} />
-                <span className="grow" data-entity={`item:${id}`}>
-                  {item?.name ?? id}
-                </span>
-                <Stepper label={t('stock.qty')} value={n} onChange={(qty) => dispatch({ type: 'setStock', item: id, qty })} />
-                <button className="icon-btn" aria-label={t('common.remove')} onClick={() => dispatch({ type: 'setStock', item: id, qty: 0 })}>
-                  <Sym name="close" size={13} />
-                </button>
-              </div>
-            )
-          })}
-        </div>
-
         {p.equipped && p.equipped.length > 0 && (
           <>
             <div className="group-title">{t('toolbelt.title')}</div>
@@ -315,30 +271,6 @@ export function ProfileView() {
           </>
         )}
 
-        <div className="group-title" style={{ justifyContent: 'space-between' }}>
-          <span>
-            {t('unlocks.title')} <span className="muted">{t('unlocks.count', { n: Object.keys(p.owned).length })}</span>
-          </span>
-          <div className="search" style={{ width: 220 }}>
-            <Sym name="search" size={15} className="sym-lead" />
-            <input value={unlockFilter} placeholder={t('unlocks.filter')} onChange={(e) => setUnlockFilter(e.target.value)} />
-          </div>
-        </div>
-        <div className="form-group">
-          {unlocks.map((u) => (
-            <div className="form-row" key={u.id}>
-              <GameIcon src={u.icon} size={22} entity={`purchase:${u.id}`} />
-              <span className="grow">
-                <Ref entity={`purchase:${u.id}`}>{u.name}</Ref>
-                <div className="hint">
-                  {u.category}
-                  {u.costs.map((c) => ` · ${fmtInt(c.qty)} ${index.currencies.get(c.currency)?.short ?? ''}`)}
-                </div>
-              </span>
-              <Switch label={u.name} checked={p.owned[u.id] > 0} onChange={(owned) => dispatch({ type: 'setOwned', purchase: u.id, owned })} />
-            </div>
-          ))}
-        </div>
       </div>
     </>
   )

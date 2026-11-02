@@ -10,7 +10,11 @@ import { useI18n, type LangSetting } from '../i18n'
 import { GameIcon, Sym } from './components'
 import { Breadcrumbs } from './Breadcrumbs'
 import { CombatView } from './CombatView'
+import { BankView } from './BankView'
+import { CompletionView } from './CompletionView'
 import { GearView } from './GearView'
+import { ShopView } from './ShopView'
+import { WikiView } from './WikiView'
 import { DetailView } from './DetailView'
 import { EntityHover } from './EntityHover'
 import { ImportSheet } from './ImportSheet'
@@ -47,6 +51,10 @@ export function App({ index }: { index: GameIndex }) {
   if (view.kind === 'profile') main = <ProfileView />
   else if (view.kind === 'combat') main = <CombatView />
   else if (view.kind === 'gear') main = <GearView />
+  else if (view.kind === 'bank') main = <BankView />
+  else if (view.kind === 'shop') main = <ShopView />
+  else if (view.kind === 'wiki') main = <WikiView />
+  else if (view.kind === 'completion') main = <CompletionView />
   else if (view.kind === 'skill') main = <SkillView skill={view.skill} />
   else if (view.kind === 'detail') main = <DetailView type={view.type} id={view.id} />
   else if (view.kind === 'route' && state.routes.some((r) => r.id === view.id)) main = <RouteView id={view.id} />
@@ -106,28 +114,17 @@ function Sidebar() {
 
       <div className="sidebar-scroll">
         <div className="side-section" style={{ marginTop: 4 }}>
-          <button className={`side-row ${v.kind === 'routes' ? 'active' : ''}`} onClick={() => dispatch({ type: 'view', view: { kind: 'routes' }, root: true })}>
-            <img src={ui('CompletionLog')} alt="" />
-            <span className="grow">{t('home.title')}</span>
-            {state.routes.length > 0 && <span className="badge">{state.routes.length}</span>}
-          </button>
-          <button className={`side-row ${v.kind === 'profile' ? 'active' : ''}`} onClick={() => dispatch({ type: 'view', view: { kind: 'profile' }, root: true })}>
-            <img src={ui('Bank')} alt="" />
-            <span className="grow">{t('profile.title')}</span>
-            <LiveBadge />
-          </button>
-          <button
-            className={`side-row ${v.kind === 'combat' ? 'active' : ''} ${featureLock(index, state.profile, 'MelvorBase:Combat') ? 'locked' : ''}`}
-            onClick={() => dispatch({ type: 'view', view: { kind: 'combat' }, root: true })}
-          >
-            <img src={ui('Combat')} alt="" />
-            <span className="grow">{t('combat.title')}</span>
-            {featureLock(index, state.profile, 'MelvorBase:Combat') && <Sym name="lock" size={12} className="side-lock" />}
-          </button>
-          <button className={`side-row ${v.kind === 'gear' ? 'active' : ''}`} onClick={() => dispatch({ type: 'view', view: { kind: 'gear' }, root: true })}>
-            <img src={index.items.get('MelvorBase:IronHelmet')?.icon ?? ui('Combat')} alt="" />
-            <span className="grow">{t('gear.title')}</span>
-          </button>
+          <NavRow kind="routes" icon={ui('CompletionLog')} label={t('home.title')} badge={state.routes.length || undefined} />
+          <NavRow kind="wiki" icon={ui('GuideBook')} label={t('wiki.title')} />
+        </div>
+        <div className="side-section">
+          <div className="side-label">{t('nav.game')}</div>
+          <NavRow kind="bank" icon={ui('Bank')} label={t('bank.title')} badge={Object.keys(state.profile.inventory).length || undefined} />
+          <NavRow kind="shop" icon={ui('Shop')} label={t('shop.title')} locked={!!featureLock(index, state.profile, 'MelvorBase:Shop')} />
+          <NavRow kind="combat" icon={ui('Combat')} label={t('combat.title')} locked={!!featureLock(index, state.profile, 'MelvorBase:Combat')} />
+          <NavRow kind="gear" icon={index.items.get('MelvorBase:IronHelmet')?.icon ?? ui('Combat')} label={t('gear.title')} />
+          <NavRow kind="completion" icon={ui('Milestones')} label={t('completion.title')} />
+          <NavRow kind="profile" icon={ui('Mastery_Icon')} label={t('profile.title')} extra={<LiveBadge />} />
         </div>
 
         <div className="side-section">
@@ -197,6 +194,20 @@ function Sidebar() {
       <LiveCard />
       <SidebarFooter />
     </nav>
+  )
+}
+
+/** Eintrag der Seitenleiste für eine Ansicht */
+function NavRow({ kind, icon, label, badge, locked, extra }: { kind: 'routes' | 'wiki' | 'bank' | 'shop' | 'combat' | 'gear' | 'completion' | 'profile'; icon: string | null | undefined; label: string; badge?: number; locked?: boolean; extra?: React.ReactNode }) {
+  const { state, dispatch } = useGame()
+  return (
+    <button className={`side-row ${state.view.kind === kind ? 'active' : ''} ${locked ? 'locked' : ''}`} onClick={() => dispatch({ type: 'view', view: { kind }, root: true })}>
+      <img src={icon ?? undefined} alt="" />
+      <span className="grow">{label}</span>
+      {locked && <Sym name="lock" size={12} className="side-lock" />}
+      {!locked && badge != null && <span className="badge">{badge}</span>}
+      {extra}
+    </button>
   )
 }
 

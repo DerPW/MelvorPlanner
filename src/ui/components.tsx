@@ -310,3 +310,26 @@ export function LevelTag({ level, have }: { level: number; have: number }) {
     </span>
   )
 }
+
+/** Reiter als umbrechende Pillen — für viele Einträge (Bank-Reiter, Shop-Kategorien) */
+export function TabPills<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T
+  onChange: (v: T) => void
+  options: { value: T; label: string; icon?: string | null; count?: number }[]
+}) {
+  return (
+    <div className="tab-pills" role="tablist">
+      {options.map((o) => (
+        <button key={o.value} role="tab" aria-selected={o.value === value} className={o.value === value ? 'active' : ''} onClick={() => onChange(o.value)}>
+          {o.icon && <img src={o.icon} alt="" width={16} height={16} />}
+          {o.label}
+          {o.count != null && <span className="count">{o.count}</span>}
+        </button>
+      ))}
+    </div>
+  )
+}

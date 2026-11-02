@@ -24,6 +24,10 @@ export type View =
   | { kind: 'profile' }
   | { kind: 'combat' }
   | { kind: 'gear' }
+  | { kind: 'bank' }
+  | { kind: 'shop' }
+  | { kind: 'wiki' }
+  | { kind: 'completion' }
   | { kind: 'skill'; skill: Id }
   | { kind: 'detail'; type: DetailType; id: Id }
 
