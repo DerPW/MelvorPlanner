@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+
+# Aus der installierten Demo extrahiert (pnpm extract) — Eigentum von
+# Games by Malcs / Jagex, gehört nicht ins Repo.
+public/game/
