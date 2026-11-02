@@ -293,6 +293,8 @@ function ContextMenu({ target, onClose }: { target: Target; onClose: () => void 
     items.push(
       <MenuItem key="insp" label={t('menu.inspector')} onClick={act(() => dispatch({ type: 'select', item: target.id }))} />,
     )
+    // Ausrüstung: in den A/B-Vergleich
+    if (index.items.get(target.id)?.equipment) items.push(<MenuItem key="cmp" label={t('menu.compare')} onClick={act(() => dispatch({ type: 'compareItem', item: target.id }))} />)
   }
   if (target.type === 'purchase') {
     const p = index.purchases.get(target.id)

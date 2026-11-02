@@ -34,6 +34,7 @@ export type View =
 export type DetailType = 'item' | 'enemy' | 'area' | 'purchase'
 
 export type PlanTab = 'flow' | 'tree' | 'materials'
+export type GearTab = 'compare' | 'upgrades' | 'optimal'
 
 export interface State {
   routes: RouteTarget[]
@@ -49,6 +50,9 @@ export interface State {
   live: { save: string } | null
   /** Route, die live verfolgt wird (Schritt, Restzeit, Benachrichtigung beim Wechsel) */
   activeRoute: string | null
+  /** Ausrüstung: zwei Teile im A/B-Vergleich, offener Reiter */
+  compare: { a: Id | null; b: Id | null }
+  gearTab: GearTab
   /** Vorige Ansichten für „Zurück" (nicht gespeichert) */
   history: View[]
   /** Brotkrumen: der Pfad über Verweise bis zur jetzigen Ansicht (nicht gespeichert) */
@@ -84,6 +88,10 @@ export type Action =
   | { type: 'inspector'; open: boolean }
   | { type: 'setLive'; save: string | null }
   | { type: 'setActiveRoute'; id: string | null }
+  /** Teil in den A/B-Vergleich legen (A, dann B) und den Vergleich öffnen */
+  | { type: 'compareItem'; item: Id }
+  | { type: 'setCompare'; a?: Id | null; b?: Id | null }
+  | { type: 'gearTab'; tab: GearTab }
   | { type: 'back' }
 
 export const emptyProfile = (): Profile => ({ levels: {}, inventory: {}, currencies: {}, owned: {}, farmingPlots: 4 })
@@ -100,6 +108,8 @@ export const initialState = (): State => ({
   inspectorOpen: true,
   live: null,
   activeRoute: null,
+  compare: { a: null, b: null },
+  gearTab: 'compare',
   history: [],
   trail: [{ kind: 'routes' }],
 })
@@ -197,6 +207,15 @@ export function reducer(s: State, a: Action): State {
       return { ...s, inspectorOpen: a.open }
     case 'setActiveRoute':
       return { ...s, activeRoute: a.id }
+    case 'compareItem': {
+      const c = s.compare ?? { a: null, b: null }
+      const compare = !c.a || c.a === a.item ? { a: a.item, b: c.b } : { a: c.a, b: a.item }
+      return reducer({ ...s, compare, gearTab: 'compare' }, { type: 'view', view: { kind: 'gear' } })
+    }
+    case 'setCompare':
+      return { ...s, compare: { a: a.a !== undefined ? a.a : (s.compare?.a ?? null), b: a.b !== undefined ? a.b : (s.compare?.b ?? null) } }
+    case 'gearTab':
+      return { ...s, gearTab: a.tab }
     case 'setLive':
       return { ...s, live: a.save ? { save: a.save } : null }
   }

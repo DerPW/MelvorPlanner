@@ -10,6 +10,34 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.10.0',
+    date: '2026-11-02',
+    de: {
+      title: 'Bank, Shop, Wiki, Completion — und Ausrüstung A/B',
+      items: [
+        'Ausrüstung: neuer Reiter „Vergleich A/B“ — zwei beliebige Teile nebeneinander, jeder Wert mit Differenz, dazu die Wirkung im Kampf. Rechtsklick auf Ausrüstung → „Vergleichen (A/B)“.',
+        'Ausrüstung: Reiter „Optimal“ — die beste Kombination gegen ein Monster, aus dem Lager, tragbar oder alles; bei fehlenden Teilen das Beste aus dem Lager als Alternative, „Route planen“ je Teil und „Übernehmen“.',
+        'Bank mit den Reitern aus dem Spiel, Suche und Verkaufswert; Mengen lassen sich weiter von Hand ändern.',
+        'Shop wie im Spiel: Kategorien, Karten mit Kosten, Ertrag oder Bonus, Anforderungen, Kaufstand und „Route planen“.',
+        'Wiki: alles mit Detailseite — Items, Monster, Gebiete, Shop, Skills — durchsuchbar, nach Kategorie gefiltert.',
+        'Completion: Items gefunden, Monster besiegt, Skill-Level — aus den Statistiken deines Spielstands, Fehlendes ausgegraut.',
+        'Das Profil heißt jetzt Einstellungen. Freischaltungen werden mit den Statistiken des Spielstands exakt geprüft statt geschätzt.',
+      ],
+    },
+    en: {
+      title: 'Bank, shop, wiki, completion — and gear A/B',
+      items: [
+        'Gear: new “Compare A/B” tab — any two pieces side by side, every value with its difference, plus the effect in combat. Right-click gear → “Compare (A/B)”.',
+        'Gear: “Optimal” tab — the best combination against a monster, from your bank, wearable or everything; for missing pieces the best one from your bank as an alternative, “Plan route” per piece and “Use this”.',
+        'Bank with the tabs from the game, search and sell value; amounts can still be edited by hand.',
+        'Shop like in the game: categories, cards with cost, yield or bonus, requirements, purchase state and “Plan route”.',
+        'Wiki: everything with a detail page — items, monsters, areas, shop, skills — searchable, filtered by category.',
+        'Completion: items found, monsters defeated, skill levels — from your save’s statistics, missing ones greyed out.',
+        'The profile is now called Settings. Unlocks are checked exactly against the save’s statistics instead of estimated.',
+      ],
+    },
+  },
+  {
     version: '0.9.1',
     date: '2026-11-02',
     de: {

@@ -2,17 +2,16 @@
 // Ausrüstung gerechnet, an einem Zielmonster — was bringt welches Upgrade?
 
 import { useMemo, useState } from 'react'
-import { enemyAreas, HITPOINTS, perHour, playerFighter, simulate, type FightResult } from '../core/combat'
+import { enemyAreas, playerFighter, simulate, type FightResult } from '../core/combat'
 import { fmtDurationShort, fmtInt } from '../core/format'
 import { unmetReqs } from '../core/planner'
 import type { CombatLoadout, Enemy, Id, Item } from '../core/types'
 import { useI18n } from '../i18n'
 import { DangerTag, LoadoutPanel, useLoadout } from './CombatView'
-import { GameIcon, Ref, Segmented, Select, Toolbar } from './components'
+import { GameIcon, Ref, Segmented, Select, TabPills, Toolbar } from './components'
+import { better, CompareAB, fmtMetric, metricOf, OptimalGear, xpRate, type Metric } from './GearTools'
 import { Needs } from './SolutionView'
-import { useGame } from './state'
-
-type Metric = 'xp' | 'time' | 'gold' | 'damage'
+import { useGame, type GearTab } from './state'
 
 interface Option {
   item: Item | null
@@ -23,22 +22,9 @@ interface Option {
   reqsMet: boolean
 }
 
-/** Kampf-XP je Stunde ohne Hitpoints */
-const xpRate = (f: FightResult) => Object.entries(perHour(f).xp).reduce((s, [k, v]) => (k === HITPOINTS ? s : s + v), 0)
-
-function metricOf(f: FightResult, m: Metric): number {
-  if (!f.canAttack) return m === 'time' || m === 'damage' ? Infinity : 0
-  const h = perHour(f)
-  if (m === 'xp') return xpRate(f)
-  if (m === 'gold') return h.gold + h.loot
-  if (m === 'time') return f.killMs
-  return h.damage
-}
-/** Höher ist besser? */
-const better = (m: Metric) => (m === 'xp' || m === 'gold' ? 1 : -1)
-
 export function GearView() {
-  const { index, state } = useGame()
+  const { index, state, dispatch } = useGame()
+  const tab: GearTab = state.gearTab ?? 'compare'
   const { t } = useI18n()
   const { loadout } = useLoadout()
   const [metric, setMetric] = useState<Metric>('xp')
@@ -59,7 +45,7 @@ export function GearView() {
   const [chosen, setChosen] = useState<Id | null>(null)
   const target = enemies.find((e) => e.id === (chosen ?? best)) ?? enemies[0]
 
-  const result = useMemo(() => (target ? compare(index, state.profile, loadout, target, metric) : null), [index, state.profile, loadout, target, metric])
+  const result = useMemo(() => (target && tab === 'upgrades' ? compare(index, state.profile, loadout, target, metric) : null), [index, state.profile, loadout, target, metric, tab])
 
   return (
     <>
@@ -76,7 +62,16 @@ export function GearView() {
         />
       </Toolbar>
       <div className="content">
-        <LoadoutPanel />
+        <TabPills<GearTab>
+          value={tab}
+          onChange={(tab) => dispatch({ type: 'gearTab', tab })}
+          options={[
+            { value: 'compare', label: t('gear.tabCompare') },
+            { value: 'upgrades', label: t('gear.tabUpgrades') },
+            { value: 'optimal', label: t('gear.tabOptimal') },
+          ]}
+        />
+        {tab === 'upgrades' && <LoadoutPanel />}
         <div className="gear-target">
           <span className="muted">{t('gear.against')}</span>
           <Select label={t('gear.against')} value={target?.id ?? ''} onChange={(id) => setChosen(id)}>
@@ -104,7 +99,9 @@ export function GearView() {
           )}
         </div>
 
-        {result && (
+        {tab === 'compare' && target && <CompareAB enemy={target} metric={metric} />}
+        {tab === 'optimal' && target && <OptimalGear enemy={target} metric={metric} />}
+        {tab === 'upgrades' && result && (
           <>
             <div className="group-title">
               {t('gear.top')} <span className="muted">{t('gear.topHint')}</span>
@@ -122,11 +119,6 @@ export function GearView() {
       </div>
     </>
   )
-}
-
-function fmtMetric(m: Metric, v: number) {
-  if (!Number.isFinite(v)) return '—'
-  return m === 'time' ? fmtDurationShort(v) : `${fmtInt(v)}${m === 'xp' ? ' XP/h' : m === 'gold' ? ' GP/h' : '/h'}`
 }
 
 function fmtDelta(m: Metric, d: number, t: (k: string) => string) {

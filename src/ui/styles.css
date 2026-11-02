@@ -1359,3 +1359,32 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
 .completion-skill { width: 100%; border: 0; background: none; font: inherit; color: inherit; text-align: left; }
 .completion-skill:hover { background: var(--hover); }
 @media (max-width: 760px) { .completion-cards { grid-template-columns: 1fr; } }
+
+/* ---------------------------------------------------------------- Ausrüstung A/B, Optimal */
+
+.ab-pickers { display: flex; align-items: center; gap: 10px; margin: 6px 0 12px; flex-wrap: wrap; }
+.ab-pick {
+  display: inline-flex; align-items: center; gap: 10px; min-width: 240px; padding: 8px 12px;
+  border: 0; border-radius: 12px; background: var(--group); box-shadow: 0 0 0 0.5px var(--separator);
+  font: inherit; color: var(--text); text-align: left;
+}
+.ab-pick:hover { background: var(--hover); }
+.ab-pick.empty { color: var(--text-3); }
+.ab-label { width: 22px; height: 22px; border-radius: 11px; display: grid; place-items: center; background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: 12px; flex: none; }
+.ab-name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ab-pick .sym.rot { transform: rotate(90deg); color: var(--text-3); }
+.ab-table { max-width: 720px; margin-bottom: 8px; }
+.ab-table td.delta, .gear-table td.delta { font-weight: 600; font-variant-numeric: tabular-nums; }
+.ab-table td.delta.up { color: var(--ok); }
+.ab-table td.delta.down { color: var(--danger); }
+.opt-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.opt-controls .tab-pills { margin: 0; }
+.opt-result { margin-top: 12px; transition: opacity 0.2s ease; }
+.opt-result.stale { opacity: 0.5; }
+.opt-head { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; padding: 12px 14px; border-radius: 14px; background: var(--group); box-shadow: 0 0 0 0.5px var(--separator); }
+.opt-head > div { display: flex; flex-direction: column; }
+.opt-head b { font: 600 20px/1.2 var(--font-rounded); }
+.opt-head .delta { font-size: 11.5px; color: var(--text-2); }
+.opt-head .delta.up { color: var(--ok); }
+.opt-head .spacer { flex: 1; }
+.opt-missing { display: inline-flex; align-items: center; gap: 10px; }
