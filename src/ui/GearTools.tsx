@@ -41,10 +41,11 @@ export function CompareAB({ enemy, metric }: { enemy: Enemy; metric: Metric }) {
   const rows = useMemo(() => {
     const names = new Set<string>()
     for (const it of [a, b]) for (const s of it?.equipment?.stats ?? []) names.add(s.name)
-    const val = (it: Item | null, n: string) => it?.equipment?.stats.find((s) => s.name === n)?.value ?? 0
+    // Ohne Teil gibt es keinen Wert („—“), nicht 0
+    const val = (it: Item | null, n: string) => (it ? (it.equipment?.stats.find((s) => s.name === n)?.value ?? 0) : null)
     return [...names].map((n) => ({ name: n, a: val(a, n), b: val(b, n), lower: LOWER_IS_BETTER.has(n) }))
   }, [a, b])
-  const power = (it: Item | null, kind: 'power' | 'protection') => it?.equipment?.[kind].find((p) => p.name === 'Normal')?.value ?? 0
+  const power = (it: Item | null, kind: 'power' | 'protection') => (it ? (it.equipment?.[kind].find((p) => p.name === 'Normal')?.value ?? 0) : null)
   const fa = useMemo(() => (a ? withItem(index, state.profile, loadout, a, enemy, metric) : null), [index, state.profile, loadout, a, enemy, metric])
   const fb = useMemo(() => (b ? withItem(index, state.profile, loadout, b, enemy, metric) : null), [index, state.profile, loadout, b, enemy, metric])
 
@@ -151,7 +152,7 @@ function AbNum({ label, a, b, lower, unit = '', scale = 1, pct, time }: { label:
       <td className="num">{f(a)}</td>
       <td className="num">{f(b)}</td>
       <td className={`num delta ${good === true ? 'up' : good === false ? 'down' : ''}`}>
-        {d === null || Math.abs(d) < 1e-9 ? '±0' : `${d > 0 ? '+' : '−'}${pct ? `${fmtNum(Math.round(Math.abs(d) * 1000) / 10)} %` : time ? fmtDurationShort(Math.abs(d)) : fmtNum(Math.round(Math.abs(d) * scale * 100) / 100)}`}
+        {d === null ? '' : Math.abs(d) < 1e-9 ? '±0' : `${d > 0 ? '+' : '−'}${pct ? `${fmtNum(Math.round(Math.abs(d) * 1000) / 10)} %` : time ? fmtDurationShort(Math.abs(d)) : fmtNum(Math.round(Math.abs(d) * scale * 100) / 100)}`}
       </td>
     </tr>
   )
@@ -193,7 +194,7 @@ function PickButton({ label, item, other, onPick }: { label: string; item: Item 
     <>
       <button
         ref={btn}
-        className={`ab-pick ${item ? '' : 'empty'}`}
+        className={`ab-pick ${item ? '' : 'ab-unset'}`}
         data-entity={item ? `item:${item.id}` : undefined}
         onClick={() => {
           const r = btn.current!.getBoundingClientRect()

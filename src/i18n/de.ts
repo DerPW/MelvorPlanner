@@ -458,6 +458,8 @@ export const de = {
   'track.doneBody': '{route} ist geschafft.',
   'gear.title': 'Ausrüstung',
   'gear.subtitle': 'Jedes Teil gegen deine jetzige Ausrüstung gerechnet',
+  'gear.subCompare': 'Zwei Teile nebeneinander — Werte und Wirkung im Kampf',
+  'gear.subOptimal': 'Die beste Kombination gegen ein Monster',
   'gear.open': 'Ausrüstung vergleichen',
   'gear.against': 'Gegen',
   'gear.bestXp': 'meiste XP',

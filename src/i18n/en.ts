@@ -458,6 +458,8 @@ export const en: Record<Key, string> = {
   'track.doneBody': '{route} is done.',
   'gear.title': 'Gear',
   'gear.subtitle': 'Every piece compared with your current gear',
+  'gear.subCompare': 'Two pieces side by side — values and effect in combat',
+  'gear.subOptimal': 'The best combination against a monster',
   'gear.open': 'Compare gear',
   'gear.against': 'Against',
   'gear.bestXp': 'most XP',

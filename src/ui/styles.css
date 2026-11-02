@@ -1369,7 +1369,7 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
   font: inherit; color: var(--text); text-align: left;
 }
 .ab-pick:hover { background: var(--hover); }
-.ab-pick.empty { color: var(--text-3); }
+.ab-pick.ab-unset { color: var(--text-3); }
 .ab-label { width: 22px; height: 22px; border-radius: 11px; display: grid; place-items: center; background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: 12px; flex: none; }
 .ab-name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ab-pick .sym.rot { transform: rotate(90deg); color: var(--text-3); }

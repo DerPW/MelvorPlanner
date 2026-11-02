@@ -49,7 +49,7 @@ export function GearView() {
 
   return (
     <>
-      <Toolbar title={t('gear.title')} subtitle={t('gear.subtitle')}>
+      <Toolbar title={t('gear.title')} subtitle={t(tab === 'compare' ? 'gear.subCompare' : tab === 'optimal' ? 'gear.subOptimal' : 'gear.subtitle')}>
         <Segmented<Metric>
           value={metric}
           onChange={setMetric}
