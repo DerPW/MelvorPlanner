@@ -361,6 +361,7 @@ button { cursor: default; }
 .tag.locked { background: var(--control); color: var(--text-3); }
 .tag.warn { background: var(--danger-soft); color: var(--danger); }
 .tag.std { background: var(--control); color: var(--text-2); }
+.tag.bonus { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); cursor: help; }
 
 .muted { color: var(--text-3); }
 .num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
@@ -707,3 +708,8 @@ button.note:hover { background: var(--control-strong); color: var(--text); }
 }
 .preview-note { margin: 10px 0 0; font-size: 12px; color: var(--text-2); }
 .preview-note.bad { color: var(--danger); }
+
+.bonus-row { align-items: flex-start; padding-top: 9px; padding-bottom: 9px; }
+.bonus-mods { display: flex; flex-direction: column; gap: 1px; margin-top: 2px; font-size: 12px; color: var(--text-2); }
+.bonus-mods b { color: var(--ok); font-weight: 600; font-variant-numeric: tabular-nums; }
+.skill-grid .select select { max-width: 150px; }

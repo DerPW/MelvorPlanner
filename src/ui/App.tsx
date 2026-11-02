@@ -1,4 +1,5 @@
-import { useEffect, useReducer, useRef, useState } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { applyBonuses } from '../core/bonuses'
 import { fmtInt } from '../core/format'
 import { GP } from '../core/route'
 import type { GameIndex } from '../core/planner'
@@ -13,6 +14,7 @@ import { GameContext, loadState, newId, reducer, saveState, useGame, type RouteT
 export function App({ index }: { index: GameIndex }) {
   const [state, dispatch] = useReducer(reducer, undefined, loadState)
   useEffect(() => saveState(state), [state])
+  const bonus = useMemo(() => applyBonuses(index, state.profile, state.options.bonuses), [index, state.profile, state.options.bonuses])
 
   const view = state.view
   let main
@@ -22,7 +24,7 @@ export function App({ index }: { index: GameIndex }) {
   else main = <PlanView />
 
   return (
-    <GameContext.Provider value={{ index, state, dispatch }}>
+    <GameContext.Provider value={{ index: bonus.index, baseIndex: index, bonus, state, dispatch }}>
       <div className={`window ${state.selected ? '' : 'no-inspector'}`}>
         <Sidebar />
         <main className="main">{main}</main>

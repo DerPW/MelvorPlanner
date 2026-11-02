@@ -51,14 +51,18 @@ export const levelOf = (profile: Profile, skill: Id | null) => (skill ? (profile
 export function successChance(r: Recipe, profile: Profile): number {
   if (!r.success) return 1
   const level = Math.max(levelOf(profile, r.skill), r.level)
-  if (r.success.kind === 'cooking') return clamp01((69 + level) / (69 + r.success.difficulty))
-  return clamp01((100 + level) / (100 + r.success.perception))
+  const s = r.success
+  if (s.kind === 'cooking') return clamp01((69 + Math.max(0, level + (s.proficiency ?? 0))) / (69 + s.difficulty))
+  const stealth = Math.max(0, Math.floor((level + (s.stealthFlat ?? 0)) * (1 + (s.stealthPct ?? 0))))
+  return clamp01((100 + stealth) / (100 + s.perception))
 }
 
 /** Mittlere Zeit je Durchlauf — Thieving: Fehlschlag kostet die Betäubung;
  *  Farming: Wachstum, geteilt durch die Felder, die gleichzeitig wachsen */
 export function actionTime(r: Recipe, profile: Profile): number {
-  if (r.success?.kind === 'thieving') return r.timeMs + (1 - successChance(r, profile)) * r.success.stunMs
+  if (r.success?.kind === 'thieving') {
+    return r.timeMs + (1 - successChance(r, profile)) * (1 - (r.success.stunAvoid ?? 0)) * r.success.stunMs
+  }
   if (r.passive) return r.timeMs / Math.max(1, profile.farmingPlots ?? 1)
   return r.timeMs
 }

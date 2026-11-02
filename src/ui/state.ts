@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react'
+import type { BonusResult } from '../core/bonuses'
 import type { GameIndex, SourceChoices } from '../core/planner'
 import type { RouteOptions } from '../core/route'
 import type { Id, ItemGoal, Profile } from '../core/types'
@@ -41,6 +42,7 @@ export type Action =
   | { type: 'setStock'; item: Id; qty: number }
   | { type: 'setOwned'; purchase: Id; owned: boolean }
   | { type: 'setPlots'; plots: number }
+  | { type: 'setGuildRank'; skill: Id; rank: number }
   | { type: 'resetProfile' }
   | { type: 'importProfile'; profile: Profile }
   | { type: 'choose'; item: Id; recipe: Id | null }
@@ -59,7 +61,7 @@ export const initialState = (): State => ({
   routes: [],
   profile: emptyProfile(),
   choices: {},
-  options: { includeMaterials: true },
+  options: { includeMaterials: true, bonuses: true },
   done: {},
   view: { kind: 'plan' },
   tab: 'flow',
@@ -115,6 +117,8 @@ export function reducer(s: State, a: Action): State {
       else delete owned[a.purchase]
       return { ...s, profile: { ...p, owned } }
     }
+    case 'setGuildRank':
+      return { ...s, profile: { ...p, guildRanks: { ...p.guildRanks, [a.skill]: a.rank } } }
     case 'setPlots':
       return { ...s, profile: { ...p, farmingPlots: Math.max(1, a.plots) } }
     case 'resetProfile':
@@ -175,7 +179,11 @@ export function saveState(s: State) {
 }
 
 export interface Ctx {
+  /** Mit Boni neu berechnet, wenn eingeschaltet — alle Ansichten rechnen damit */
   index: GameIndex
+  /** Grundwerte ohne Boni */
+  baseIndex: GameIndex
+  bonus: BonusResult
   state: State
   dispatch: (a: Action) => void
 }

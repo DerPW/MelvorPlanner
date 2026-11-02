@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react'
 import { MAX_LEVEL, xpForLevel } from '../core/experience'
 import { fmtInt } from '../core/format'
 import { GP } from '../core/route'
-import { GameIcon, Stepper, Switch, Sym, Toolbar } from './components'
+import { modLabel, modScope, modValue } from './bonusText'
+import { GameIcon, Select, Stepper, Switch, Sym, Toolbar } from './components'
 import { ImportSheet } from './ImportSheet'
 import { ItemSearch } from './ItemSearch'
 import { useGame } from './state'
 
 export function ProfileView() {
-  const { index, state, dispatch } = useGame()
+  const { index, baseIndex, bonus, state, dispatch } = useGame()
   const p = state.profile
   const [unlockFilter, setUnlockFilter] = useState('')
   const [importing, setImporting] = useState(false)
@@ -68,6 +69,18 @@ export function ProfileView() {
               onChange={(includeMaterials) => dispatch({ type: 'setOption', options: { includeMaterials } })}
             />
           </div>
+          <div className="form-row">
+            <Sym name="plus" size={20} />
+            <span className="grow">
+              Boni einrechnen
+              <div className="hint">
+                {state.options.bonuses
+                  ? `${bonus.active.length} aktiv — Shop-Käufe, Werkzeuge, Gilden-Ränge`
+                  : 'aus: Grundwerte wie im Spiel ohne Upgrades'}
+              </div>
+            </span>
+            <Switch label="Boni einrechnen" checked={state.options.bonuses} onChange={(bonuses) => dispatch({ type: 'setOption', options: { bonuses } })} />
+          </div>
         </div>
 
         <div className="group-title">
@@ -88,6 +101,70 @@ export function ProfileView() {
             )
           })}
         </div>
+
+        <div className="group-title">
+          Meisterschafts-Gilde <span className="muted">Rang je Skill — schaltet Gilden-Boni frei</span>
+        </div>
+        <div className="form-group skill-grid">
+          {Object.entries(baseIndex.data.guildRanks ?? {}).map(([skill, ranks]) => {
+            const s = index.skills.get(skill)
+            if (!s) return null
+            return (
+              <div className="form-row" key={skill}>
+                <GameIcon src={s.icon} size={22} />
+                <span className="grow">{s.name}</span>
+                <Select
+                  label={`${s.name} Gilden-Rang`}
+                  value={String(p.guildRanks?.[skill] ?? 0)}
+                  onChange={(v) => dispatch({ type: 'setGuildRank', skill, rank: Number(v) })}
+                >
+                  {ranks.map((r, i) => {
+                    // „Cooking Initiate" / „Apprentice Woodcutter" → „Initiate" / „Apprentice"
+                    const words = r.name.split(' ')
+                    const short = words[0] === s.name ? words.slice(1).join(' ') : words[0]
+                    return (
+                      <option key={r.id} value={i}>
+                        {i + 1} · {short}
+                      </option>
+                    )
+                  })}
+                </Select>
+              </div>
+            )
+          })}
+        </div>
+
+        {bonus.active.length > 0 && (
+          <>
+            <div className="group-title">
+              Aktive Boni <span className="muted">gehen in alle Zeiten, Mengen und Raten ein</span>
+            </div>
+            <div className="form-group">
+              {bonus.active.map(({ source, count }) => (
+                <div className="form-row bonus-row" key={`${source.kind}:${source.id}`}>
+                  <GameIcon src={source.icon ?? (source.skill ? index.skills.get(source.skill)?.icon : null)} size={22} />
+                  <span className="grow">
+                    {source.name}
+                    {count > 1 && <span className="muted"> ×{count}</span>}
+                    <div className="bonus-mods">
+                      {source.mods.map((m, i) => (
+                        <span key={i} title={modScope(index, m)}>
+                          <b>{modValue(m, m.value * count)}</b> {modLabel(m)}
+                          <span className="muted"> · {modScope(index, m)}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </span>
+                  <span className="tag std">{source.kind === 'purchase' ? 'Shop' : source.kind === 'item' ? 'Werkzeug' : 'Gilde'}</span>
+                </div>
+              ))}
+            </div>
+            <p className="form-caption">
+              Noch nicht dabei: Tränke, Astrologie, Haustiere und angelegte Ausrüstung. Werte, die der Planer nicht modelliert
+              (z. B. Vogelnester beim Holzfällen), stehen in der Skill-Ansicht als „nicht gerechnet".
+            </p>
+          </>
+        )}
 
         <div className="group-title" style={{ justifyContent: 'space-between' }}>
           <span>

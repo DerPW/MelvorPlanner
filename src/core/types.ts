@@ -15,6 +15,9 @@ export interface CurrencyQty {
 export interface Output extends ItemQty {
   /** Erwartungswert-Faktor je Durchlauf (1 = sicher) */
   chance: number
+  /** Anteil innerhalb einer gewichteten Tabelle (Angeln, Thieving-Beute) */
+  share?: number
+  table?: 'fish' | 'common' | 'rare'
 }
 
 export interface CurrencyOutput extends CurrencyQty {
@@ -41,11 +44,19 @@ export type RecipeKind =
   | 'upgrade'
 
 export type Success =
-  | { kind: 'cooking'; difficulty: number }
-  | { kind: 'thieving'; perception: number; stunMs: number }
+  | { kind: 'cooking'; difficulty: number; proficiency?: number }
+  | { kind: 'thieving'; perception: number; stunMs: number; stealthFlat?: number; stealthPct?: number; stunAvoid?: number }
 
 export interface Recipe {
   id: Id
+  /** Id des Rezepts im Spiel (für Boni, die auf ein Rezept zielen) */
+  ref: Id
+  category: Id | null
+  subcategory: Id | null
+  location?: Id | null
+  recipeType?: Id | null
+  /** Rohwerte fürs Neuberechnen mit Boni (src/core/bonuses.ts) */
+  base?: Record<string, number>
   kind: RecipeKind
   name: string
   icon: string | null
@@ -102,6 +113,40 @@ export interface Currency {
   icon: string | null
 }
 
+/** Ein Bonus aus den Spieldaten; Eingrenzung über Skill/Rezept/Kategorie … */
+export interface Mod {
+  /** Stat-Klasse ohne Namensraum (MiningAction, Experience) oder „Global" */
+  stats: string
+  stat: string
+  value: number
+  entity?: Id
+  recipe?: Id
+  category?: Id
+  subcategory?: Id
+  location?: Id
+  item?: Id
+  recipetype?: Id
+}
+
+export interface BonusSource {
+  id: Id
+  kind: 'purchase' | 'item' | 'guild'
+  name: string
+  icon: string | null
+  /** Werkzeug: Platz im Werkzeuggürtel */
+  slot?: Id | null
+  /** Gilde: Skill und nötiger Rang */
+  skill?: Id
+  rank?: Id
+  mods: Mod[]
+}
+
+export interface GuildRank {
+  id: Id
+  name: string
+  percent: number
+}
+
 export interface GameData {
   meta: { packages: string[]; gameVersion: string | null; godot: string; extractedAt: string }
   currencies: Currency[]
@@ -109,6 +154,11 @@ export interface GameData {
   items: Item[]
   recipes: Recipe[]
   purchases: Purchase[]
+  bonusSources: BonusSource[]
+  /** Skill → Gilden-Ränge, aufsteigend */
+  guildRanks: Record<Id, GuildRank[]>
+  /** Lesbare Namen der Eingrenzungen von Boni */
+  names: Record<Id, string>
 }
 
 export interface Profile {
@@ -125,6 +175,8 @@ export interface Profile {
   equipped?: Id[]
   /** Höchstes Level dieser Spielversion (Demo 60) */
   levelCap?: number
+  /** Gilden-Rang je Skill (Index in guildRanks, 0 = Anfang) */
+  guildRanks?: Record<Id, number>
   /** Woher der Stand kommt */
   source?: { character: string; savedAt: string | null; importedAt: string; version: number }
 }

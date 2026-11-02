@@ -9,6 +9,7 @@
 //
 // Die Zeit- und Ertragsformeln unten sind aus dem Spielcode der Demo 0.11.4
 // nachgebaut (Grundwerte, ohne Boni) — Quelle steht jeweils am Rezepttyp.
+// `base` hält die Rohwerte; src/core/bonuses.ts rechnet daraus mit Boni neu.
 // Zum Release: einfach neu laufen lassen. Taucht ein Objekttyp auf, der Items
 // erzeugt und hier nicht behandelt wird, steht er am Ende als Warnung da.
 
@@ -189,6 +190,9 @@ function push(type, id, o, fields) {
   const req = requirements(o)
   recipes.push({
     id: `${type}:${id}`,
+    ref: id,
+    category: o.Category ?? null,
+    subcategory: o.Subcategory ?? null,
     name: o.DisplayName,
     icon: null,
     skill: req.skill,
@@ -222,13 +226,14 @@ for (const type of ['ArtisanRecipe', 'CookingRecipe']) {
       costs: costList(o.Ingredients?.Currencies),
       outputs: products(o.Products),
       timeMs: o.BaseInterval * Math.max(1, o.Steps ?? 1),
+      base: { interval: o.BaseInterval, steps: o.Steps ?? 0 },
       ...(cooking ? { success: { kind: 'cooking', difficulty: o.Difficulty ?? 0 } } : {}),
     })
   })
 }
 
-// Kräuterkunde: Vorbereiten → Erhitzen → Rühren → Abfüllen nacheinander
-// (HerbloreActionComponent.GetIntervalForRecipeState), XP am Ende.
+// Kräuterkunde: Vorbereiten → Erhitzen → Rühren → zehnmal Abfüllen
+// (HerbloreActionStats.Interval = p + h + s + b × 10), XP am Ende.
 each('HerbloreRecipe', (id, o) => {
   push('HerbloreRecipe', id, o, {
     kind: 'artisan',
@@ -237,7 +242,13 @@ each('HerbloreRecipe', (id, o) => {
     inputs: qtyList(o.Ingredients?.Items),
     costs: costList(o.Ingredients?.Currencies),
     outputs: products(o.Products),
-    timeMs: (o.BasePreparingInterval ?? 0) + (o.BaseHeatingInterval ?? 0) + (o.BaseStirringInterval ?? 0) + (o.BaseBottlingInterval ?? 0),
+    timeMs: (o.BasePreparingInterval ?? 0) + (o.BaseHeatingInterval ?? 0) + (o.BaseStirringInterval ?? 0) + (o.BaseBottlingInterval ?? 0) * 10,
+    base: {
+      preparing: o.BasePreparingInterval ?? 0,
+      heating: o.BaseHeatingInterval ?? 0,
+      stirring: o.BaseStirringInterval ?? 0,
+      bottling: o.BaseBottlingInterval ?? 0,
+    },
   })
 })
 
@@ -251,6 +262,7 @@ each('WoodcuttingRecipe', (id, o) => {
     level: o.Level ?? requirements(o).level,
     outputs: [{ item: o.Product.Item, qty: o.Product.Quantity, chance: 1 }],
     timeMs: o.BaseInterval * Math.max(1, o.BaseMaxHealth ?? 1),
+    base: { interval: o.BaseInterval, maxHealth: o.BaseMaxHealth ?? 1 },
   })
 })
 
@@ -266,6 +278,7 @@ each('MiningRecipe', (id, o) => {
     skill: 'MelvorBase:Mining',
     outputs: [{ item: o.Product.Item, qty: o.Product.Quantity, chance: 1 }],
     timeMs: o.BaseInterval * hits,
+    base: { interval: o.BaseInterval, productChance: p },
   })
 })
 
@@ -284,8 +297,12 @@ each('FishingRecipe', (id, o) => {
       item: p.Item,
       qty: (p.MinQuantity + p.MaxQuantity) / 2,
       chance: (o.FishChance ?? 1) * (p.Weight / total),
+      share: p.Weight / total,
+      table: 'fish',
     })),
     timeMs: ((o.BaseMinInterval ?? 0) + (o.BaseMaxInterval ?? 0)) / 2,
+    base: { minInterval: o.BaseMinInterval ?? 0, maxInterval: o.BaseMaxInterval ?? 0, fishChance: o.FishChance ?? 1 },
+    location: o.Location ?? null,
   })
 })
 
@@ -300,6 +317,7 @@ each('FiremakingRecipe', (id, o) => {
     costs: costList(o.Ingredients?.Currencies),
     outputs: products(o.Products),
     timeMs: o.BaseInterval,
+    base: { interval: o.BaseInterval, steps: 1 },
     currencyOutputs: o.CurrencyReward
       ? [{ currency: o.CurrencyReward.Currency, qty: o.CurrencyReward.Quantity ?? ((o.CurrencyReward.MinQuantity ?? 0) + (o.CurrencyReward.MaxQuantity ?? 0)) / 2, chance: 1 }]
       : undefined,
@@ -310,33 +328,54 @@ each('FiremakingRecipe', (id, o) => {
 // (ThievingActionStats); Fehlschlag = 2 s Betäubung obendrauf, keine Beute,
 // keine XP. Beute bei Erfolg: Gold mit Chance, gewöhnliche/seltene Tabelle.
 each('ThievingRecipe', (id, o) => {
-  const table = (rows, chance) => {
+  const table = (rows, chance, name) => {
     const total = (rows ?? []).reduce((s, r) => s + r.Weight, 0) || 1
-    return (rows ?? []).map((r) => ({ item: r.Item, qty: (r.MinQuantity + r.MaxQuantity) / 2, chance: chance * (r.Weight / total) }))
+    return (rows ?? []).map((r) => ({
+      item: r.Item,
+      qty: (r.MinQuantity + r.MaxQuantity) / 2,
+      chance: chance * (r.Weight / total),
+      share: r.Weight / total,
+      table: name,
+    }))
   }
   const cr = o.CurrencyReward
   push('ThievingRecipe', id, o, {
     kind: 'thieving',
     icon: icon(o.Media),
     skill: 'MelvorBase:Thieving',
-    outputs: [...table(o.CommonDropTable, o.BaseCommonLootChance ?? 0), ...table(o.RareDropTable, o.BaseRareLootChance ?? 0)],
+    outputs: [...table(o.CommonDropTable, o.BaseCommonLootChance ?? 0, 'common'), ...table(o.RareDropTable, o.BaseRareLootChance ?? 0, 'rare')],
     currencyOutputs: cr ? [{ currency: cr.Currency, qty: (cr.MinQuantity + cr.MaxQuantity) / 2, chance: o.BaseCurrencyLootChance ?? 1 }] : [],
     timeMs: o.BaseInterval,
     success: { kind: 'thieving', perception: o.Perception ?? 0, stunMs: 2000 },
+    base: {
+      interval: o.BaseInterval,
+      perception: o.Perception ?? 0,
+      currencyChance: o.BaseCurrencyLootChance ?? 1,
+      commonChance: o.BaseCommonLootChance ?? 0,
+      rareChance: o.BaseRareLootChance ?? 0,
+    },
+    recipeType: o.RecipeType ?? null,
   })
 })
 
-// Farming: Wachstum ist Wartezeit, kein aktives Tun. Ertrag je Feld.
+// Farming: Wachstum ist Wartezeit, kein aktives Tun. Ertrag je Feld, gemindert
+// um Krankheit + Schädlinge über dem Schutz (FarmingActionStats.Product):
+// Menge × (1 − (max(0, Schädlinge − Schutz) + max(0, Krankheit − Schutz)) / 100).
 each('FarmingRecipe', (id, o) => {
+  const cat = objects.FarmingCategory?.get(o.Category)
+  const disease = cat?.AttractsDisease ? (o.DiseaseValueAdjuster ?? 0) + (cat.DiseaseValueAdjuster ?? 0) : 0
+  const pest = cat?.AttractsPests ? (o.PestValueAdjuster ?? 0) + (cat.PestValueAdjuster ?? 0) : 0
+  const adjust = 1 - (Math.max(0, pest) + Math.max(0, disease)) / 100
   push('FarmingRecipe', id, o, {
     kind: 'farming',
     icon: icon(o.Icon),
     skill: 'MelvorBase:Farming',
     inputs: qtyList(o.Ingredients?.Items),
     costs: costList(o.Ingredients?.Currencies),
-    outputs: [{ item: o.Product.Item, qty: o.Product.Quantity, chance: 1 }],
+    outputs: [{ item: o.Product.Item, qty: Math.max(1, Math.trunc(o.Product.Quantity * adjust)), chance: 1 }],
     timeMs: o.BaseInterval,
     passive: true,
+    base: { interval: o.BaseInterval, productQty: o.Product.Quantity, disease, pest },
   })
 })
 
@@ -425,6 +464,72 @@ for (const name of ['Bank', 'Milestones', 'CompletionLog', 'GuideBook', 'Mastery
   if (pck.files.has(`Assets/Icons/${name}.png.import`)) icon(`res://Assets/Icons/${name}.png`)
 }
 
+// Boni: Shop-Käufe, Werkzeuge im Werkzeuggürtel, Gilden-Ränge. Nur, was
+// Skilling betrifft und immer gilt (ohne Bedingung/Fremdkontext — die sind
+// Kampf-Situationen). Globale Gruppen fließen im Spiel in die Werte jedes
+// Skills ein (ModifiableStat-Gruppen „GlobalPercentActionInterval" …).
+const SKILL_STATS = new Set([
+  'ArtisanAction', 'CookingAction', 'WoodcuttingAction', 'MiningAction', 'FishingAction',
+  'ThievingAction', 'FiremakingAction', 'HerbloreAction', 'FarmingAction', 'Experience',
+])
+const GLOBAL_STATS = new Set(['GlobalPercentActionInterval', 'GlobalFlatActionInterval', 'GlobalPercentXpGained'])
+function bonusMods(bonuses) {
+  const out = []
+  for (const g of bonuses?.Global ?? []) {
+    if (GLOBAL_STATS.has(g.StatGroup) && !g.Condition) out.push({ stats: 'Global', stat: g.StatGroup, value: g.Value })
+  }
+  for (const c of bonuses?.Component ?? []) {
+    const type = short(c.Stat?.StatsType ?? '')
+    if (!SKILL_STATS.has(type) || c.Condition || c.FromContext || c.Scaling) continue
+    const lc = c.LocalContext ?? {}
+    const m = { stats: type, stat: c.Stat.Name, value: c.Value }
+    if (lc.Component?.Entity) m.entity = lc.Component.Entity
+    for (const k of ['Recipe', 'Category', 'Subcategory', 'Location', 'Item', 'RecipeType']) if (lc[k]) m[k.toLowerCase()] = lc[k]
+    out.push(m)
+  }
+  return out
+}
+const bonusSources = []
+for (const [id, o] of all('ShopPurchase')) {
+  const mods = bonusMods(o.Provides?.Bonuses)
+  if (mods.length) bonusSources.push({ id, kind: 'purchase', name: o.DisplayName, icon: icon(o.Icon), mods })
+}
+for (const [id, o] of all('Item')) {
+  const tool = o.Capabilities?.['MelvorBase:Toolbelt']
+  const mods = bonusMods(tool?.Bonuses)
+  if (mods.length) {
+    bonusSources.push({ id, kind: 'item', name: o.DisplayName?.Singular ?? short(id), icon: icon(o.Icon), slot: tool.FitsInSlot ?? null, mods })
+  }
+}
+handled.add('MasteryGuildBonus')
+for (const [id, o] of all('MasteryGuildBonus')) {
+  const req = (o.Requirements ?? []).find((q) => q.Type === 'MelvorBase:MasteryGuildRank')
+  const mods = bonusMods(o.Rewards?.Bonuses)
+  if (req && mods.length) {
+    bonusSources.push({ id, kind: 'guild', name: o.DisplayName, icon: null, skill: req.Data.Component.Entity, rank: req.Data.Rank, mods })
+  }
+}
+// Lesbare Namen der Eingrenzungen (Kategorie, Fanggebiet, Rezept …)
+const scopeIds = new Set(bonusSources.flatMap((b) => b.mods.flatMap((m) => [m.recipe, m.category, m.subcategory, m.location, m.recipetype, m.item]).filter(Boolean)))
+const names = {}
+for (const [type, byId] of Object.entries(objects)) {
+  for (const [id, o] of byId) {
+    if (!scopeIds.has(id) || names[id]) continue
+    const n = typeof o.DisplayName === 'string' ? o.DisplayName : o.DisplayName?.Singular
+    if (n) names[id] = n
+  }
+}
+
+const guildRanks = {}
+for (const [entity, cfg] of Object.entries(entityConfig)) {
+  const ranks = (cfg.MasteryGuildRanks ?? [])
+    .map((r) => ({ id: r.Id, rank: objects.MasteryGuildRank?.get(r.Id) }))
+    .filter((r) => r.rank)
+    .map((r) => ({ id: r.id, name: r.rank.DisplayName, percent: r.rank.PointPercentRequired ?? 0 }))
+    .sort((a, b) => a.percent - b.percent)
+  if (ranks.length > 1) guildRanks[entity] = ranks
+}
+
 // Was erzeugt Items, wird hier aber nicht gerechnet? (Hinweis fürs Release)
 const unhandled = Object.entries(objects)
   .filter(([type, byId]) => !handled.has(type) && [...byId.values()].some((o) => /"(Products?|RandomProducts|DropTable|Loot\w*|Provides)"/.test(JSON.stringify(o))))
@@ -468,12 +573,16 @@ const data = {
   items,
   recipes,
   purchases,
+  bonusSources,
+  guildRanks,
+  names,
 }
 fs.writeFileSync(path.join(OUT_DIR, 'data.json'), JSON.stringify(data))
 
 const locked = recipes.filter((r) => r.demoLocked).length
 console.log(
   `${items.length} Items, ${recipes.length} Rezepte (${locked} gesperrt), ${purchases.length} Shop-Käufe, ` +
+    `${bonusSources.length} Bonus-Quellen, ` +
     `${skills.length} Skills, ${written} Icons` +
     (missing.length ? `, ${missing.length} Icons ohne Textur` : ''),
 )

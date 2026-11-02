@@ -20,7 +20,7 @@ const KIND: Record<string, string> = {
 }
 
 export function Inspector({ item: id }: { item: Id }) {
-  const { index, state, dispatch } = useGame()
+  const { index, bonus, state, dispatch } = useGame()
   const item = index.items.get(id)
   if (!item) return <div className="insp-empty">Unbekanntes Item</div>
 
@@ -105,6 +105,7 @@ export function Inspector({ item: id }: { item: Id }) {
                     <span className="name">{recipeAction(r)}</span>
                     <LevelTag level={r.level} have={r.skill ? (state.profile.levels[r.skill] ?? 1) : 1} />
                     {i === 0 && !chosen && <span className="tag std">Standard</span>}
+                    {bonus.perRecipe.get(r.id)?.some((a) => a.supported) && <span className="tag bonus">Bonus</span>}
                     {r.demoLocked && <span className="tag locked">Demo</span>}
                   </span>
                   <span className="d">

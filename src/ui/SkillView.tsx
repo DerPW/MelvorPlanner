@@ -4,13 +4,14 @@ import { actionTime, isAvailable, successChance } from '../core/planner'
 import { GP, unitCosts } from '../core/route'
 import type { Id } from '../core/types'
 import { GameIcon, LevelTag, Segmented, Sym, Toolbar } from './components'
+import { modLabel, modValue } from './bonusText'
 import { recipeAction } from './SolutionView'
 import { newId, useGame } from './state'
 
 type Sort = 'level' | 'xp' | 'gold'
 
 export function SkillView({ skill }: { skill: Id }) {
-  const { index, state, dispatch } = useGame()
+  const { index, bonus, state, dispatch } = useGame()
   const s = index.skills.get(skill)
   const level = state.profile.levels[skill] ?? 1
   const [sort, setSort] = useState<Sort>('level')
@@ -59,6 +60,7 @@ export function SkillView({ skill }: { skill: Id }) {
   }, [index, skill, state.profile, sort, withMaterials])
 
   const free = rows.filter((x) => x.available).length
+  const boosted = rows.filter((x) => bonus.perRecipe.has(x.r.id)).length
 
   return (
     <>
@@ -68,7 +70,7 @@ export function SkillView({ skill }: { skill: Id }) {
             <GameIcon src={s?.icon} size={20} /> {s?.name}
           </span>
         }
-        subtitle={`Level ${level} · ${free} von ${rows.length} Rezepten frei · Raten ${withMaterials ? 'mit' : 'ohne'} Materialbeschaffung`}
+        subtitle={`Level ${level} · ${free} von ${rows.length} Rezepten frei · Raten ${withMaterials ? 'mit' : 'ohne'} Materialbeschaffung${boosted ? ` · ${boosted} mit Boni` : ''}`}
       >
         <Segmented<Sort>
           value={sort}
@@ -120,6 +122,17 @@ export function SkillView({ skill }: { skill: Id }) {
                       <GameIcon src={r.icon} size={20} />
                       <span className="name">{recipeAction(r)}</span>
                       {r.demoLocked && <span className="tag locked">Demo</span>}
+                      {bonus.perRecipe.has(r.id) && (
+                        <span
+                          className="tag bonus"
+                          title={bonus.perRecipe
+                            .get(r.id)!
+                            .map((a) => `${modValue(a.mod, a.value)} ${modLabel(a.mod)} — ${a.source.name}${a.supported ? '' : ' (nicht gerechnet)'}`)
+                            .join('\n')}
+                        >
+                          Bonus
+                        </span>
+                      )}
                       {!r.demoLocked && r.reqs.some((q) => q.type === 'purchase' || q.type === 'item') && !available && (
                         <span className="tag warn" title={r.reqs.map((q) => (q.type === 'purchase' ? q.name : q.type === 'item' ? index.items.get(q.item)?.name : '')).join(', ')}>
                           gesperrt

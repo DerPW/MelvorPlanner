@@ -19,6 +19,8 @@ export type RouteGoal = { kind: 'level'; skill: Id; level: number } | { kind: 'g
 export interface RouteOptions {
   /** Material selbst beschaffen (Zeit + XP der Kette zählen mit) */
   includeMaterials: boolean
+  /** Boni (Shop, Werkzeuge, Gilde) einrechnen */
+  bonuses: boolean
 }
 
 interface Bundle {
