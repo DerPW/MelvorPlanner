@@ -274,6 +274,121 @@ export function deriveRecipe(r: Recipe, t: (stat: string) => number): Recipe {
   }
 }
 
+/** Bonus-Summen für ein einzelnes Rezept (wie im Spiel-Panel) */
+export function recipeTotals(index: GameIndex, profile: Profile, r: Recipe, enabled: boolean): (stat: string) => number {
+  return totalsFor(r, enabled ? activeSources(index, profile) : [], [])
+}
+
+/** Ein Wert des Aktions-Panels: Grundwert und mit Boni. `label` ist ein
+ *  Wörterbuch-Schlüssel; `core` = immer zeigen (wie im Spiel), sonst nur, wenn ≠ 0 */
+export interface StatLine {
+  label: string
+  unit: 'ms' | 'pct' | 'num'
+  base: number
+  now: number
+  core?: boolean
+  /** weniger ist besser (Zeiten, Zutatenbedarf, Wahrnehmung) */
+  lower?: boolean
+}
+
+/** Die Werte einer Aktion wie im Spiel-Panel: Intervalle, Chancen, Mengen —
+ *  mit denselben Formeln wie `deriveRecipe`, je einmal ohne und mit Boni */
+export function statLines(r: Recipe, t: (stat: string) => number): StatLine[] {
+  const b = r.base
+  if (!b) return []
+  const zero = () => 0
+  const out: StatLine[] = []
+  const line = (label: string, unit: StatLine['unit'], f: (t: (stat: string) => number) => number, opt: { core?: boolean; lower?: boolean } = {}) => {
+    const base = f(zero)
+    const now = f(t)
+    if (opt.core || base !== 0 || now !== 0) out.push({ label, unit, base, now, ...opt })
+  }
+  const pct = (stat: string, core = false) => line(`stat.${stat}`, 'pct', (x) => clamp01(x(stat)), { core })
+  const doubling = () => pct('DoublingChance', true)
+  const product = () => {
+    line('stat.FlatProductQuantity', 'num', (x) => x('FlatProductQuantity'))
+    line('stat.PercentProductQuantity', 'pct', (x) => x('PercentProductQuantity'))
+  }
+
+  switch (r.kind) {
+    case 'artisan':
+    case 'cooking':
+    case 'firemaking': {
+      if (r.skill === 'MelvorBase:Herblore') {
+        for (const [key, name] of [['preparing', 'Preparing'], ['heating', 'Heating'], ['stirring', 'Stirring'], ['bottling', 'Bottling']] as const)
+          line(`stat.Percent${name}Interval`, 'ms', (x) => Math.floor(b[key] * (1 + x(`Percent${name}Interval`)) + x(`Flat${name}Interval`)), { core: true, lower: true })
+      } else {
+        line('val.interval', 'ms', (x) => Math.floor(b.interval * (1 + x('PercentInterval')) + x('FlatInterval')), { core: true, lower: true })
+        if ((b.steps ?? 0) > 1) line('stat.FlatSteps', 'num', (x) => Math.max(1, b.steps + x('FlatSteps')), { lower: true })
+        pct('SkipStepChance')
+      }
+      pct('PreservationChance', true)
+      doubling()
+      product()
+      line('stat.PercentIngredientCost', 'pct', (x) => x('PercentIngredientCost'), { lower: true })
+      // Feuermachen: Chance auf das Nebenprodukt (Asche)
+      const extra = r.kind === 'firemaking' ? r.outputs.find((o) => o.chance < 1) : undefined
+      if (extra) line('stat.FlatProductChance', 'pct', (x) => clamp01((extra.chance + x('FlatProductChance')) * (1 + x('IncreasedProductChance'))), { core: true })
+      if (r.success?.kind === 'cooking') {
+        line('stat.FlatProficiency', 'num', (x) => x('FlatProficiency'), { core: true })
+        line('stat.FlatDifficulty', 'num', (x) => Math.max(0, (r.success?.kind === 'cooking' ? r.success.difficulty : 0) + x('FlatDifficulty')), { lower: true })
+      }
+      break
+    }
+    case 'woodcutting':
+      line('val.interval', 'ms', (x) => Math.floor((b.interval + x('FlatInterval')) * (1 + x('PercentInterval'))), { core: true, lower: true })
+      line('stat.FlatMaxHealth', 'num', (x) => Math.max(1, Math.ceil((b.maxHealth + x('FlatMaxHealth')) * (1 + x('PercentMaxHealth')))), { core: true, lower: true })
+      pct('InstantCutChance', true)
+      pct('WeakSpotChance', true)
+      pct('DoubleDamageChance', true)
+      doubling()
+      line('stat.FlatProductQuantity', 'num', (x) => x('FlatProductQuantity'))
+      break
+    case 'mining':
+      line('val.interval', 'ms', (x) => Math.floor((b.interval + x('FlatInterval')) * (1 + x('PercentInterval'))), { core: true, lower: true })
+      line('stat.PercentIncreaseRockBreakChance', 'pct', (x) => clamp01(b.productChance * (1 + x('PercentIncreaseRockBreakChance'))), { core: true })
+      pct('FlatMinimumProspecting')
+      pct('AdditionalProductQuantityChance')
+      pct('ShatterChance')
+      doubling()
+      line('stat.FlatProductQuantity', 'num', (x) => x('FlatProductQuantity'))
+      break
+    case 'fishing': {
+      const min = (x: (stat: string) => number) => Math.floor((b.minInterval + x('FlatMinInterval')) * (1 + x('PercentMinInterval')))
+      line('stat.FlatMinInterval', 'ms', min, { core: true, lower: true })
+      line('stat.FlatMaxInterval', 'ms', (x) => Math.max(min(x), Math.floor((b.maxInterval + x('FlatMaxInterval')) * (1 + x('PercentMaxInterval')))), { core: true, lower: true })
+      line('stat.IncreasedFishChance', 'pct', (x) => clamp01((b.fishChance + x('FlatFishChance')) * (1 + x('IncreasedFishChance'))), { core: true })
+      doubling()
+      break
+    }
+    case 'thieving':
+      line('val.interval', 'ms', (x) => Math.floor((b.interval + x('FlatInterval')) * (1 + x('PercentInterval'))), { core: true, lower: true })
+      line('stat.FlatPerception', 'num', (x) => Math.max(0, Math.floor((b.perception + x('FlatPerception')) * (1 + x('PercentPerception')))), { core: true, lower: true })
+      line('stat.FlatStealth', 'num', (x) => x('FlatStealth'))
+      pct('PercentStealth')
+      line('stat.FlatStunInterval', 'ms', (x) => Math.floor((2000 + x('FlatStunInterval')) * (1 + x('PercentStunInterval'))), { core: true, lower: true })
+      pct('StunAvoidanceChance', true)
+      line('stat.PercentCommonLootChance', 'pct', (x) => clamp01(b.commonChance * (1 + x('PercentCommonLootChance'))), { core: true })
+      line('stat.PercentRareLootChance', 'pct', (x) => clamp01(b.rareChance * (1 + x('PercentRareLootChance'))), { core: true })
+      line('stat.PercentCurrencyLootChance', 'pct', (x) => clamp01(b.currencyChance * (1 + x('PercentCurrencyLootChance'))))
+      line('stat.PercentCurrencyReward', 'pct', (x) => x('PercentCurrencyReward'))
+      line('stat.FlatCurrencyReward', 'num', (x) => x('FlatCurrencyReward'))
+      doubling()
+      break
+    case 'farming':
+      doubling()
+      product()
+      line('stat.FlatDiseaseProtection', 'num', (x) => x('FlatDiseaseProtection'))
+      line('stat.FlatPestProtection', 'num', (x) => x('FlatPestProtection'))
+      break
+    default:
+      return []
+  }
+  line('val.xpBonus', 'pct', (x) => x('XP:PercentXPGained'))
+  line('stat.FlatXPGained', 'num', (x) => x('XP:FlatXPGained'))
+  return out
+}
+
 /** Index mit allen Rezepten neu berechnet — Planer, Routen und Ansichten
  *  arbeiten damit, ohne von Boni zu wissen */
 export function applyBonuses(index: GameIndex, profile: Profile, enabled: boolean): BonusResult {

@@ -1243,7 +1243,10 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
 .lv-table td { padding: 5px 4px; border-top: 0.5px solid var(--separator); text-align: right; white-space: nowrap; }
 .lv-table td:first-child { text-align: left; color: var(--text-2); max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
 .lv-table td.up { color: var(--ok); font-weight: 600; }
+.lv-table td.down { color: var(--warn); font-weight: 600; }
 .lv-list > p.muted:last-child { margin-top: 6px; }
+.lv-fight .stat-grid { margin: 0 4px 8px; }
+.lv-fight .table { margin-top: 6px; }
 .lv-route .lc-route { padding: 10px 12px; gap: 4px; font-size: 12.5px; }
 .lv-route > .muted { margin: 0 4px; font-size: 12.5px; }
 

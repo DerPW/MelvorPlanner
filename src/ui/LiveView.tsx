@@ -5,12 +5,14 @@
 import { useState } from 'react'
 import { xpForLevel } from '../core/experience'
 import { liveStock } from '../core/live'
+import { recipeTotals, statLines } from '../core/bonuses'
 import { actionTime, successChance, yieldOf } from '../core/planner'
 import type { Recipe } from '../core/types'
 import { fmtDurationShort, fmtInt } from '../core/format'
 import { useI18n } from '../i18n'
 import { GameIcon, Ref, Sym, Toolbar, useNow } from './components'
 import { modLabel, modScope, modValue } from './bonusText'
+import { EnemyFight } from './CombatView'
 import { clockAt, leftNow, Measuring, StepBar, statusLine, totalLeft, useTrack } from './LiveTrack'
 import { routeIcon, routeLabel } from './routeText'
 import { useGame } from './state'
@@ -125,8 +127,17 @@ export function LiveView() {
         {action?.recipe && !action.recipe.combat && (
           <div className="lv-cols">
             <PerAction recipe={action.recipe} />
+            <ActionValues recipe={action.recipe} />
             <ActionBonuses recipe={action.recipe} />
           </div>
+        )}
+
+        {/* Kampf: dieselben Werte wie auf der Monster-Seite, mit der Ausrüstung aus dem Spiel */}
+        {action?.enemy && (
+          <section className="lv-list lv-fight">
+            <div className="lv-sec-title">{t('live.combatValues')}</div>
+            <EnemyFight id={action.enemy.id} />
+          </section>
         )}
 
         {/* Verfolgte Route */}
@@ -255,6 +266,45 @@ function PerAction({ recipe }: { recipe: Recipe }) {
         </tbody>
       </table>
       {perHour && <p className="muted">{t('live.actionsPerHour', { n: fmtInt(perHour) })}</p>}
+    </section>
+  )
+}
+
+/** Die Werte der Aktion wie im Spiel-Panel (Intervall, Zutaten bewahren,
+ *  Chance auf doppelt …) — Grundwert und mit Boni */
+function ActionValues({ recipe }: { recipe: Recipe }) {
+  const { baseIndex, state } = useGame()
+  const { t, locale } = useI18n()
+  const base = baseIndex.recipes.get(recipe.id) ?? recipe
+  const lines = statLines(base, recipeTotals(baseIndex, state.profile, base, state.options.bonuses))
+  if (!lines.length) return null
+  const sec = new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const num = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 })
+  const fmt = (unit: string, v: number) => (unit === 'ms' ? `${sec.format(v / 1000)} s` : unit === 'pct' ? `${num.format(v * 100)} %` : num.format(v))
+  return (
+    <section className="lv-list">
+      <div className="lv-sec-title">{t('live.values')}</div>
+      <table className="lv-table">
+        <thead>
+          <tr>
+            <th />
+            <th>{t('live.base')}</th>
+            <th>{t('live.withBonus')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((l) => {
+            const gain = l.lower ? l.base - l.now : l.now - l.base
+            return (
+              <tr key={l.label}>
+                <td title={t(l.label)}>{t(l.label)}</td>
+                <td className="num">{fmt(l.unit, l.base)}</td>
+                <td className={`num ${gain > 1e-9 ? 'up' : gain < -1e-9 ? 'down' : ''}`}>{fmt(l.unit, l.now)}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </section>
   )
 }

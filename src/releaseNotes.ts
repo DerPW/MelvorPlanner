@@ -10,6 +10,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.11.3',
+    date: '2026-11-02',
+    de: {
+      title: 'Werte wie im Spiel-Panel',
+      items: [
+        'Live: Die Karte „Werte“ zeigt für jede Aktion, was das Spiel dazu anzeigt — Grundwert und mit Boni: Intervall, Zutaten bewahren, Chance auf doppelt, Nebenprodukt (Feuermachen), Kochkunst und Schwierigkeit, beim Holzfällen Baum-Lebenspunkte, sofort fällen, Schwachstelle und doppelter Schaden, beim Bergbau Bruchchance und Zertrümmern, beim Angeln kürzeste und längste Wurfzeit und Fischchance, beim Thieving Wahrnehmung, Betäubung und Beutechancen, dazu XP-Boni. Werte, die ein Bonus verbessert, sind grün.',
+        'Live im Kampf: Kampfwerte wie auf der Monster-Seite — Trefferchance, Schaden, Zeit je Kill, Kills/h, wie oft und wie hart das Monster trifft, Essen/h und XP/h je Skill.',
+      ],
+    },
+    en: {
+      title: 'Stats like the in-game panel',
+      items: [
+        'Live: the “Stats” card shows what the game shows for each action — base and with bonuses: interval, preservation, doubling chance, by-product (firemaking), proficiency and difficulty, tree health, instant cut, weak spot and double damage for woodcutting, rock break and shatter for mining, min/max cast time and fish chance for fishing, perception, stun and loot chances for thieving, plus XP bonuses. Values a bonus improves are green.',
+        'Live in combat: combat stats like on the monster page — hit chance, damage, time per kill, kills/h, how often and how hard the monster hits, food/h and XP/h per skill.',
+      ],
+    },
+  },
+  {
     version: '0.11.2',
     date: '2026-11-02',
     de: {

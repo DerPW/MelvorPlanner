@@ -298,7 +298,7 @@ export function LiveCard() {
           <Sym name="chevron" size={9} className="lc-chev" />
         </span>
         <span className="lc-action">
-          <GameIcon src={icon} size={20} />
+          {action && <GameIcon src={icon} size={20} />}
           <b className="grow">{action ? action.action || action.entity : t('track.nothing')}</b>
         </span>
         {action && (
