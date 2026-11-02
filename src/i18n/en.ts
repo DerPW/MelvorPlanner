@@ -644,6 +644,7 @@ export const en: Record<Key, string> = {
   'track.planned': 'plan {time}',
   'track.measuredHint': 'Measured from your save; counts down until the next save',
   'flow.notEnough': 'You have {have} right now',
+  'flow.for': 'for',
   'flow.uses': 'uses',
   'flow.usesHint': 'Ingredients for this step',
   'flow.fromStockUsed': 'From your bank',

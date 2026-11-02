@@ -299,6 +299,38 @@ export function stepKeys(solution: Solution): string[] {
   )
 }
 
+/** Vorstufen eines Abschnitts in Herstell-Reihenfolge: Tiefensuche ab dem
+ *  Hauptrezept, jede Vorstufe nach ihren eigenen Zutaten („erst Sand kaufen,
+ *  dann Glas, dann die Kugel“). Dazu die Tiefe (fürs Einrücken) und wofür sie
+ *  gebraucht wird; eine Zutat für mehrere steht beim ersten. */
+export function chainOrder(index: GameIndex, seg: RouteSegment): { id: Id; runs: number; depth: number; feeds: Id[] }[] {
+  const entries = [...seg.chain].filter(([id]) => id !== seg.recipe.id && index.recipes.has(id))
+  const runs = new Map(entries)
+  const itemOf = (id: Id) => seg.chainItem.get(id) ?? index.recipes.get(id)?.outputs[0]?.item
+  const byItem = new Map(entries.map(([id]) => [itemOf(id), id]))
+  const all = [seg.recipe.id, ...entries.map(([id]) => id)]
+  const productOf = (id: Id) => (id === seg.recipe.id ? seg.recipe.outputs[0]?.item : itemOf(id))
+  const feeds = (id: Id) =>
+    all
+      .filter((o) => o !== id && index.recipes.get(o)?.inputs.some((i) => i.item === itemOf(id)))
+      .map(productOf)
+      .filter((x): x is Id => !!x)
+  const out: { id: Id; runs: number; depth: number; feeds: Id[] }[] = []
+  const seen = new Set<Id>()
+  const visit = (rid: Id, depth: number) => {
+    for (const input of index.recipes.get(rid)?.inputs ?? []) {
+      const c = byItem.get(input.item)
+      if (!c || seen.has(c)) continue
+      seen.add(c)
+      visit(c, depth + 1)
+      out.push({ id: c, runs: runs.get(c)!, depth, feeds: feeds(c) })
+    }
+  }
+  visit(seg.recipe.id, 1)
+  for (const [id, n] of entries) if (!seen.has(id)) out.push({ id, runs: n, depth: 1, feeds: feeds(id) })
+  return out
+}
+
 /** Ein „Jetzt dran“-Block des Ablaufs: ein Trainings-Abschnitt samt
  *  Vorstufen, ein Herstell-Schritt, ein Kauf oder eine Aufgabe */
 export interface FlowGroup {
@@ -323,7 +355,7 @@ export function flowGroups(index: GameIndex, solution: Solution): FlowGroup[] {
     if (ph.kind === 'route') {
       ph.route.segments.forEach((seg, j) => {
         const k = segmentKey(i, j, seg)
-        const chain = [...seg.chain].filter(([id]) => id !== seg.recipe.id && index.recipes.has(id))
+        const chain = chainOrder(index, seg).map((c) => [c.id, c.runs] as const)
         const goalSkill = ph.route.goal.kind === 'level' ? ph.route.goal.skill : null
         // XP bis zum Abschnittsende: der erste Abschnitt genau ab dem Stand
         // (fürs Mitmessen), spätere in ganzen Aktionen
@@ -668,15 +700,24 @@ function SegmentRow({ seg, route, k, share }: { seg: RouteSegment; route: Route;
   const r = seg.recipe
   const skill = r.skill ? index.skills.get(r.skill) : null
   const isNew = r.skill && r.level > (route.before.levels[r.skill] ?? 1)
-  // Vorstufen (Material beschaffen) stehen als eigene Schritte davor
-  const chain = [...seg.chain].filter(([id]) => id !== r.id && index.recipes.has(id))
+  // Vorstufen (Material beschaffen) stehen als eigene Schritte davor — in Herstell-Reihenfolge
+  const chain = chainOrder(index, seg)
   const goalXp = goal.kind === 'level' ? (seg.xp.get(goal.skill) ?? 0) : 0
   const ownMs = seg.chainMs.get(r.id) ?? seg.timeMs
 
-  return (
+  const rows = (
     <>
-      {chain.map(([id, runs]) => (
-        <ChainStep key={id} r={index.recipes.get(id)!} item={seg.chainItem.get(id)} runs={runs} ms={seg.chainMs.get(id) ?? 0} k={chainKey(k, id)} />
+      {chain.map((c) => (
+        <ChainStep
+          key={c.id}
+          r={index.recipes.get(c.id)!}
+          item={seg.chainItem.get(c.id)}
+          runs={c.runs}
+          ms={seg.chainMs.get(c.id) ?? 0}
+          k={chainKey(k, c.id)}
+          depth={c.depth}
+          feeds={c.feeds}
+        />
       ))}
       <StepRow
         k={k}
@@ -724,11 +765,20 @@ function SegmentRow({ seg, route, k, share }: { seg: RouteSegment; route: Route;
       />
     </>
   )
+  // Mit Vorstufen: alles in einem Kasten — Vorstufen in Herstell-Reihenfolge, der Abschnitt zuletzt
+  return chain.length ? (
+    <li className="seg-group">
+      <ol className="steps">{rows}</ol>
+    </li>
+  ) : (
+    rows
+  )
 }
 
 /** Vorstufe eines Trainings-Abschnitts: Material beschaffen, eigener Schritt */
-function ChainStep({ r, item, runs, ms, k }: { r: Recipe; item?: Id; runs: number; ms: number; k: string }) {
+function ChainStep({ r, item, runs, ms, k, depth, feeds }: { r: Recipe; item?: Id; runs: number; ms: number; k: string; depth: number; feeds: Id[] }) {
   const { index, state } = useGame()
+  const t = useT()
   const out = item ?? r.outputs[0]?.item
   const amount = out ? runs * yieldOf(r, out, state.profile) : runs
   const skill = r.skill ? index.skills.get(r.skill) : null
@@ -736,6 +786,7 @@ function ChainStep({ r, item, runs, ms, k }: { r: Recipe; item?: Id; runs: numbe
     <StepRow
       k={k}
       nested
+      depth={depth}
       avoid={avoidKey(r)}
       goal={{ item: out }}
       icon={(out && index.items.get(out)?.icon) || r.icon}
@@ -749,6 +800,18 @@ function ChainStep({ r, item, runs, ms, k }: { r: Recipe; item?: Id; runs: numbe
         <>
           {skill && <GameIcon src={skill.icon} size={14} entity={`skill:${skill.id}`} />}
           <SourceText r={r} self={out} />
+          {feeds.length > 0 && (
+            <span className="chain-for">
+              <Sym name="chevron" size={9} />
+              {t('flow.for')}{' '}
+              {feeds.map((f, i) => (
+                <Fragment key={f}>
+                  {i > 0 && ', '}
+                  <ItemName id={f} />
+                </Fragment>
+              ))}
+            </span>
+          )}
           <Uses inputs={r.inputs} costs={r.costs} times={runs} />
         </>
       }
@@ -804,6 +867,7 @@ function StepRow({
   avoid,
   goal,
   nested,
+  depth = 1,
 }: {
   k: string
   icon: string | null | undefined
@@ -818,6 +882,8 @@ function StepRow({
   goal?: StepGoal
   /** Vorstufe eines anderen Schritts (eingerückt) */
   nested?: boolean
+  /** wie tief in der Kette (1 = Zutat des Hauptschritts) — rückt weiter ein */
+  depth?: number
 }) {
   const { state, dispatch } = useGame()
   const t = useT()
@@ -828,7 +894,11 @@ function StepRow({
   const running = track?.live.has(k)
   const liveStep = running && track?.step?.key === k ? track.step : null
   return (
-    <li className={`step ${done ? 'done' : ''} ${nested ? 'nested' : ''} ${now ? 'current' : ''} ${running ? 'running' : ''}`} data-entity={entity}>
+    <li
+      className={`step ${done ? 'done' : ''} ${nested ? 'nested' : ''} ${now ? 'current' : ''} ${running ? 'running' : ''}`}
+      style={nested && depth > 1 ? { marginLeft: 26 * depth } : undefined}
+      data-entity={entity}
+    >
       <button className="check" role="checkbox" aria-checked={done} aria-label={t('flow.markDone')} onClick={() => dispatch({ type: 'toggleDone', key: k })}>
         {done && <Sym name="check" size={12} />}
       </button>

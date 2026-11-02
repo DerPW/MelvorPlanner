@@ -1347,6 +1347,8 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
 .flow-phases .step:hover { background: var(--hover); }
 .flow-phases .step + .step { box-shadow: 0 -0.5px 0 var(--separator); }
 .flow-phases .step.nested { margin-left: 26px; }
+.flow-phases .seg-group { list-style: none; margin: 6px 0; border-radius: 12px; background: var(--row-alt); box-shadow: 0 0 0 0.5px var(--separator); }
+.flow-phases .seg-group > .steps { padding: 2px 0; }
 .flow-phases .step .meta { gap: 5px; }
 .flow-phases .step.current { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .flow-phases .step.running { background: color-mix(in srgb, var(--ok) 14%, transparent); }
@@ -1638,3 +1640,7 @@ button.wiki-group-title:hover { color: var(--accent); }
 .sgear-mods { display: flex; flex-wrap: wrap; gap: 4px; }
 .sgear-status { flex: none; font-size: 12px; }
 .sgear-hint { margin-top: 10px; font-size: 12px; }
+
+/* Vorstufen: wofür (Pfeil zum Abnehmer) */
+.step .what .sub > .chain-for { gap: 4px; color: var(--text-2); }
+.chain-for .sym { color: var(--text-3); }

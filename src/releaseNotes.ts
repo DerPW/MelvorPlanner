@@ -10,6 +10,26 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.2',
+    date: '2026-11-03',
+    de: {
+      title: 'Vorstufen in Herstell-Reihenfolge',
+      items: [
+        'Ablauf: Die Vorstufen eines Schritts stehen jetzt in der Reihenfolge, in der man sie macht — erst Bucket of Sand, dann Molten Glass, dann Unpowered Orb; erst Rune Essence, dann Air und Mind Rune —, und jede sagt, wofür sie ist („für Molten Glass“).',
+        'Vorstufen sind nach ihrer Tiefe eingerückt, und ein Schritt mit Vorstufen steht samt ihnen in einem eigenen Kasten — der Hauptschritt zuletzt. So gehört nichts mehr scheinbar zum Schritt darüber.',
+        'Die Verfolgung („dann …“) und der Hinweis beim Wechsel folgen derselben Reihenfolge.',
+      ],
+    },
+    en: {
+      title: 'Preparation steps in production order',
+      items: [
+        'Flow: a step’s preparation steps now come in the order you do them — first Bucket of Sand, then Molten Glass, then Unpowered Orb; first Rune Essence, then Air and Mind Rune — and each says what it is for (“for Molten Glass”).',
+        'Preparation steps are indented by depth, and a step with preparation sits with them in its own box — the main step last. Nothing seems to belong to the step above any more.',
+        'Tracking (“then …”) and the switch alert follow the same order.',
+      ],
+    },
+  },
+  {
     version: '0.14.1',
     date: '2026-11-03',
     de: {

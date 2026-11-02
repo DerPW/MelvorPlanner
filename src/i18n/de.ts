@@ -644,6 +644,7 @@ export const de = {
   'track.planned': 'Plan {time}',
   'track.measuredHint': 'Gemessen am Spielstand; zählt bis zum nächsten Speichern herunter',
   'flow.notEnough': 'Du hast gerade {have}',
+  'flow.for': 'für',
   'flow.uses': 'verbraucht',
   'flow.usesHint': 'Zutaten für diesen Schritt',
   'flow.fromStockUsed': 'Aus dem Lager',
