@@ -7,6 +7,7 @@ import type { GameIndex } from '../core/planner'
 import { useI18n, type LangSetting } from '../i18n'
 import { GameIcon, Sym } from './components'
 import { Breadcrumbs } from './Breadcrumbs'
+import { CombatView } from './CombatView'
 import { DetailView } from './DetailView'
 import { EntityHover } from './EntityHover'
 import { ImportSheet } from './ImportSheet'
@@ -36,6 +37,7 @@ export function App({ index }: { index: GameIndex }) {
     view.kind === 'route' ? `route:${view.id}` : view.kind === 'skill' ? `skill:${view.skill}` : view.kind === 'detail' ? `${view.type}:${view.id}` : view.kind
   let main
   if (view.kind === 'profile') main = <ProfileView />
+  else if (view.kind === 'combat') main = <CombatView />
   else if (view.kind === 'skill') main = <SkillView skill={view.skill} />
   else if (view.kind === 'detail') main = <DetailView type={view.type} id={view.id} />
   else if (view.kind === 'route' && state.routes.some((r) => r.id === view.id)) main = <RouteView id={view.id} />
@@ -102,6 +104,14 @@ function Sidebar() {
             <img src={ui('Bank')} alt="" />
             <span className="grow">{t('profile.title')}</span>
             <LiveBadge />
+          </button>
+          <button
+            className={`side-row ${v.kind === 'combat' ? 'active' : ''} ${featureLock(index, state.profile, 'MelvorBase:Combat') ? 'locked' : ''}`}
+            onClick={() => dispatch({ type: 'view', view: { kind: 'combat' }, root: true })}
+          >
+            <img src={ui('Combat')} alt="" />
+            <span className="grow">{t('combat.title')}</span>
+            {featureLock(index, state.profile, 'MelvorBase:Combat') && <Sym name="lock" size={12} className="side-lock" />}
           </button>
         </div>
 

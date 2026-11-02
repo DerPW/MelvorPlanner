@@ -541,6 +541,11 @@ for (const [id, o] of all('Item')) {
       protection: ratingList(eq.Stats?.ProtectionRatings),
       reqs: requirements({ Requirements: eq.Requirements }).reqs,
       mods: bonusMods(eq.Bonuses),
+      // Für die Kampf-Simulation: belegte Nebenplätze, Spezialangriffe, Munition
+      ...(eq.OccupiesSlots?.length ? { occupies: eq.OccupiesSlots.map(short) } : {}),
+      ...(eq.Attacks?.length ? { attacks: eq.Attacks.map((a) => ({ attack: short(a.Attack), chance: a.Chance })) } : {}),
+      ...(eq.AmmoType ? { ammoType: short(eq.AmmoType) } : {}),
+      ...(eq.CanEquipQuantity ? { stack: true } : {}),
     }
   }
   const wp = c['MelvorBase:Weapon']
@@ -626,6 +631,11 @@ for (const [id, e] of all('Enemy')) {
     element: e.Element ? short(e.Element) : null,
     gold: gold ? { min: gold.MinQuantity, max: gold.MaxQuantity } : null,
     reqs: requirements(e).reqs,
+    power: e.Stats?.PowerRatings?.find((r) => r.DamageType === 'MelvorBase:Normal')?.Value ?? 1,
+    protection: e.Stats?.ProtectionRatings?.find((r) => r.DamageType === 'MelvorBase:Normal')?.Value ?? 0,
+    stances: (e.Stances ?? []).map((s) => ({ stance: short(s.Stance), weight: s.Weight ?? 1 })),
+    attacks: (e.Attacks ?? []).map((a) => ({ attack: short(a.Attack), chance: a.Chance })),
+    passives: (e.Passives ?? []).map((p) => objects.CombatPassive?.get(p)?.DisplayName ?? short(p)),
   })
 }
 const areas = []
@@ -647,10 +657,88 @@ for (const [type, kind] of [['CombatArea', 'area'], ['Dungeon', 'dungeon']]) {
       enemies: ids,
       reqs: requirements({ Requirements: a.UnlockRequirements }).reqs,
       rewards: qtyList(a.Rewards?.Items ?? (Array.isArray(a.Rewards) ? a.Rewards : [])),
+      darkness: a.Darkness ?? 0,
     })
   }
 }
 icon('res://Assets/Icons/Combat.png')
+
+// Kampf-Tabellen für die Simulation (Formeln: src/core/combat.ts). Ids ohne
+// Namensraum, Skills mit — wie überall.
+const levelRatios = (list) => (list ?? []).map((r) => ({ skill: r.Level, ratio: r.Ratio }))
+const combatCfg = entityConfig['MelvorBase:Combat'] ?? {}
+const cfgIds = (key) => (combatCfg[key] ?? []).map((x) => x.Id)
+const damagePart = (d) => {
+  const f = d.Formula ?? {}
+  return { who: d.Character === 'Defender' ? 'defender' : 'attacker', type: short(f.Type ?? ''), ...(f.Data ?? {}) }
+}
+for (const t of ['CombatStyle', 'AttackStance', 'WeaponType', 'Attack', 'MagicSpell', 'SpellBook', 'CombatTriangleBonus', 'ElementalBonus', 'EquipmentSlot', 'CombatPassive'])
+  handled.add(t)
+const combat = {
+  spawnMs: 3000,
+  slots: cfgIds('EquipmentSlots').map((id) => {
+    const s = objects.EquipmentSlot?.get(id)
+    return { id: short(id), name: s?.DisplayName ?? short(id), fits: short(s?.FitsType ?? ''), x: s?.GridPosition?.X ?? 0, y: s?.GridPosition?.Y ?? 0 }
+  }),
+  styles: all('CombatStyle').map(([id, s]) => ({
+    id: short(id),
+    name: s.DisplayName,
+    icon: icon(s.Icon),
+    accuracy: levelRatios(s.AccuracyRatingLevels),
+    evasion: levelRatios(s.EvasionLevels),
+    level: levelRatios(s.CombatLevelRatios),
+    maxHit:
+      short(s.MaxHitFormula?.Type ?? '') === 'DamageBonus'
+        ? { kind: 'damage', stat: short(s.MaxHitFormula.Data.MaxHitStat), bonus: short(s.MaxHitFormula.Data.DamageBonusStat), levels: levelRatios(s.MaxHitFormula.Data.Levels) }
+        : { kind: 'strength', stat: short(s.MaxHitFormula?.Data?.StrengthBonusStat ?? ''), levels: levelRatios(s.MaxHitFormula?.Data?.Levels) },
+    spells: !!s.UsesSpells,
+  })),
+  stances: all('AttackStance').map(([id, s]) => ({
+    id: short(id),
+    name: s.DisplayName,
+    icon: icon(s.Icon),
+    style: short(s.CombatStyle),
+    accuracyStat: short(s.AccuracyStat),
+    evasionStat: short(s.EvasionStat),
+    xp: (s.ExperienceGain ?? []).map((g) => ({ skill: g.Component.Entity, perDamage: g.ExperiencePerDamage })),
+    // Unsichtbare Level-Boni (Block, Long Range, Focused: +3 Defence)
+    levels: (s.Bonuses?.Component ?? [])
+      .filter((m) => m.Stat?.Name === 'FlatCombatLevel' && m.LocalContext?.CombatLevel)
+      .map((m) => ({ skill: m.LocalContext.CombatLevel, value: m.Value })),
+  })),
+  weaponTypes: Object.fromEntries(all('WeaponType').map(([id, w]) => [short(id), (w.Stances ?? []).map(short)])),
+  attacks: Object.fromEntries(
+    all('Attack').map(([id, a]) => [
+      short(id),
+      {
+        name: a.DisplayName,
+        avoidable: a.IsAvoidable !== false,
+        hits: (a.Hits ?? []).map((h) => ({ count: h.Count ?? 1, interval: h.Interval ?? 0, damage: (h.Damage ?? []).map(damagePart) })),
+      },
+    ]),
+  ),
+  spells: all('MagicSpell').map(([id, s]) => ({
+    id: short(id),
+    name: s.DisplayName,
+    icon: icon(s.Icon),
+    book: objects.SpellBook?.get(s.Book)?.DisplayName ?? short(s.Book ?? ''),
+    element: short(s.Element ?? 'Neutral'),
+    maxHit: (s.Stats?.Stats ?? []).find((x) => x.Stat === 'MelvorBase:SpellMaxHit')?.Value ?? 0,
+    runes: qtyList(s.RuneCosts),
+    reqs: requirements({ Requirements: s.UnlockRequirements }).reqs,
+    demoLocked: isDemoLocked({ Requirements: s.UnlockRequirements }),
+    attack: s.AttackOverride ? short(s.AttackOverride) : null,
+  })),
+  triangle: all('CombatTriangleBonus').map(([, b]) => {
+    const v = (name) => (b.Bonuses?.Component ?? []).find((m) => m.Stat?.Name === name)?.Value ?? 0
+    return { player: short(b.PlayerStyle), enemy: short(b.EnemyStyle), maxHit: v('MaxHitCombatTriangle'), resistance: v('ResistanceCombatTriangle') }
+  }),
+  elements: all('ElementalBonus').map(([, b]) => ({
+    player: short(b.PlayerElement),
+    enemy: short(b.EnemyElement),
+    maxHit: (b.Bonuses?.Component ?? []).find((m) => m.Stat?.Name === 'PercentMaxHit')?.Value ?? 0,
+  })),
+}
 
 // Lesbare Namen der Eingrenzungen (Kategorie, Fanggebiet, Rezept …)
 const scopeIds = new Set(bonusSources.flatMap((b) => b.mods.flatMap((m) => [m.recipe, m.category, m.subcategory, m.location, m.recipetype, m.item]).filter(Boolean)))
@@ -774,6 +862,7 @@ const data = {
   enemies,
   areas,
   features,
+  combat,
 }
 fs.writeFileSync(path.join(OUT_DIR, 'data.json'), JSON.stringify(data))
 

@@ -45,6 +45,7 @@ export const KINDS: Kind[] = [
     group: 'search.group.views',
     entries: (c) => [
       { key: 'view:routes', name: c.t('home.title'), icon: ui('CompletionLog'), keywords: 'routen routes ziele goals crafting plan baum tree', run: () => c.dispatch({ type: 'view', view: { kind: 'routes' }, root: true }) },
+      { key: 'view:combat', name: c.t('combat.title'), icon: ui('Combat'), keywords: 'kampf combat monster ausrüstung equipment gear', run: () => c.dispatch({ type: 'view', view: { kind: 'combat' }, root: true }) },
       { key: 'view:profile', name: c.t('profile.title'), icon: ui('Bank'), keywords: 'profil profile bank lager settings einstellungen', run: () => c.dispatch({ type: 'view', view: { kind: 'profile' }, root: true }) },
       ...c.state.routes.map((r) => ({
         key: `route:${r.id}`,

@@ -128,7 +128,21 @@ export interface Item {
   description?: string
   /** Bank-Reiter: Skills, die das Item herstellen bzw. verbrauchen */
   bankTags?: { tag: Id; product: boolean; ingredient: boolean }[]
-  equipment?: { type: string; stats: NamedValue[]; power: NamedValue[]; protection: NamedValue[]; reqs: Req[]; mods: Mod[] }
+  equipment?: {
+    type: string
+    stats: NamedValue[]
+    power: NamedValue[]
+    protection: NamedValue[]
+    reqs: Req[]
+    mods: Mod[]
+    /** belegt zusätzlich diese Plätze (Zweihänder, Bogen → Offhand) */
+    occupies?: string[]
+    /** Spezialangriffe der Waffe */
+    attacks?: { attack: string; chance: number }[]
+    /** Munition dieses Typs (Pfeile …) */
+    ammoType?: string
+    stack?: boolean
+  }
   weapon?: { type: string; damage: string; elements: string[]; ammo: string | null }
   food?: { healing: number }
   bury?: CurrencyQty
@@ -228,6 +242,7 @@ export interface GameData {
   enemies: Enemy[]
   areas: Area[]
   features: Feature[]
+  combat: CombatTables
 }
 
 export interface Enemy {
@@ -241,6 +256,12 @@ export interface Enemy {
   element: string | null
   gold: { min: number; max: number } | null
   reqs: Req[]
+  /** Kampfkraft/Schutz für den Schadenstyp Normal */
+  power: number
+  protection: number
+  stances: { stance: string; weight: number }[]
+  attacks: { attack: string; chance: number }[]
+  passives: string[]
 }
 
 export interface Area {
@@ -253,6 +274,77 @@ export interface Area {
   enemies: Id[]
   reqs: Req[]
   rewards: ItemQty[]
+  /** Dunkelheit: −5 % Treffer und Ausweichen je Punkt (bis 20) */
+  darkness: number
+}
+
+export interface LevelRatio {
+  skill: Id
+  ratio: number
+}
+
+export interface CombatStyle {
+  id: string
+  name: string
+  icon: string | null
+  accuracy: LevelRatio[]
+  evasion: LevelRatio[]
+  level: LevelRatio[]
+  maxHit: { kind: 'strength'; stat: string; levels: LevelRatio[] } | { kind: 'damage'; stat: string; bonus: string; levels: LevelRatio[] }
+  spells: boolean
+}
+
+export interface AttackStance {
+  id: string
+  name: string
+  icon: string | null
+  style: string
+  accuracyStat: string
+  evasionStat: string
+  xp: { skill: Id; perDamage: number }[]
+  /** unsichtbare Level-Boni (Block: +3 Defence) */
+  levels: { skill: Id; value: number }[]
+}
+
+export interface AttackDamage {
+  who: 'attacker' | 'defender'
+  type: string
+  Percent?: number
+  Damage?: number
+  Minimum?: number
+  Maximum?: number
+}
+
+export interface AttackDef {
+  name: string
+  avoidable: boolean
+  hits: { count: number; interval: number; damage: AttackDamage[] }[]
+}
+
+export interface MagicSpell {
+  id: string
+  name: string
+  icon: string | null
+  book: string
+  element: string
+  maxHit: number
+  runes: ItemQty[]
+  reqs: Req[]
+  demoLocked: boolean
+  attack: string | null
+}
+
+export interface CombatTables {
+  spawnMs: number
+  /** Plätze mit ihrer Lage im Ausrüstungsraster des Spiels */
+  slots: { id: string; name: string; fits: string; x: number; y: number }[]
+  styles: CombatStyle[]
+  stances: AttackStance[]
+  weaponTypes: Record<string, string[]>
+  attacks: Record<string, AttackDef>
+  spells: MagicSpell[]
+  triangle: { player: string; enemy: string; maxHit: number; resistance: number }[]
+  elements: { player: string; enemy: string; maxHit: number }[]
 }
 
 export interface Profile {
@@ -271,11 +363,24 @@ export interface Profile {
   levelCap?: number
   /** Gilden-Rang je Skill (Index in guildRanks, 0 = Anfang) */
   guildRanks?: Record<Id, number>
+  /** Kampf: Ausrüstung je Platz (Item-Id), Haltung je Waffentyp, Essen, Zauber */
+  combat?: CombatLoadout
   /** Freigeschaltete Skills/Bereiche, von Hand oder vom Planer gesetzt;
    *  fehlt ein Eintrag, wird er aus dem Stand geschätzt (isUnlocked) */
   unlocked?: Record<Id, boolean>
   /** Woher der Stand kommt */
   source?: { character: string; savedAt: string | null; importedAt: string; version: number }
+}
+
+export interface CombatLoadout {
+  /** Platz (Helmet, Weapon, …) → Item; Munition/Wurfwaffen mit Menge */
+  gear: Record<string, Id>
+  qty?: Record<string, number>
+  /** Waffentyp → gewählte Haltung (ohne Eintrag: die erste des Typs) */
+  stances: Record<string, string>
+  food: Id | null
+  spell: string | null
+  hp?: number | null
 }
 
 export interface ItemGoal {

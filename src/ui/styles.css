@@ -1102,3 +1102,29 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
 .lock-toggle.on { color: var(--warn, #c98a1b); }
 .chip.unmet { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn, #c98a1b) 45%, transparent); }
 .chip.met { color: var(--ok); }
+
+/* ---------------------------------------------------------------- Kampf */
+
+.loadout { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; margin: 4px 0 8px; align-items: start; }
+.gear-grid { display: grid; grid-template-columns: repeat(3, 58px); grid-auto-rows: 58px; gap: 8px; padding: 12px; border-radius: 14px; background: var(--group); box-shadow: 0 0 0 0.5px var(--separator); }
+.gear-slot {
+  width: 58px; height: 58px; border: 0; border-radius: 12px;
+  display: grid; place-items: center;
+  background: var(--control); color: var(--text-3);
+  transition: background 0.15s var(--ease), transform 0.12s var(--ease);
+}
+.gear-slot.filled { background: var(--plate); box-shadow: inset 0 -2px 0 var(--plate-edge); }
+.gear-slot.occupied { opacity: 0.45; }
+.gear-slot:hover { background: var(--hover); }
+.gear-slot.filled:hover { filter: brightness(1.06); }
+.gear-slot:active { transform: scale(0.95); }
+.slot-name { font-size: 9.5px; text-align: center; line-height: 1.15; padding: 0 3px; }
+.loadout-side { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.loadout-side .form-group { margin: 0; }
+.stat-grid.compact { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); margin: 0; }
+.small-note { font-size: 11px; margin: 0; }
+.slot-picker { max-height: 380px; padding: 6px; }
+.slot-picker .search { width: 100%; margin-bottom: 4px; }
+.slot-picker .pop-row.active { background: var(--accent); color: var(--on-accent); }
+.table tr.selected-soft td { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+@media (max-width: 760px) { .loadout { grid-template-columns: 1fr; } }

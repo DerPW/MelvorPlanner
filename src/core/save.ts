@@ -36,6 +36,8 @@ export interface SaveData {
   currencies: Record<Id, number>
   purchases: Record<Id, number>
   equipped: Id[]
+  /** Kampf: Ausrüstung je Platz (ohne belegte Nebenplätze), Haltung je Waffentyp, Essen, Zauber, HP */
+  combat: { gear: Record<string, { item: Id; qty: number }>; stances: Record<string, string>; food: Id | null; spell: Id | null; hp: number | null }
   entities: string[]
   warnings: Msg[]
 }
@@ -132,6 +134,7 @@ export function parseSave(raw: Uint8Array): SaveData {
     currencies: {},
     purchases: {},
     equipped: [],
+    combat: { gear: {}, stances: {}, food: null, spell: null, hp: null },
     entities: [],
     warnings: [],
   }
@@ -183,6 +186,7 @@ export function parseSave(raw: Uint8Array): SaveData {
 }
 
 function readComponent(out: SaveData, entity: string, component: string, r: Reader) {
+  if (entity === 'MelvorBase:Combat') return readCombat(out, component, r)
   switch (component) {
     case 'Experience': {
       out.xp[entity] = r.f64()
@@ -252,6 +256,67 @@ function readComponent(out: SaveData, entity: string, component: string, r: Read
       }
       return
     }
+  }
+}
+
+// Kampf-Einheit (EquipmentComponent, PlayerComponent/CharacterComponent,
+// FoodComponent, MagicSpellsComponent — jeweils WriteTo). Nur der Anfang
+// jedes Blocks wird gelesen, was danach kommt, überspringt der Block.
+function readCombat(out: SaveData, component: string, r: Reader) {
+  const c = out.combat
+  switch (component) {
+    case 'Equipment': {
+      const slots = r.i32()
+      for (let i = 0; i < slots; i++) {
+        const slot = short(r.str())
+        const sr = r.region()
+        const qty = sr.i32()
+        const occupied = sr.bool()
+        if (sr.bool()) {
+          const item = sr.str()
+          if (!occupied) c.gear[slot] = { item, qty }
+        }
+      }
+      return
+    }
+    case 'Player': {
+      c.hp = r.region().i32() // GlobalHealth
+      r.region() // Ward
+      r.region() // TurnTimer
+      const turn = r.i32()
+      r.bool() // isExecuting
+      if (turn === 1) {
+        r.str() // Angriff
+        r.bool()
+        r.i32()
+        r.i32()
+        r.i32() // HitTimer
+        r.i32()
+        r.i32()
+        r.i32()
+        r.i32()
+      } else if (turn === 2) {
+        r.str()
+        r.i32()
+      }
+      r.i32() // lastAttackDamageDealt
+      r.i64() // CurrentTick
+      const damagedBy = r.i32()
+      for (let i = 0; i < damagedBy; i++) r.str()
+      r.bool() // ArmourBroken
+      const n = r.i32()
+      for (let i = 0; i < n; i++) {
+        const weapon = short(r.str())
+        c.stances[weapon] = short(r.str())
+      }
+      return
+    }
+    case 'Food':
+      if (r.bool()) c.food = r.str()
+      return
+    case 'MagicSpells':
+      if (r.bool()) c.spell = short(r.str())
+      return
   }
 }
 

@@ -9,6 +9,7 @@ import type { Id, InfoSource, Mod, NamedValue, Req } from '../core/types'
 import { useI18n } from '../i18n'
 import { modLabel, modScope, modValue } from './bonusText'
 import { GameIcon, LevelTag, Ref, Stepper, Switch, Sym, Toolbar } from './components'
+import { EnemyFight } from './CombatView'
 import { Needs, recipeAction, reqPart, SourceText, sourceEntity } from './SolutionView'
 import { itemRoute, newId, planItem, useGame, type DetailType } from './state'
 
@@ -513,6 +514,9 @@ function EnemyDetail({ id }: { id: Id }) {
             </>
           }
         />
+        <Section title={t('combat.simTitle')} hint={t('combat.simHint')}>
+          <EnemyFight id={id} />
+        </Section>
         <Section title={t('detail.combatLevels')}>
           <div className="stat-grid">
             {COMBAT.map((s) => (

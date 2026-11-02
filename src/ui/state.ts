@@ -2,7 +2,7 @@ import { createContext, useContext } from 'react'
 import type { BonusResult } from '../core/bonuses'
 import type { GameIndex, SourceChoices } from '../core/planner'
 import type { RouteOptions } from '../core/route'
-import type { Id, ItemGoal, Profile } from '../core/types'
+import type { CombatLoadout, Id, ItemGoal, Profile } from '../core/types'
 
 // Eine Route ist ein Ziel — ein Item, ein Level, Gold, ein Kauf — samt dem
 // ganzen Weg dorthin. Früher gab es daneben einen Crafting-Plan, der alle
@@ -17,6 +17,7 @@ export type View =
   | { kind: 'routes' }
   | { kind: 'route'; id: string }
   | { kind: 'profile' }
+  | { kind: 'combat' }
   | { kind: 'skill'; skill: Id }
   | { kind: 'detail'; type: DetailType; id: Id }
 
@@ -52,6 +53,8 @@ export type Action =
   | { type: 'setOwned'; purchase: Id; owned: boolean }
   | { type: 'setPlots'; plots: number }
   | { type: 'setGuildRank'; skill: Id; rank: number }
+  /** Kampf-Ausrüstung, Haltung, Zauber, Essen */
+  | { type: 'setCombat'; loadout: CombatLoadout }
   /** Freischaltung von Hand festlegen; null = wieder schätzen */
   | { type: 'setUnlocked'; feature: Id; unlocked: boolean | null }
   | { type: 'resetProfile' }
@@ -130,6 +133,8 @@ export function reducer(s: State, a: Action): State {
       else delete owned[a.purchase]
       return { ...s, profile: { ...p, owned } }
     }
+    case 'setCombat':
+      return { ...s, profile: { ...p, combat: a.loadout } }
     case 'setUnlocked': {
       const unlocked = { ...p.unlocked }
       if (a.unlocked === null) delete unlocked[a.feature]
