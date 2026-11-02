@@ -10,6 +10,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.11.6',
+    date: '2026-11-02',
+    de: {
+      title: 'Ruhigere Markierung',
+      items: ['Der laufende Schritt einer verfolgten Route ist jetzt getönt statt mit einem farbigen Rand links markiert.'],
+    },
+    en: {
+      title: 'Calmer highlight',
+      items: ['The running step of a tracked route is now tinted instead of marked with a coloured bar on the left.'],
+    },
+  },
+  {
     version: '0.11.5',
     date: '2026-11-02',
     de: {

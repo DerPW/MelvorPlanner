@@ -1196,7 +1196,8 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
 .side-row .live-dot { margin-right: 4px; }
 
 .step.current { background: color-mix(in srgb, var(--accent) 7%, transparent); }
-.step.running { box-shadow: inset 3px 0 0 var(--ok); }
+/* Läuft gerade: etwas kräftiger getönt als „dran“; Punkt und Countdown stehen rechts */
+.step.running { background: color-mix(in srgb, var(--ok) 13%, transparent); }
 
 /* Live-Karte in der Seitenleiste: oben ein Knopf in die Live-Ansicht */
 .lc-open { display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; }
@@ -1346,6 +1347,7 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
 .flow-phases .step.nested { margin-left: 26px; }
 .flow-phases .step .meta { gap: 5px; }
 .flow-phases .step.current { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.flow-phases .step.running { background: color-mix(in srgb, var(--ok) 14%, transparent); }
 
 .loadout-manual { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; padding: 8px 12px; border-radius: 10px; font-size: 12px; color: var(--text-2); background: color-mix(in srgb, var(--warn) 12%, transparent); }
 .loadout-manual .sym { color: var(--warn); }
