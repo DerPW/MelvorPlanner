@@ -8,12 +8,12 @@ import { MAX_LEVEL } from '../core/experience'
 import type { GameIndex } from '../core/planner'
 import { isGoal, nextBest, solve, type Solution } from '../core/solve'
 import { useT, type T } from '../i18n'
-import { GameIcon, Ref, Segmented, Select, Stepper, Switch, Sym, Toolbar } from './components'
+import { GameIcon, Ref, Segmented, Select, Stepper, Switch, Sym, Toolbar, useNow } from './components'
 import { Materials, TreeTable } from './PlanTables'
 import { routeEntity, routeIcon, routeLabel, routeTarget } from './routeText'
-import { statusLine, useTrack } from './LiveTrack'
+import { Measuring, StepBar, statusLine, totalLeft, useTrack, type Tracking } from './LiveTrack'
 import { recipeAction, SolutionFlow, SolutionNotes, stepKeys, SummaryPlate, TrackContext } from './SolutionView'
-import { useGame, type PlanTab, type RouteTarget } from './state'
+import { useGame, usePlanProfile, type PlanTab, type RouteTarget } from './state'
 
 export function RouteView({ id }: { id: string }) {
   const { index, baseIndex, state, dispatch } = useGame()
@@ -22,9 +22,11 @@ export function RouteView({ id }: { id: string }) {
   const target = useMemo(() => routeTarget(route), [route])
   // Der Löser rechnet Boni selbst — auch die, die unterwegs gekauft werden
   const avoid = useMemo(() => route.avoid ?? [], [route.avoid])
+  // Zurückgelegtes zählt nicht als Lager
+  const profile = usePlanProfile()
   const solution = useMemo(
-    () => solve(baseIndex, target, state.profile, state.choices, state.options, avoid),
-    [baseIndex, target, state.profile, state.choices, state.options, avoid],
+    () => solve(baseIndex, target, profile, state.choices, state.options, avoid),
+    [baseIndex, target, profile, state.choices, state.options, avoid],
   )
   const update = (r: RouteTarget) => dispatch({ type: 'updateRoute', route: r })
   /** Einen Weg meiden; der vorige Stand bleibt für „‹“ */
@@ -211,18 +213,37 @@ function RouteHead({
       </div>
 
       <AvoidedChips route={route} />
+      <ReservedChips />
 
-      {active && tracking && (
-        <div className={`rh-live ts-${tracking.status}`}>
-          <i className={tracking.status === 'idle' ? 'live-dot off' : 'live-dot'} />
-          <b>{statusLine(t, tracking)}</b>
-          {tracking.status !== 'done' && <span className="muted">· {t('track.total', { time: fmtDurationShort(tracking.totalMs) })}</span>}
-        </div>
-      )}
+      {active && tracking && <LiveStatus tracking={tracking} />}
       {active && !state.live && <div className="rh-live ts-idle muted">{t('track.needLive')}</div>}
 
       <SolutionNotes solution={solution} />
     </section>
+  )
+}
+
+/** Verfolgung im Kopf der Route: Stand, Restzeit (zählt mit), Messung und Fortschritt */
+function LiveStatus({ tracking }: { tracking: Tracking }) {
+  const t = useT()
+  const { progress } = useTrack()
+  const now = useNow(1000)
+  const ls = tracking.status === 'onTrack' ? tracking.live : null
+  return (
+    <div className={`rh-live ts-${tracking.status}`}>
+      <div className="rh-live-line">
+        <i className={tracking.status === 'idle' ? 'live-dot off' : 'live-dot'} />
+        <b>{statusLine(t, tracking, now)}</b>
+        {/* Ist der laufende Schritt der letzte, steht die Restzeit schon vorn */}
+        {tracking.status !== 'done' && !(ls && !ls.next) && <span className="muted">· {t('track.total', { time: fmtDurationShort(totalLeft(tracking, now)) })}</span>}
+        {ls && !ls.perMs && (
+          <span className="muted">
+            · <Measuring progress={progress} />
+          </span>
+        )}
+      </div>
+      {ls && ls.perMs > 0 && <StepBar step={ls} now={now} />}
+    </div>
   )
 }
 
@@ -237,6 +258,7 @@ function avoidLabel(index: GameIndex, key: string, t: T): string {
  *  zum vorigen zurück */
 function AlternativeNav({ route, onNext, onPrev }: { route: RouteTarget; onNext: (avoid: string[]) => void; onPrev: () => void }) {
   const { baseIndex, state } = useGame()
+  const profile = usePlanProfile()
   const t = useT()
   const [busy, setBusy] = useState(false)
   const [none, setNone] = useState(false)
@@ -247,7 +269,7 @@ function AlternativeNav({ route, onNext, onPrev }: { route: RouteTarget; onNext:
     setNone(false)
     // Ein paar ganze Rechnungen — erst zeichnen, dann rechnen
     setTimeout(() => {
-      const r = nextBest(baseIndex, routeTarget(route), state.profile, state.choices, state.options, avoid)
+      const r = nextBest(baseIndex, routeTarget(route), profile, state.choices, state.options, avoid)
       if (r) onNext(r.avoid)
       else setNone(true)
       setBusy(false)
@@ -292,9 +314,28 @@ function AvoidedChips({ route }: { route: RouteTarget }) {
   )
 }
 
+/** Zurückgelegte Items (für alle Routen), einzeln wieder freizugeben */
+function ReservedChips() {
+  const { index, state, dispatch } = useGame()
+  const t = useT()
+  if (!state.reserved?.length) return null
+  return (
+    <div className="rh-avoided">
+      {state.reserved.map((id) => (
+        <span key={id} className="chip avoided reserved" data-entity={`item:${id}`} title={t('reserve.keepHint')}>
+          <Sym name="lock" size={11} /> <GameIcon src={index.items.get(id)?.icon} size={14} /> {t('reserve.chip', { name: index.items.get(id)?.name ?? id })}
+          <button className="chip-x" aria-label={t('reserve.release')} title={t('reserve.release')} onClick={() => dispatch({ type: 'reserve', item: id, reserved: false })}>
+            <Sym name="close" size={9} />
+          </button>
+        </span>
+      ))}
+    </div>
+  )
+}
+
 /** Markierung im Ablauf: welche Schritte dran sind und welcher gerade läuft */
 function TrackedFlow({ routeId, children }: { routeId: string; children: React.ReactNode }) {
   const { tracking } = useTrack()
-  const value = tracking && tracking.route.id === routeId ? { current: tracking.currentKeys, live: tracking.liveKeys } : null
+  const value = tracking && tracking.route.id === routeId ? { current: tracking.currentKeys, live: tracking.liveKeys, step: tracking.status === 'onTrack' ? tracking.live : null } : null
   return <TrackContext.Provider value={value}>{children}</TrackContext.Provider>
 }

@@ -1,11 +1,13 @@
 import { createContext, Fragment, useContext, type ReactNode } from 'react'
+import { xpForLevel } from '../core/experience'
 import { fmtDuration, fmtDurationShort, fmtInt } from '../core/format'
+import { liveAmount, liveProgress, liveRemaining, type LiveStep } from '../core/live'
 import { isUnlocked, unlockReqFor, unmetReqs, yieldOf, type GameIndex, type MakeStep, type UnlockReq } from '../core/planner'
 import { GP, type Route, type RouteSegment } from '../core/route'
 import { isGoal, solutionXp, type Phase, type Solution } from '../core/solve'
 import type { Id, Msg, Profile, Purchase, Recipe, Req } from '../core/types'
 import { useT, type T } from '../i18n'
-import { GameIcon, LevelTag, Ref, Sym } from './components'
+import { GameIcon, LevelTag, Ref, Sym, useNow } from './components'
 import { useGame } from './state'
 
 /** Wofür das Quell-Symbol eines Rezepts steht: sein Skill, sonst der Shop-Kauf */
@@ -322,6 +324,13 @@ export function flowGroups(index: GameIndex, solution: Solution): FlowGroup[] {
         const k = segmentKey(i, j, seg)
         const chain = [...seg.chain].filter(([id]) => id !== seg.recipe.id && index.recipes.has(id))
         const goalSkill = ph.route.goal.kind === 'level' ? ph.route.goal.skill : null
+        // XP bis zum Abschnittsende: der erste Abschnitt genau ab dem Stand
+        // (fürs Mitmessen), spätere in ganzen Aktionen
+        const xpNeed = !goalSkill
+          ? 0
+          : j === 0
+            ? Math.max(0, xpForLevel(seg.to) - (ph.route.before.xp?.[goalSkill] ?? xpForLevel(seg.from)))
+            : (seg.xp.get(goalSkill) ?? 0)
         out.push({
           kind: 'train',
           main: seg.recipe,
@@ -339,7 +348,7 @@ export function flowGroups(index: GameIndex, solution: Solution): FlowGroup[] {
               recipe: seg.recipe,
               amount: seg.actions,
               ms: seg.chainMs.get(seg.recipe.id) ?? seg.timeMs,
-              xp: goalSkill ? { skill: goalSkill, amount: seg.xp.get(goalSkill) ?? 0 } : undefined,
+              xp: goalSkill ? { skill: goalSkill, amount: xpNeed } : undefined,
             },
           ],
         })
@@ -373,8 +382,8 @@ export function currentGroups(groups: FlowGroup[]): FlowGroup[] {
   return out
 }
 
-/** Highlight der Route: diese Schritte sind dran, dieser läuft gerade */
-export const TrackContext = createContext<{ current: Set<string>; live: Set<string> } | null>(null)
+/** Highlight der Route: diese Schritte sind dran, dieser läuft gerade (`step`: gemessen) */
+export const TrackContext = createContext<{ current: Set<string>; live: Set<string>; step: LiveStep | null } | null>(null)
 
 /** Der Ablauf: Phasen mit abhakbaren Schritten */
 /** Alternativen je Schritt — die Route reicht ihre gemiedenen Wege durch */
@@ -570,6 +579,7 @@ function PhaseBlock({ phase, index, keyFor }: { phase: Phase; index: number; key
           <MakeRow key={s.key} step={s} k={keyFor(makeKey(index, s))} levels={phase.at.levels} />
         ))}
       </ol>
+      <StockUse used={phase.plan.stockUsed} />
     </section>
   )
 }
@@ -619,6 +629,7 @@ function RouteBlock({ route, why, phase, keyFor }: { route: Route; why: Msg; pha
           <SegmentRow key={i} seg={seg} route={route} k={keyFor(segmentKey(phase, i, seg))} share={seg.timeMs / longest} />
         ))}
       </ol>
+      <StockUse used={route.consumed} />
     </section>
   )
 }
@@ -672,6 +683,7 @@ function SegmentRow({ seg, route, k, share }: { seg: RouteSegment; route: Route;
             {seg.fromStock && <span className="tag std">{t('flow.fromStock')}</span>}
             {chain.length > 0 && <span className="muted">{t('flow.withChain', { time: fmtDurationShort(seg.timeMs) })}</span>}
             {isNew && <span className="tag std">{t('flow.newAt', { level: r.level })}</span>}
+            <Uses inputs={r.inputs} times={seg.actions} />
           </>
         }
         meta={
@@ -710,6 +722,7 @@ function ChainStep({ r, item, runs, ms, k }: { r: Recipe; item?: Id; runs: numbe
         <>
           {skill && <GameIcon src={skill.icon} size={14} entity={`skill:${skill.id}`} />}
           <SourceText r={r} self={out} />
+          <Uses inputs={r.inputs} times={runs} />
         </>
       }
       meta={<b>{ms > 0 ? fmtDurationShort(ms) : '—'}</b>}
@@ -741,6 +754,7 @@ function MakeRow({ step, k, levels }: { step: MakeStep; k: string; levels: Recor
           <SourceText r={r} self={step.item} />
           {step.completions !== step.amount && <span className="muted">{t('flow.runs', { n: fmtInt(step.completions) })}</span>}
           <LevelTag level={r.level} have={r.skill ? (levels[r.skill] ?? 1) : 1} />
+          <Uses inputs={r.inputs} times={step.completions} />
         </>
       }
       meta={
@@ -785,6 +799,7 @@ function StepRow({
   const done = !!state.done[k]
   const now = track?.current.has(k)
   const running = track?.live.has(k)
+  const liveStep = running && track?.step?.key === k ? track.step : null
   return (
     <li className={`step ${done ? 'done' : ''} ${nested ? 'nested' : ''} ${now ? 'current' : ''} ${running ? 'running' : ''}`} data-entity={entity}>
       <button className="check" role="checkbox" aria-checked={done} aria-label={t('flow.markDone')} onClick={() => dispatch({ type: 'toggleDone', key: k })}>
@@ -796,9 +811,78 @@ function StepRow({
         <div className="sub">{sub}</div>
       </div>
       <div className="meta">
-        {meta}
+        {liveStep ? <LiveStepTime step={liveStep} planned={meta} /> : meta}
         <AltControl alt={alt} />
       </div>
     </li>
+  )
+}
+
+/** Laufender Schritt: Restzeit aus der Messung, zählt zwischen den Spielständen
+ *  herunter, mit Fortschritt; die geplante Zeit klein darunter */
+function LiveStepTime({ step, planned }: { step: LiveStep; planned: React.ReactNode }) {
+  const t = useT()
+  const now = useNow(1000)
+  if (!step.perMs)
+    return (
+      <>
+        {planned}
+        <span className="live-note">{t('track.measuring')}</span>
+      </>
+    )
+  const left = liveRemaining(step, now)
+  return (
+    <>
+      <b className="live-time" title={t('track.measuredHint')}>
+        <i className="live-dot" /> {left > 0 ? fmtDurationShort(left) : t('track.stepReady')}
+      </b>
+      <span className="bar live-bar">
+        <span style={{ width: `${Math.max(2, liveProgress(step, now) * 100)}%` }} />
+      </span>
+      <span className="live-note">
+        {t(step.unit === 'xp' ? 'track.leftXp' : 'track.leftItems', { n: fmtInt(Math.ceil(liveAmount(step, now))) })} · {t('track.planned', { time: fmtDurationShort(step.planMs) })}
+      </span>
+    </>
+  )
+}
+
+/** Was ein Schritt verbraucht: Symbol und Menge je Zutat */
+function Uses({ inputs, times }: { inputs: { item: Id; qty: number }[]; times: number }) {
+  const { index, state } = useGame()
+  const t = useT()
+  if (!inputs.length || times <= 0) return null
+  return (
+    <span className="uses" title={t('flow.usesHint')}>
+      <span className="muted">{t('flow.uses')}</span>
+      {inputs.map((i) => (
+        <span key={i.item}>
+          <GameIcon src={index.items.get(i.item)?.icon} size={14} entity={`item:${i.item}`} /> {fmtInt(Math.ceil(i.qty * times))}
+          {(state.reserved ?? []).includes(i.item) && <Sym name="lock" size={10} className="muted" />}
+        </span>
+      ))}
+    </span>
+  )
+}
+
+/** Was der Abschnitt aus dem Lager nimmt — je Item zurücklegbar */
+function StockUse({ used }: { used: Map<Id, number> }) {
+  const { index, state, dispatch } = useGame()
+  const t = useT()
+  const list = [...used].filter(([, n]) => n >= 1).sort((a, b) => b[1] - a[1])
+  if (!list.length) return null
+  return (
+    <div className="stock-use">
+      <span className="su-label">{t('flow.fromStockUsed')}</span>
+      {list.map(([id, n]) => (
+        <span key={id} className="chip su-chip" data-entity={`item:${id}`}>
+          <GameIcon src={index.items.get(id)?.icon} size={14} />
+          {fmtInt(Math.ceil(n))}× {index.items.get(id)?.name ?? id}
+          <span className="muted">{t('flow.ofStock', { n: fmtInt(state.profile.inventory[id] ?? 0) })}</span>
+          <button className="chip-x" title={t('reserve.keepHint')} aria-label={t('reserve.keep')} onClick={() => dispatch({ type: 'reserve', item: id, reserved: true })}>
+            <Sym name="lock" size={10} />
+          </button>
+        </span>
+      ))}
+    </div>
   )
 }

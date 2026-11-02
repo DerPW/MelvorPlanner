@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useMemo } from 'react'
 import type { BonusResult } from '../core/bonuses'
 import type { GameIndex, SourceChoices } from '../core/planner'
 import type { RouteOptions } from '../core/route'
@@ -28,6 +28,7 @@ export type View =
   | { kind: 'shop' }
   | { kind: 'wiki'; section?: WikiKind; group?: string }
   | { kind: 'completion' }
+  | { kind: 'live' }
   | { kind: 'skill'; skill: Id }
   | { kind: 'detail'; type: DetailType; id: Id }
 
@@ -51,6 +52,8 @@ export interface State {
   live: { save: string } | null
   /** Route, die live verfolgt wird (Schritt, Restzeit, Benachrichtigung beim Wechsel) */
   activeRoute: string | null
+  /** Zurückgelegte Items: die Routen rühren den Bestand nicht an */
+  reserved: Id[]
   /** Ausrüstung: zwei Teile im A/B-Vergleich, offener Reiter */
   compare: { a: Id | null; b: Id | null }
   gearTab: GearTab
@@ -91,6 +94,7 @@ export type Action =
   | { type: 'inspector'; open: boolean }
   | { type: 'setLive'; save: string | null }
   | { type: 'setActiveRoute'; id: string | null }
+  | { type: 'reserve'; item: Id; reserved: boolean }
   /** Teil in den A/B-Vergleich legen (A, dann B) und den Vergleich öffnen */
   | { type: 'compareItem'; item: Id }
   | { type: 'setCompare'; a?: Id | null; b?: Id | null }
@@ -114,6 +118,7 @@ export const initialState = (): State => ({
   inspectorOpen: true,
   live: null,
   activeRoute: null,
+  reserved: [],
   compare: { a: null, b: null },
   gearTab: 'compare',
   gearTarget: null,
@@ -214,6 +219,10 @@ export function reducer(s: State, a: Action): State {
       return { ...s, inspectorOpen: a.open }
     case 'setActiveRoute':
       return { ...s, activeRoute: a.id }
+    case 'reserve': {
+      const rest = (s.reserved ?? []).filter((x) => x !== a.item)
+      return { ...s, reserved: a.reserved ? [...rest, a.item] : rest }
+    }
     case 'compareItem': {
       const c = s.compare ?? { a: null, b: null }
       const compare = !c.a || c.a === a.item ? { a: a.item, b: c.b } : { a: c.a, b: a.item }
@@ -320,3 +329,16 @@ export const itemRoute = (s: State, item: Id) => s.routes.find((r): r is Extract
 
 /** Route aufs Item: vorhandene öffnen, sonst anlegen */
 export const planItem = (item: Id, qty = 1): Action => ({ type: 'addRoute', route: { id: newId(), kind: 'item', item, qty } })
+
+/** Profil zum Planen: zurückgelegte Items gelten als nicht im Lager */
+export function planProfile(profile: Profile, reserved: Id[] | undefined): Profile {
+  if (!reserved?.length) return profile
+  const inventory = { ...profile.inventory }
+  for (const id of reserved) delete inventory[id]
+  return { ...profile, inventory }
+}
+
+export function usePlanProfile(): Profile {
+  const { state } = useGame()
+  return useMemo(() => planProfile(state.profile, state.reserved), [state.profile, state.reserved])
+}

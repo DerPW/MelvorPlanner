@@ -2,6 +2,16 @@ import { useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNod
 import { useT } from '../i18n'
 import { GameContext, type Action, type DetailType } from './state'
 
+/** Uhr für Countdowns: zeichnet alle `ms` neu */
+export function useNow(ms = 1000) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), ms)
+    return () => clearInterval(id)
+  }, [ms])
+  return now
+}
+
 /** Spiel-Symbol (Item, Skill, Währung). Mit `entity` („item:<id>",
  *  „skill:<id>", „enemy:<id>" …) ist es klickbar und hat Tooltip und
  *  Kontextmenü — wie alles mit eigener Seite. */
@@ -82,6 +92,7 @@ const PATHS: Record<string, ReactNode> = {
     </>
   ),
   plus: <path d="M8 3.5v9M3.5 8h9" />,
+  bell: <path d="M4.5 11V7.5a3.5 3.5 0 0 1 7 0V11l1 1.5h-9zM6.8 13.8a1.4 1.4 0 0 0 2.4 0" />,
   avoid: (
     <>
       <circle cx="8" cy="8" r="5.5" />

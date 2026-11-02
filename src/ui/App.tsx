@@ -15,12 +15,13 @@ import { CompletionView } from './CompletionView'
 import { GearView } from './GearView'
 import { ShopView } from './ShopView'
 import { WikiView } from './WikiView'
+import { LiveView } from './LiveView'
 import { DetailView } from './DetailView'
 import { EntityHover } from './EntityHover'
 import { ImportSheet } from './ImportSheet'
 import { Inspector } from './Inspector'
 import { LiveSyncProvider, useLive } from './LiveSync'
-import { LiveCard, TrackProvider } from './LiveTrack'
+import { LiveCard, TrackProvider, useTrack } from './LiveTrack'
 import { ProfileView } from './ProfileView'
 import { ReleaseNotes, useReleaseNotesOnUpdate } from './ReleaseNotes'
 import { newRoute, routeEntity, routeIcon, routeLabel } from './routeText'
@@ -63,6 +64,7 @@ export function App({ index }: { index: GameIndex }) {
   else if (view.kind === 'shop') main = <ShopView />
   else if (view.kind === 'wiki') main = <WikiView section={view.section} group={view.group} />
   else if (view.kind === 'completion') main = <CompletionView />
+  else if (view.kind === 'live') main = <LiveView />
   else if (view.kind === 'skill') main = <SkillView skill={view.skill} />
   else if (view.kind === 'detail') main = <DetailView type={view.type} id={view.id} />
   else if (view.kind === 'route' && state.routes.some((r) => r.id === view.id)) main = <RouteView id={view.id} />
@@ -127,6 +129,7 @@ function Sidebar() {
         </div>
         <div className="side-section">
           <div className="side-label">{t('nav.game')}</div>
+          <LiveNav />
           <NavRow kind="bank" icon={ui('Bank')} label={t('bank.title')} badge={Object.keys(state.profile.inventory).length || undefined} />
           <NavRow kind="shop" icon={ui('Shop')} label={t('shop.title')} locked={!!featureLock(index, state.profile, 'MelvorBase:Shop')} />
           <NavRow kind="combat" icon={ui('Combat')} label={t('combat.title')} locked={!!featureLock(index, state.profile, 'MelvorBase:Combat')} />
@@ -206,7 +209,16 @@ function Sidebar() {
 }
 
 /** Eintrag der Seitenleiste für eine Ansicht */
-function NavRow({ kind, icon, label, badge, locked, extra }: { kind: 'routes' | 'wiki' | 'bank' | 'shop' | 'combat' | 'gear' | 'completion' | 'profile'; icon: string | null | undefined; label: string; badge?: number; locked?: boolean; extra?: React.ReactNode }) {
+/** Live in der Seitenleiste: mit dem Symbol dessen, was gerade läuft */
+function LiveNav() {
+  const { state } = useGame()
+  const { t } = useI18n()
+  const { action } = useTrack()
+  const icon = action?.recipe?.icon ?? action?.enemy?.icon ?? action?.skill?.icon ?? 'game/icons/Icons/Mastery_Icon.webp'
+  return <NavRow kind="live" icon={icon} label={t('live.view')} extra={state.live ? <i className={action ? 'live-dot' : 'live-dot off'} /> : undefined} />
+}
+
+function NavRow({ kind, icon, label, badge, locked, extra }: { kind: 'routes' | 'wiki' | 'live' | 'bank' | 'shop' | 'combat' | 'gear' | 'completion' | 'profile'; icon: string | null | undefined; label: string; badge?: number; locked?: boolean; extra?: React.ReactNode }) {
   const { state, dispatch } = useGame()
   return (
     <button className={`side-row ${state.view.kind === kind ? 'active' : ''} ${locked ? 'locked' : ''}`} onClick={() => dispatch({ type: 'view', view: { kind }, root: true })}>

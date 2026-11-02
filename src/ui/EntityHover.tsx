@@ -295,6 +295,11 @@ function ContextMenu({ target, onClose }: { target: Target; onClose: () => void 
     )
     // Ausrüstung: in den A/B-Vergleich
     if (index.items.get(target.id)?.equipment) items.push(<MenuItem key="cmp" label={t('menu.compare')} onClick={act(() => dispatch({ type: 'compareItem', item: target.id }))} />)
+    // Zurücklegen: die Routen verbrauchen den Bestand nicht
+    const reserved = (state.reserved ?? []).includes(target.id)
+    items.push(
+      <MenuItem key="reserve" label={t(reserved ? 'reserve.release' : 'reserve.keep')} onClick={act(() => dispatch({ type: 'reserve', item: target.id, reserved: !reserved }))} />,
+    )
   }
   if (target.type === 'enemy')
     items.push(<MenuItem key="opt" label={t('gear.optimizeFor')} onClick={act(() => dispatch({ type: 'optimizeFor', enemy: target.id }))} />)

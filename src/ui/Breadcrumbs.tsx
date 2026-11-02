@@ -19,6 +19,7 @@ function station(index: GameIndex, state: State, v: View, t: T): { label: string
   if (v.kind === 'bank') return { label: t('bank.title'), icon: ui('Bank'), entity: null }
   if (v.kind === 'shop') return { label: t('shop.title'), icon: ui('Shop'), entity: null }
   if (v.kind === 'wiki') return { ...wikiStation(index, t, v), entity: null }
+  if (v.kind === 'live') return { label: t('live.view'), icon: ui('Mastery_Icon'), entity: null }
   if (v.kind === 'completion') return { label: t('completion.title'), icon: ui('Milestones'), entity: null }
   if (v.kind === 'gear') return { label: t('gear.title'), icon: index.items.get('MelvorBase:IronHelmet')?.icon ?? ui('Combat'), entity: null }
   if (v.kind === 'skill') {

@@ -64,6 +64,8 @@ export interface RouteSegment {
   chainItem: Map<Id, Id>
   /** Zutaten aus dem Lager statt beschafft */
   fromStock: boolean
+  /** Davon aus dem Lager genommen */
+  used: Map<Id, number>
   ratePerHour: number
 }
 
@@ -216,13 +218,15 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
     if (best.gold < 0) n = Math.min(n, Math.floor(gold / -best.gold))
     // Nur so oft, wie das Lager reicht — danach neu wählen
     n = Math.max(1, Math.min(n, best.cap))
+    const used = new Map<Id, number>()
     if (options.includeMaterials) {
       for (const i of best.recipe.inputs) {
         const have = stock.get(i.item) ?? 0
         if (have < i.qty * MIN_STOCK_RUNS) continue
-        const used = Math.min(have, i.qty * n)
-        stock.set(i.item, have - used)
-        addTo(route.consumed, i.item, used)
+        const take = Math.min(have, i.qty * n)
+        stock.set(i.item, have - take)
+        addTo(route.consumed, i.item, take)
+        addTo(used, i.item, take)
       }
     }
     if (goal.kind === 'level') {
@@ -254,6 +258,7 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
       for (const [id, per] of best.recipes) addTo(last.chain, id, per * n)
       for (const [id, ms] of best.recipeMs) addTo(last.chainMs, id, ms * n)
       for (const [id, item] of best.recipeItem) last.chainItem.set(id, item)
+      for (const [id, q] of used) addTo(last.used, id, q)
       last.ratePerHour = rateOf(last, goal)
     } else {
       const seg: RouteSegment = {
@@ -268,6 +273,7 @@ export function planRoute(index: GameIndex, goal: RouteGoal, profile: Profile, o
         chainMs: scale(best.recipeMs, n),
         chainItem: new Map(best.recipeItem),
         fromStock: best.fromStock,
+        used,
         ratePerHour: 0,
       }
       seg.ratePerHour = rateOf(seg, goal)

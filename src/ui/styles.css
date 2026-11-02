@@ -1198,6 +1198,67 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
 .step.current { background: color-mix(in srgb, var(--accent) 7%, transparent); }
 .step.running { box-shadow: inset 3px 0 0 var(--ok); }
 
+/* Live-Karte in der Seitenleiste: oben ein Knopf in die Live-Ansicht */
+.lc-open { display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; }
+.lc-open:hover b { color: var(--accent); }
+.lc-open .lc-title { width: 100%; }
+.lc-chev { margin-left: auto; color: var(--text-3); }
+.lc-action b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lc-stat { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.lc-stop { display: inline-flex; align-items: center; gap: 5px; color: var(--warn); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Live-Ansicht */
+.live-page { display: flex; flex-direction: column; gap: 16px; }
+.lv-hero { display: flex; align-items: center; gap: 16px; padding: 16px 18px; border-radius: 16px; background: var(--group); box-shadow: 0 0 0 0.5px var(--separator); }
+.lv-what { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.lv-what h2 { margin: 0; font: 600 20px/1.2 var(--font-rounded); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lv-eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--text-2); }
+.lv-level { display: flex; align-items: center; gap: 10px; margin-top: 4px; font-size: 11px; font-variant-numeric: tabular-nums; }
+.lv-level .bar { flex: 1; width: auto; height: 5px; }
+.lv-measuring { margin: 0; font-size: 12.5px; }
+.lv-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.lv-tile { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--group); box-shadow: 0 0 0 0.5px var(--separator); }
+.lv-tile span { font-size: 11px; color: var(--text-2); }
+.lv-tile b { font: 600 17px/1.25 var(--font-rounded); font-variant-numeric: tabular-nums; }
+.lv-tile.gold b { color: var(--gold); }
+.lv-tile.warn { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 55%, transparent); }
+.lv-tile.warn b { color: var(--warn); }
+.lv-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; align-items: start; }
+.lv-list { display: flex; flex-direction: column; gap: 2px; padding: 10px 10px 8px; border-radius: 14px; background: var(--group); box-shadow: 0 0 0 0.5px var(--separator); }
+.lv-list .muted { margin: 2px 4px 4px; font-size: 12px; }
+.lv-sec-title { margin: 0 4px 6px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); }
+.lv-row { display: flex; align-items: center; gap: 10px; padding: 5px 4px; border-radius: 8px; }
+.lv-row:hover { background: var(--hover); }
+.lv-row.first { background: color-mix(in srgb, var(--warn) 9%, transparent); }
+.lv-row .grow { display: flex; flex-direction: column; min-width: 0; }
+.lv-row .grow b { font-weight: 500; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lv-row .grow .muted, .lv-num span { margin: 0; font-size: 11px; }
+.lv-num { display: flex; flex-direction: column; align-items: flex-end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lv-num b { font-size: 12.5px; font-weight: 600; }
+.lv-num .warn { color: var(--warn); font-weight: 600; }
+.lv-route .lc-route { padding: 10px 12px; gap: 4px; font-size: 12.5px; }
+.lv-route > .muted { margin: 0 4px; font-size: 12.5px; }
+
+/* Verbrauch je Schritt und „Aus dem Lager“ je Abschnitt (zurücklegbar) */
+.step .what .sub > .uses { gap: 6px; }
+.uses > span { display: inline-flex; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; }
+.stock-use { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 10px 4px; padding-top: 9px; border-top: 0.5px solid var(--separator); font-size: 12px; }
+.su-label { font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); margin-right: 2px; }
+.su-chip { gap: 5px; font-variant-numeric: tabular-nums; }
+.su-chip .muted { font-size: 11px; }
+.chip.reserved { background: var(--control); }
+
+/* Live: Messfortschritt, mitlaufende Restzeit, Fortschritt des laufenden Schritts */
+.measuring { display: inline-flex; align-items: center; gap: 6px; }
+.m-dots { display: inline-flex; gap: 3px; }
+.m-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--control-strong); }
+.m-dots i.on { background: var(--ok); }
+.live-bar span { background: var(--ok); transition: width 1s linear; }
+.lc-route .live-bar { width: 100%; margin-top: 3px; }
+.step .meta b.live-time { display: inline-flex; align-items: center; gap: 5px; color: var(--ok); }
+.step .meta b.live-time .live-dot { width: 6px; height: 6px; box-shadow: none; }
+.live-note { font-size: 11px; color: var(--text-3); }
+
 .track-toast {
   position: fixed; right: 18px; bottom: 18px; z-index: 80; max-width: 360px;
   display: flex; align-items: flex-start; gap: 10px; padding: 12px 12px 12px 14px;
@@ -1232,7 +1293,9 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
 .btn.tracking { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
 .rh-option { display: inline-flex; align-items: center; gap: 8px; color: var(--text-2); }
 .rh-avoided { display: flex; flex-wrap: wrap; gap: 6px; }
-.rh-live { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 9px 12px; border-radius: 10px; background: var(--control); font-size: 12.5px; }
+.rh-live { display: flex; flex-direction: column; gap: 7px; padding: 9px 12px; border-radius: 10px; background: var(--control); font-size: 12.5px; }
+.rh-live-line { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-variant-numeric: tabular-nums; }
+.rh-live .live-bar { width: 100%; height: 4px; }
 .rh-live.ts-onTrack, .rh-live.ts-done { background: color-mix(in srgb, var(--ok) 12%, transparent); }
 .rh-live.ts-onTrack b, .rh-live.ts-done b { color: var(--ok); }
 .rh-live.ts-switch { background: color-mix(in srgb, var(--warn) 14%, transparent); }

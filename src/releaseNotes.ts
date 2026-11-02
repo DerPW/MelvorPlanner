@@ -10,6 +10,34 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.11.0',
+    date: '2026-11-02',
+    de: {
+      title: 'Live-Ansicht, Verbrauch, Zurücklegen',
+      items: [
+        'Neue Ansicht „Live“: was gerade läuft, Level-Fortschritt, XP/h und GP/h, Gewinn und Verbrauch je Stunde mit Lagerbestand, wann das Material ausgeht, und die verfolgte Route. Die Karte in der Seitenleiste ist dafür knapp und öffnet die Ansicht.',
+        'Alles läuft sekündlich mit: Restzeiten, Level-Fortschritt, Bestände und der Rest des laufenden Schritts werden mit der gemessenen Rate weitergerechnet und beim nächsten Spielstand korrigiert.',
+        'Bis die ersten Werte da sind, zeigt die Messung ihren Stand: „misst … 1/3“.',
+        'Verfolgte Route: Der laufende Schritt zeigt die gemessene Restzeit mit Fortschrittsbalken, daneben klein die geplante Zeit. Der Kopf sagt, was danach dran ist.',
+        'Benachrichtigungen: sobald der laufende Schritt laut Messung fertig ist (nicht erst beim nächsten Spielstand), wenn ein Schritt im selben Block fertig ist (z. B. genug geangelt, jetzt kochen) und wenn das Material ausgeht. Kein Hinweis, wenn du selbst wechselst oder die Route änderst.',
+        'Routen zeigen je Schritt, was er verbraucht, und je Abschnitt, was aus dem Lager genommen wird — auch beim Gold-Verdienen.',
+        'Zurücklegen: Ein Item mit dem Schloss (oder per Rechtsklick) zurücklegen, dann rühren die Routen den Bestand nicht an und planen einen anderen Weg. Im Routenkopf wieder freigeben.',
+      ],
+    },
+    en: {
+      title: 'Live view, consumption, keeping items',
+      items: [
+        'New “Live” view: what is running, level progress, XP/h and GP/h, items gained and used per hour with bank stock, when materials run out, and the tracked route. The sidebar card is now compact and opens the view.',
+        'Everything updates every second: time left, level progress, stock and the rest of the running step are extrapolated with the measured rate and corrected with the next save.',
+        'Until the first values are in, the measurement shows its progress: “measuring … 1/3”.',
+        'Tracked route: the running step shows the measured time left with a progress bar, the planned time small next to it. The header says what comes next.',
+        'Notifications: as soon as the running step is done according to the measurement (not only at the next save), when a step within a block is done (e.g. enough fish, now cook) and when materials run out. No alert when you switch yourself or edit the route.',
+        'Routes show what each step uses and, per section, what is taken from your bank — gold routes too.',
+        'Keep items: lock an item (or right-click it) and routes leave that stock alone and plan another way. Release it in the route header.',
+      ],
+    },
+  },
+  {
     version: '0.10.2',
     date: '2026-11-02',
     de: {

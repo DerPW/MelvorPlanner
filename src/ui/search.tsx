@@ -50,6 +50,7 @@ export const KINDS: Kind[] = [
       { key: 'view:bank', name: c.t('bank.title'), icon: ui('Bank'), keywords: 'bank lager inventory items stock', run: () => c.dispatch({ type: 'view', view: { kind: 'bank' }, root: true }) },
       { key: 'view:shop', name: c.t('shop.title'), icon: ui('Shop'), keywords: 'shop kaufen buy upgrades', run: () => c.dispatch({ type: 'view', view: { kind: 'shop' }, root: true }) },
       { key: 'view:wiki', name: c.t('wiki.title'), icon: ui('GuideBook'), keywords: 'wiki alle items monster gebiete liste browse', run: () => c.dispatch({ type: 'view', view: { kind: 'wiki' }, root: true }) },
+      { key: 'view:live', name: c.t('live.view'), icon: ui('Mastery_Icon'), keywords: 'live jetzt aktion messung verbrauch tempo', run: () => c.dispatch({ type: 'view', view: { kind: 'live' }, root: true }) },
       { key: 'view:completion', name: c.t('completion.title'), icon: ui('Milestones'), keywords: 'completion fortschritt log gefunden', run: () => c.dispatch({ type: 'view', view: { kind: 'completion' }, root: true }) },
       { key: 'view:profile', name: c.t('profile.title'), icon: ui('Bank'), keywords: 'profil profile bank lager settings einstellungen', run: () => c.dispatch({ type: 'view', view: { kind: 'profile' }, root: true }) },
       ...c.state.routes.map((r) => ({
