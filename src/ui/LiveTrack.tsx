@@ -291,12 +291,8 @@ export function LiveCard() {
 
   return (
     <div className="live-card">
-      {/* Im Kampf geht es direkt zum Monster, sonst in die Live-Ansicht */}
-      <button
-        className="lc-open"
-        onClick={() => dispatch({ type: 'view', view: action?.enemy ? { kind: 'detail', type: 'enemy', id: action.enemy.id } : { kind: 'live' }, root: true })}
-        title={action?.enemy ? t('live.openEnemy', { name: action.enemy.name }) : t('live.open')}
-      >
+      {/* Immer in die Live-Ansicht — dort führt die Aktion weiter zum Monster bzw. Item */}
+      <button className="lc-open" onClick={() => dispatch({ type: 'view', view: { kind: 'live' }, root: true })} title={t('live.open')}>
         <span className="lc-title">
           <i className={action ? 'live-dot' : 'live-dot off'} /> {t('track.now')}
           <span className="muted"> · {t('track.ago', { s: ago })}</span>

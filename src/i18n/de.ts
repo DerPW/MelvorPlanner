@@ -295,7 +295,6 @@ export const de = {
   'val.interval': 'Intervall',
   'val.xpBonus': 'XP-Bonus',
   'live.combatValues': 'Kampfwerte',
-  'live.openEnemy': 'Zur Seite von {name}',
   'live.fightingHere': 'Du kämpfst gerade gegen dieses Monster',
   'live.title': 'Live-Verbindung',
   'live.subtitle': 'liest den Spielstand neu ein, sobald das Spiel speichert',

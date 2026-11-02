@@ -10,20 +10,20 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
-    version: '0.11.4',
+    version: '0.11.5',
     date: '2026-11-02',
     de: {
-      title: 'Im Kampf direkt zum Monster',
+      title: 'Aus der Live-Ansicht zum Monster',
       items: [
-        'Im Kampf führt die Live-Karte in der Seitenleiste direkt zur Seite des Monsters. Dort steht oben „Du kämpfst gerade gegen dieses Monster“ mit dem Weg in die Live-Ansicht.',
-        'In der Live-Ansicht ist der Name der laufenden Aktion ein Link — zum Monster, Item oder Skill.',
+        'In der Live-Ansicht ist der Name der laufenden Aktion ein Link — im Kampf zur Seite des Monsters, sonst zum Item oder Skill. Die Live-Karte in der Seitenleiste öffnet immer die Live-Ansicht.',
+        'Auf der Seite des Monsters, gegen das du gerade kämpfst, steht oben „Du kämpfst gerade gegen dieses Monster“ mit dem Weg zurück in die Live-Ansicht.',
       ],
     },
     en: {
-      title: 'Straight to the monster in combat',
+      title: 'From the live view to the monster',
       items: [
-        'In combat, the live card in the sidebar opens the monster’s page. It says “You are fighting this monster right now” at the top, with a link to the live view.',
-        'In the live view, the name of the running action is a link — to the monster, item or skill.',
+        'In the live view, the name of the running action is a link — to the monster’s page in combat, otherwise to the item or skill. The live card in the sidebar always opens the live view.',
+        'The page of the monster you are fighting says “You are fighting this monster right now” at the top, with a link back to the live view.',
       ],
     },
   },
