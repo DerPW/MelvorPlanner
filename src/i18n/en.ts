@@ -295,6 +295,8 @@ export const en: Record<Key, string> = {
   'val.interval': 'Interval',
   'val.xpBonus': 'XP bonus',
   'live.combatValues': 'Combat stats',
+  'live.openEnemy': 'Open {name}',
+  'live.fightingHere': 'You are fighting this monster right now',
   'live.title': 'Live connection',
   'live.subtitle': 're-reads your save as soon as the game saves',
   'live.unavailable': 'Only available while the planner runs locally with “pnpm dev” — then in any browser.',

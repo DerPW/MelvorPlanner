@@ -65,7 +65,7 @@ export function LiveView() {
             <span className="lv-eyebrow">
               <i className={action ? 'live-dot' : 'live-dot off'} /> {t('track.now')}
             </span>
-            <h2>{action ? action.action || action.entity : t('track.nothing')}</h2>
+            <h2>{action ? <Ref entity={entity}>{action.action || action.entity}</Ref> : t('track.nothing')}</h2>
             {skill && (
               <span className="muted">
                 {skill.name} · Lv {level}

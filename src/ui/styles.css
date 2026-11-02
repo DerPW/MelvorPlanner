@@ -1247,6 +1247,8 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
 .lv-list > p.muted:last-child { margin-top: 6px; }
 .lv-fight .stat-grid { margin: 0 4px 8px; }
 .lv-fight .table { margin-top: 6px; }
+.fighting-here { margin: 0 0 16px; }
+.lv-what h2 .ref:hover { color: var(--accent); }
 .lv-route .lc-route { padding: 10px 12px; gap: 4px; font-size: 12.5px; }
 .lv-route > .muted { margin: 0 4px; font-size: 12.5px; }
 

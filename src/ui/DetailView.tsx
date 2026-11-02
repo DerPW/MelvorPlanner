@@ -10,6 +10,7 @@ import { useI18n } from '../i18n'
 import { modLabel, modScope, modValue } from './bonusText'
 import { GameIcon, LevelTag, Ref, Stepper, Switch, Sym, Toolbar } from './components'
 import { EnemyFight } from './CombatView'
+import { useTrack } from './LiveTrack'
 import { Needs, recipeAction, reqPart, SourceText, sourceEntity } from './SolutionView'
 import { itemRoute, newId, planItem, useGame, type DetailType } from './state'
 
@@ -516,6 +517,7 @@ function EnemyDetail({ id }: { id: Id }) {
             </>
           }
         />
+        <FightingHere id={id} />
         <Section title={t('combat.simTitle')} hint={t('combat.simHint')}>
           <EnemyFight id={id} />
           <button className="btn small" onClick={() => dispatch({ type: 'optimizeFor', enemy: id })}>
@@ -739,5 +741,24 @@ function Missing() {
         <p className="muted">{t('detail.missingText')}</p>
       </div>
     </>
+  )
+}
+
+/** Kämpft man gerade gegen dieses Monster: Hinweis mit dem Weg in die Live-Ansicht */
+function FightingHere({ id }: { id: Id }) {
+  const { dispatch } = useGame()
+  const { t } = useI18n()
+  const { action } = useTrack()
+  if (action?.enemy?.id !== id) return null
+  return (
+    <div className="rh-live ts-onTrack fighting-here">
+      <div className="rh-live-line">
+        <i className="live-dot" />
+        <b>{t('live.fightingHere')}</b>
+        <button className="link" onClick={() => dispatch({ type: 'view', view: { kind: 'live' } })}>
+          {t('live.open')}
+        </button>
+      </div>
+    </div>
   )
 }
