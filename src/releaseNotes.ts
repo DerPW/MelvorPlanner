@@ -10,6 +10,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.11.9',
+    date: '2026-11-02',
+    de: {
+      title: 'Essen im Live, Gilden-Rang aus dem Spielstand',
+      items: [
+        'Live: Das gewählte Essen zählt als Verbrauch — beim Thieving und im Kampf wird es automatisch aus der Bank gegessen. Eigene Kachel „Essen reicht noch“ mit Uhrzeit und eine Benachrichtigung, wenn es aufgebraucht ist (die Aktion läuft dann weiter, nur ohne Heilung).',
+        'Der Gilden-Rang je Skill kommt jetzt aus deinem Mastery-Fortschritt im Spielstand — so, wie das Spiel ihn beim Laden rechnet. Damit stimmen die Rang-Boni ohne Einstellen von Hand.',
+      ],
+    },
+    en: {
+      title: 'Food in live view, guild rank from your save',
+      items: [
+        'Live: your selected food counts as consumption — thieving and combat eat it from the bank automatically. A separate “Food lasts” tile with the clock time, and a notification when it runs out (the action keeps going, just without healing).',
+        'Each skill’s guild rank now comes from the mastery progress in your save — computed the way the game does on load. Rank bonuses are right without setting them by hand.',
+      ],
+    },
+  },
+  {
     version: '0.11.8',
     date: '2026-11-02',
     de: {

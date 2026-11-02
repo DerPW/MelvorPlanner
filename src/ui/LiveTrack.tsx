@@ -7,9 +7,9 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { xpForLevel } from '../core/experience'
 import { fmtDurationShort, fmtInt } from '../core/format'
-import { flowOf, liveProgress, liveRemaining, measure, measureProgress, resolveAction, type LiveAction, type LiveFlow, type LiveRates, type LiveStep } from '../core/live'
+import { flowOf, liveProgress, liveRemaining, measure, measureProgress, resolveAction, type LiveAction, type LiveFlow, type LiveRates, type LiveStep, type Snapshot } from '../core/live'
 import { solve, type Solution } from '../core/solve'
-import type { Recipe } from '../core/types'
+import type { Id, Recipe } from '../core/types'
 import { useI18n, type T } from '../i18n'
 import { GameIcon, Sym, useNow } from './components'
 import { useLive } from './LiveSync'
@@ -100,7 +100,12 @@ export function TrackProvider({ children }: { children: ReactNode }) {
   const action = useMemo(() => (last && state.live && (last.entity || last.action) ? resolveAction(index, last) : null), [index, last, state.live])
   const rates = useMemo(() => (state.live ? measure(live.history) : null), [live.history, state.live])
   const progress = useMemo(() => (state.live && !rates ? measureProgress(live.history) : null), [live.history, state.live, rates])
-  const flow = useMemo(() => (rates && last && action ? flowOf(rates, last, action.recipe ? action.recipe.inputs.map((i) => i.item) : null) : null), [rates, last, action])
+  // Gewähltes Essen (wird beim Thieving und im Kampf automatisch aus der Bank gegessen)
+  const food = state.profile.combatSave?.food ?? state.profile.combat?.food ?? null
+  const flow = useMemo(
+    () => (rates && last && action ? flowOf(rates, last, action.recipe ? action.recipe.inputs.map((i) => i.item) : null, food) : null),
+    [rates, last, action, food],
+  )
   const route = state.routes.find((r) => r.id === state.activeRoute) ?? null
   const profile = usePlanProfile()
   const solution = useMemo(
@@ -208,25 +213,10 @@ export function TrackProvider({ children }: { children: ReactNode }) {
       notify(setToast, t('track.switchTitle'), t('track.switchBody', { route: name, step: groupLabel(t, g) }))
   }, [tracking, action, index, t])
 
-  // Material geht aus: Laut Messung leer → Bescheid geben, die Aktion stoppt dann.
+  // Material oder Essen geht aus: laut Messung leer → Bescheid geben.
   // Einmal je Aktion und Item; wird nachgefüllt (wieder weit weg), darf es erneut
-  const stopSent = useRef<string | null>(null)
-  useEffect(() => {
-    const st = flow?.stop
-    if (!st || !last || !action) return
-    const key = `${last.entity}/${last.action}/${st.item}`
-    const left = leftNow(st.emptyMs, last.at, Date.now())
-    if (stopSent.current === key) {
-      if (left > 120_000) stopSent.current = null
-      return
-    }
-    if (left > 45_000) return
-    const id = setTimeout(() => {
-      stopSent.current = key
-      notify(setToast, t('live.stopTitle'), t('live.stopBody', { item: index.items.get(st.item)?.name ?? st.item, action: action.action || action.entity }))
-    }, left)
-    return () => clearTimeout(id)
-  }, [flow, last, action, index, t])
+  useRunOut(flow?.stop ?? null, last, action, (item, what) => notify(setToast, t('live.stopTitle'), t('live.stopBody', { item, action: what })))
+  useRunOut(flow?.foodOut ?? null, last, action, (item) => notify(setToast, t('live.foodTitle'), t('live.foodBody', { item })))
 
   // Titel zurück, sobald man wieder hinsieht
   useEffect(() => {
@@ -241,6 +231,37 @@ export function TrackProvider({ children }: { children: ReactNode }) {
       {toast && <TrackToast toast={toast} onClose={() => setToast(null)} />}
     </TrackCtx.Provider>
   )
+}
+
+/** Benachrichtigt, wenn `out` laut Messung leer ist — geplant erst kurz vorher,
+ *  damit nichts Falsches kommt, wenn das Spiel aufhört zu speichern */
+function useRunOut(
+  out: { item: Id; emptyMs: number } | null,
+  last: Snapshot | null,
+  action: LiveAction | null,
+  fire: (itemName: string, actionName: string) => void,
+) {
+  const { index } = useGame()
+  const sent = useRef<string | null>(null)
+  const fireRef = useRef(fire)
+  useEffect(() => {
+    fireRef.current = fire
+  })
+  useEffect(() => {
+    if (!out || !last || !action) return
+    const key = `${last.entity}/${last.action}/${out.item}`
+    const left = leftNow(out.emptyMs, last.at, Date.now())
+    if (sent.current === key) {
+      if (left > 120_000) sent.current = null
+      return
+    }
+    if (left > 45_000) return
+    const id = setTimeout(() => {
+      sent.current = key
+      fireRef.current(index.items.get(out.item)?.name ?? out.item, action.action || action.entity)
+    }, left)
+    return () => clearTimeout(id)
+  }, [out, last, action, index])
 }
 
 function notify(setToast: (x: { title: string; body: string }) => void, title: string, body: string) {
@@ -290,7 +311,8 @@ export function LiveCard() {
   const nextMs = skill && level && xpH > 0 ? leftNow(((xpForLevel(level + 1) - xp) / xpH) * 3_600_000, lastAt, now) : null
   const icon = action?.recipe?.icon ?? action?.enemy?.icon ?? skill?.icon ?? null
   const ago = Math.max(0, Math.round((now - lastAt) / 1000))
-  const stop = flow?.stop ?? null
+  // Was zuerst ausgeht: Material (die Aktion stoppt) oder Essen
+  const stop = [flow?.stop, flow?.foodOut].filter((x): x is NonNullable<typeof x> => !!x).sort((a, b) => a.emptyMs - b.emptyMs)[0] ?? null
   const stopMs = stop ? leftNow(stop.emptyMs, lastAt, now) : null
   const ls = tracking?.status === 'onTrack' ? tracking.live : null
 

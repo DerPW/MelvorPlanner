@@ -119,25 +119,34 @@ export function liveProgress(s: LiveStep, now: number): number {
 /** Was die laufende Aktion bringt und verbraucht, und wann ihr das Material ausgeht */
 export interface LiveFlow {
   gains: { item: Id; perHour: number; stock: number }[]
-  /** Verbrauch; `emptyMs` = bis der Bestand leer ist, zum Spielstand */
-  uses: { item: Id; perHour: number; stock: number; emptyMs: number }[]
-  /** Das, was zuerst ausgeht — dann stoppt die Aktion */
+  /** Verbrauch; `emptyMs` = bis der Bestand leer ist, zum Spielstand; `food` = Essen (automatisch gegessen) */
+  uses: { item: Id; perHour: number; stock: number; emptyMs: number; food?: boolean }[]
+  /** Die Zutat, die zuerst ausgeht — dann stoppt die Aktion */
   stop: { item: Id; emptyMs: number } | null
+  /** Das Essen geht aus — die Aktion läuft weiter, aber ohne Heilung */
+  foodOut: { item: Id; emptyMs: number } | null
 }
 
-/** Gewinn und Verbrauch aus den Raten; mit bekanntem Rezept zählen als
- *  Verbrauch nur seine Zutaten (Verkäufe nebenher sind kein Verbrauch) */
-export function flowOf(rates: LiveRates, snap: Snapshot, inputs: Id[] | null): LiveFlow {
+/** Gewinn und Verbrauch aus den Raten. Mit bekanntem Rezept zählen als
+ *  Verbrauch nur seine Zutaten (Verkäufe nebenher sind kein Verbrauch) — und
+ *  das gewählte Essen, das beim Thieving und im Kampf aus der Bank gegessen wird */
+export function flowOf(rates: LiveRates, snap: Snapshot, inputs: Id[] | null, food: Id | null = null): LiveFlow {
   const gains: LiveFlow['gains'] = []
   const uses: LiveFlow['uses'] = []
   for (const [item, h] of Object.entries(rates.itemsPerHour)) {
     const stock = snap.bank[item] ?? 0
+    const isFood = item === food
     if (h > 0) gains.push({ item, perHour: h, stock })
-    else if (h < 0 && (!inputs || inputs.includes(item))) uses.push({ item, perHour: -h, stock, emptyMs: (stock / -h) * 3_600_000 })
+    else if (h < 0 && (!inputs || inputs.includes(item) || isFood))
+      uses.push({ item, perHour: -h, stock, emptyMs: (stock / -h) * 3_600_000, ...(isFood ? { food: true } : {}) })
   }
   gains.sort((a, b) => b.perHour - a.perHour)
   uses.sort((a, b) => a.emptyMs - b.emptyMs)
-  return { gains, uses, stop: uses[0] ? { item: uses[0].item, emptyMs: uses[0].emptyMs } : null }
+  const first = (food: boolean) => {
+    const u = uses.find((x) => !!x.food === food)
+    return u ? { item: u.item, emptyMs: u.emptyMs } : null
+  }
+  return { gains, uses, stop: first(false), foodOut: first(true) }
 }
 
 export interface LiveAction {

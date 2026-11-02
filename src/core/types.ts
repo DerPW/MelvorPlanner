@@ -252,6 +252,60 @@ export interface GameData {
   completion: { items: Id[]; enemies: Id[] }
   /** Shop wie im Spiel: Kategorien → Unterkategorien → Käufe */
   shop: { id: Id; name: string; icon: string | null; subcategories: { id: Id; name: string; icon: string | null; purchases: Id[] }[] }[]
+  /** Mastery Guild je Skill */
+  mastery?: Record<Id, MasteryGuild>
+  quests?: Quest[]
+  questCategories?: { id: Id; name: string; subtitle: string | null; icon: string | null }[]
+  npcs?: Record<Id, { name: string; icon: string | null; type: string | null }>
+  /** Statistik-Listen je Einheit (ValueStatistics, CurrencyStatistics, ItemStatistics …) in Spielreihenfolge */
+  statistics?: Record<Id, Record<string, Id[]>>
+  /** Anzeigenamen der Einheiten (auch Bank, Shop, Charakter …) */
+  entityNames?: Record<Id, string>
+  /** „Guide“ je Skill: Schwierigkeit (Zitronen), Hinweise, Abschnitte (BBCode) */
+  tutorials?: Record<Id, Tutorial>
+}
+
+/** Ein Ziel aus den Spieldaten: Art, Höchststand, dazu die schlichten Felder (recipe, item, enemy, level …) */
+export interface GameGoal {
+  type: string
+  max: number
+  entity?: Id
+  [key: string]: string | number | boolean | undefined
+}
+
+export interface MasteryGuild {
+  ranks: { id: Id; name: string; percent: number }[]
+  categories: { id: Id; name: string; points: number; demoLocked: boolean }[]
+  tasks: { id: Id; category: Id; text: string | null; goal?: GameGoal; condition?: GameGoal; trigger?: GameGoal }[]
+  /** Bonus-Quellen (bonusSources, Art „guild“) */
+  bonuses: Id[]
+}
+
+export interface Quest {
+  id: Id
+  name: string
+  description: string
+  category: Id | null
+  steps: {
+    id: string
+    description: string
+    completed: string
+    dialogue: { npc: Id; text: string }[]
+    tasks: { id: string; goals: GameGoal[]; items: ItemQty[]; currencies: CurrencyQty[] }[]
+  }[]
+  completion: { npc: Id; text: string }[]
+  rewards: { items: ItemQty[]; currencies: CurrencyQty[] }
+  /** Vorgänger-Quests (müssen abgeholt sein) */
+  after: Id[]
+  reqs: Req[]
+  ignoreCompletion?: boolean
+}
+
+export interface Tutorial {
+  /** Zitronen je Gruppe (Kampf: „von … bis …“) */
+  difficulty: { filled: number; total: number }[]
+  notes: string[]
+  sections: { group: string | null; title: string; body: string }[]
 }
 
 export interface Enemy {
@@ -380,6 +434,12 @@ export interface Profile {
   combatManual?: boolean
   /** Lebenszeit-Statistiken aus dem Spielstand: Statistik → (Item/Monster/Währung → Zähler) */
   stats?: Record<Id, Record<Id, number>>
+  /** Einfache Statistiken aus dem Spielstand (eine Zahl je Id) */
+  values?: Record<Id, number>
+  /** Mastery Guild je Skill: Aufgabe → Fortschritt */
+  mastery?: Record<Id, Record<Id, MasteryTaskState>>
+  /** Quest-Fortschritt aus dem Spielstand */
+  quests?: Record<Id, QuestState>
   /** Bank-Reiter wie im Spiel */
   bankTabs?: { name: string; items: { item: Id; qty: number }[] }[]
   /** Freigeschaltete Skills/Bereiche, von Hand oder vom Planer gesetzt;
@@ -404,3 +464,31 @@ export interface ItemGoal {
   item: Id
   qty: number
 }
+
+/** Mastery-Aufgabe laut Spielstand */
+export interface MasteryTaskState {
+  progress: number
+  complete: boolean
+  /** Auslöser-Aufgaben (Tier halten, Item ausrüsten) */
+  triggerMet: boolean
+}
+
+export interface QuestGoalState {
+  progress: number
+  complete: boolean
+}
+export interface QuestTaskState {
+  /** 0 inaktiv, 1 aktiv, 2 fertig */
+  state: number
+  costsMet: boolean
+  goals: Record<string, QuestGoalState>
+}
+export interface QuestStepState {
+  state: number
+  tasks: Record<string, QuestTaskState>
+}
+export interface QuestState {
+  state: number
+  steps: Record<string, QuestStepState>
+}
+

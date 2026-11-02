@@ -4,6 +4,7 @@
 // Decoder brechen deshalb ab — der Strom-Decoder liefert alles bis dahin.
 
 import { MAX_LEVEL, levelForXp } from './experience'
+import { guildRanksOf } from './mastery'
 import type { GameIndex } from './planner'
 import { parseSave, SaveError, type SaveData } from './save'
 import type { Profile } from './types'
@@ -89,32 +90,34 @@ export function profileFromSave(index: GameIndex, save: SaveData, current: Profi
     spell: save.combat.spell,
     hp: save.combat.hp,
   }
-  return {
-    profile: {
-      levels,
-      xp: { ...save.xp },
-      inventory: Object.fromEntries(Object.entries(save.bank).filter(([id]) => index.items.has(id))),
-      currencies: { ...save.currencies },
-      owned: Object.fromEntries(Object.entries(save.purchases).filter(([, n]) => n > 0)),
-      equipped: save.equipped,
-      levelCap: cap,
-      farmingPlots: current.farmingPlots,
-      guildRanks: current.guildRanks,
-      unlocked: current.unlocked,
-      // Selbst gewählte Ausrüstung bleibt; die aus dem Spiel wird trotzdem gemerkt
-      combat: current.combatManual && current.combat ? current.combat : fromSave,
-      combatSave: fromSave,
-      stats: save.stats,
-      bankTabs: save.bankTabs.map((t) => ({ ...t, items: t.items.filter((i) => index.items.has(i.item)) })),
-      combatManual: current.combatManual && !!current.combat,
-      source: {
-        character: save.character,
-        savedAt: save.savedAt?.toISOString() ?? null,
-        importedAt: new Date().toISOString(),
-        version: save.version,
-      },
+  const profile: Profile = {
+    levels,
+    xp: { ...save.xp },
+    inventory: Object.fromEntries(Object.entries(save.bank).filter(([id]) => index.items.has(id))),
+    currencies: { ...save.currencies },
+    owned: Object.fromEntries(Object.entries(save.purchases).filter(([, n]) => n > 0)),
+    equipped: save.equipped,
+    levelCap: cap,
+    farmingPlots: current.farmingPlots,
+    guildRanks: current.guildRanks,
+    unlocked: current.unlocked,
+    // Selbst gewählte Ausrüstung bleibt; die aus dem Spiel wird trotzdem gemerkt
+    combat: current.combatManual && current.combat ? current.combat : fromSave,
+    combatSave: fromSave,
+    stats: save.stats,
+    values: save.values,
+    mastery: save.mastery,
+    quests: save.quests,
+    bankTabs: save.bankTabs.map((t) => ({ ...t, items: t.items.filter((i) => index.items.has(i.item)) })),
+    combatManual: current.combatManual && !!current.combat,
+    source: {
+      character: save.character,
+      savedAt: save.savedAt?.toISOString() ?? null,
+      importedAt: new Date().toISOString(),
+      version: save.version,
     },
-    pendingLevelUps,
-    unknownItems,
   }
+  // Gilden-Rang aus dem Mastery-Fortschritt — wie das Spiel ihn beim Laden rechnet
+  if (Object.keys(save.mastery).length) profile.guildRanks = { ...profile.guildRanks, ...guildRanksOf(index, profile) }
+  return { profile, pendingLevelUps, unknownItems }
 }

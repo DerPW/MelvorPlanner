@@ -16,6 +16,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { parseScene, tutorialOf } from './godot-scene.mjs'
 
 const OUT_DIR = path.resolve(import.meta.dirname, '..', 'public', 'game')
 const ICON_DIR = path.join(OUT_DIR, 'icons')
@@ -822,6 +823,7 @@ for (const [type, entity] of [
   ['CombatNavigationOption', 'MelvorBase:Combat'],
   ['ShopNavigationOption', 'MelvorBase:Shop'],
   ['BankNavigationOption', 'MelvorBase:Bank'],
+  ['QuestsNavigationOption', 'MelvorBase:Quests'],
 ]) {
   handled.add(type)
   for (const [, o] of all(type)) {
@@ -889,6 +891,154 @@ const version =
     ? fs.readFileSync(plist, 'utf8').match(/CFBundleShortVersionString<\/key>\s*<string>([^<]+)/)?.[1]
     : undefined
 
+// ---------------------------------------------------------------------------
+// Mastery Guild, Quests, Statistiken, Tutorials
+
+// Ein Ziel (Goal/ConditionGoal/TriggerGoal) kompakt: Art, Höchststand und die
+// schlichten Felder (Rezept, Item, Monster, Tier, Level …)
+const goalOf = (g) => {
+  if (!g) return null
+  const d = g.Data ?? {}
+  const out = { type: short(g.Type), max: d.MaxProgress ?? 1 }
+  if (d.Component?.Entity) out.entity = d.Component.Entity
+  for (const [k, v] of Object.entries(d)) {
+    if (['Component', 'Conditions', 'IsOr', 'MaxProgress'].includes(k)) continue
+    if (v == null || typeof v === 'object') continue
+    out[k[0].toLowerCase() + k.slice(1)] = v
+  }
+  return out
+}
+const placeholderText = (t) => !t || /custom description for a custom task/i.test(t)
+const byPriority = (list) => (list ?? []).map((x, i) => ({ ...x, i })).sort((a, b) => (a.Priority ?? 0) - (b.Priority ?? 0) || a.i - b.i)
+
+handled.add('MasteryGuildTask')
+handled.add('MasteryGuildCategory')
+handled.add('MasteryGuildRank')
+const mastery = {}
+for (const [entity, cfg] of Object.entries(entityConfig)) {
+  if (!cfg.MasteryGuildRanks) continue
+  const ranks = byPriority(cfg.MasteryGuildRanks)
+    .map((r) => [r.Id, objects.MasteryGuildRank?.get(r.Id)])
+    .filter(([, o]) => o)
+    .map(([id, o]) => ({ id, name: o.DisplayName, percent: o.PointPercentRequired ?? 0 }))
+    .sort((a, b) => a.percent - b.percent)
+  const categories = byPriority(cfg.MasteryGuildCategories)
+    .map((c) => [c.Id, objects.MasteryGuildCategory?.get(c.Id)])
+    .filter(([, o]) => o)
+    .map(([id, o]) => ({ id, name: o.DisplayName, points: o.BasePoints ?? 0, demoLocked: isDemoLocked(o) }))
+  const tasks = byPriority(cfg.MasteryGuildTasks)
+    .map((t) => [t.Id, objects.MasteryGuildTask?.get(t.Id)])
+    .filter(([, o]) => o)
+    .map(([id, o]) => ({
+      id,
+      category: o.Category,
+      text: placeholderText(o.CustomDescription) ? null : o.CustomDescription,
+      ...(o.Goal ? { goal: goalOf(o.Goal) } : {}),
+      ...(o.ConditionGoal ? { condition: goalOf(o.ConditionGoal) } : {}),
+      ...(o.TriggerGoal ? { trigger: goalOf(o.TriggerGoal) } : {}),
+    }))
+  const bonuses = byPriority(cfg.MasteryGuildBonuses).map((b) => b.Id)
+  mastery[entity] = { ranks, categories, tasks, bonuses }
+}
+
+handled.add('Quest')
+handled.add('QuestCategory')
+handled.add('NPC')
+const questCfg = entityConfig['MelvorBase:Quests'] ?? {}
+const dialogue = (list) => (list ?? []).map((d) => ({ npc: d.Npc, text: d.DialogueText }))
+const quests = byPriority(questCfg.Quests)
+  .map((q) => [q.Id, objects.Quest?.get(q.Id)])
+  .filter(([, o]) => o)
+  .map(([id, o]) => ({
+    id,
+    name: o.DisplayName,
+    description: o.Description ?? '',
+    category: o.Category ?? null,
+    steps: (o.Steps ?? []).map((st) => ({
+      id: st.Id,
+      description: st.Description ?? '',
+      completed: st.CompletedDescription ?? '',
+      dialogue: dialogue(st.Dialogue),
+      tasks: (st.TasksInOrder ?? []).map((tk) => ({
+        id: tk.Id,
+        goals: (tk.Goals ?? []).map(goalOf),
+        items: qtyList(tk.Costs?.Items),
+        currencies: costList(tk.Costs?.Currencies),
+      })),
+    })),
+    completion: dialogue(o.CompletionDialogue),
+    rewards: { items: qtyList(o.Rewards?.Items), currencies: costList(o.Rewards?.Currency ?? o.Rewards?.Currencies) },
+    // Vorgänger (QuestComplete) getrennt, der Rest als normale Anforderungen
+    after: (o.Requirements ?? []).filter((r) => r.Type === 'MelvorBase:QuestComplete').map((r) => r.Data.Quest),
+    reqs: requirements({ Requirements: (o.Requirements ?? []).filter((r) => r.Type !== 'MelvorBase:QuestComplete') }).reqs,
+    ...(o.IgnoreCompletion ? { ignoreCompletion: true } : {}),
+  }))
+const questCategories = byPriority(questCfg.Categories)
+  .map((c) => [c.Id, objects.QuestCategory?.get(c.Id)])
+  .filter(([, o]) => o)
+  .map(([id, o]) => ({ id, name: o.DisplayName, subtitle: o.Subtitle ?? null, icon: realIcon(o.Icon) }))
+const npcs = Object.fromEntries(
+  byPriority(questCfg.NPCs)
+    .map((n) => [n.Id, objects.NPC?.get(n.Id)])
+    .filter(([, o]) => o)
+    .map(([id, o]) => [id, { name: o.DisplayName, icon: realIcon(o.Icon), type: o.NPCType ?? null }]),
+)
+for (const [id, o] of all('NPC')) if (!npcs[id]) npcs[id] = { name: o.DisplayName, icon: realIcon(o.Icon), type: o.NPCType ?? null }
+
+// Namen aller Dinge, auf die Mastery- und Quest-Ziele zeigen (Rezepte,
+// Unterkategorien, Orte, Tiere, Effekte …), für lesbare Aufgaben
+const goalRefs = new Set()
+const collectRefs = (g) => {
+  for (const v of Object.values(g ?? {})) if (typeof v === 'string' && v.startsWith('MelvorBase:')) goalRefs.add(v)
+}
+for (const m of Object.values(mastery)) for (const t of m.tasks) [t.goal, t.condition, t.trigger].forEach(collectRefs)
+for (const q of quests) for (const st of q.steps) for (const tk of st.tasks) tk.goals.forEach(collectRefs)
+for (const id of goalRefs) {
+  if (names[id]) continue
+  for (const map of Object.values(objects)) {
+    const o = map.get(id)
+    if (!o) continue
+    const n = typeof o.DisplayName === 'string' ? o.DisplayName : o.DisplayName?.Singular
+    if (n) {
+      names[id] = n
+      break
+    }
+  }
+}
+
+// Statistiken je Einheit: welche Listen (Werte, Währungen, Items, Monster …) in
+// welcher Reihenfolge — Bedeutung und Format kennt src/core/statDefs.ts
+const statistics = {}
+for (const [entity, cfg] of Object.entries(entityConfig)) {
+  const lists = {}
+  for (const [key, list] of Object.entries(cfg)) {
+    if (/Statistics$/.test(key) && Array.isArray(list) && list.length) lists[key] = byPriority(list).map((x) => x.Id)
+  }
+  if (Object.keys(lists).length) statistics[entity] = lists
+}
+// Namen der Einheiten ohne Skill-Navigation (Bank, Shop, Charakter …)
+const entityNames = {}
+for (const type of ['SkillNavigationOption', 'CombatNavigationOption', 'ShopNavigationOption', 'BankNavigationOption', 'QuestsNavigationOption', 'SimpleNavigationOption']) {
+  for (const [id, o] of all(type)) entityNames[o.Entity ?? o.Page ?? id] = o.DisplayName
+}
+
+// Tutorials („Guide“): Godot-Szenen res://Tutorials/<skill>_tutorial.tscn
+const tutorials = {}
+for (const file of pck.files.keys()) {
+  const m = file.match(/-([a-z]+)_tutorial\.scn$/)
+  if (!m) continue
+  const name = m[1]
+  const entity = [...Object.keys(entityConfig)].find((e) => short(e).toLowerCase() === name)
+  if (!entity) continue
+  try {
+    const tree = parseScene(pck.file(file))
+    const tut = tutorialOf(tree)
+    if (tut.sections.length) tutorials[entity] = tut
+  } catch (err) {
+    console.warn(`⚠︎ Tutorial ${name}: ${err.message}`)
+  }
+}
+
 const data = {
   meta: {
     packages: packages.map((p) => path.basename(p, '.json')),
@@ -911,6 +1061,13 @@ const data = {
   combat,
   completion,
   shop,
+  mastery,
+  quests,
+  questCategories,
+  npcs,
+  statistics,
+  entityNames,
+  tutorials,
 }
 fs.writeFileSync(path.join(OUT_DIR, 'data.json'), JSON.stringify(data))
 

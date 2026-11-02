@@ -52,6 +52,7 @@ export function LiveView() {
   const icon = action?.recipe?.icon ?? action?.enemy?.icon ?? skill?.icon ?? null
   const entity = action?.enemy ? `enemy:${action.enemy.id}` : action?.recipe?.outputs[0] ? `item:${action.recipe.outputs[0].item}` : skill ? `skill:${skill.id}` : null
   const stopMs = flow?.stop ? leftNow(flow.stop.emptyMs, lastAt, now) : null
+  const foodMs = flow?.foodOut ? leftNow(flow.foodOut.emptyMs, lastAt, now) : null
   const ls = tracking?.status === 'onTrack' ? tracking.live : null
 
   return (
@@ -101,6 +102,14 @@ export function LiveView() {
                 tone={stopMs < 600_000 ? 'warn' : undefined}
               />
             )}
+            {foodMs !== null && (
+              <Tile
+                label={t('live.foodLasts')}
+                value={fmtDurationShort(foodMs) || t('live.now')}
+                sub={foodMs > 0 ? t('live.until', { time: clockAt(now + foodMs, locale, t, now) }) : undefined}
+                tone={foodMs < 600_000 ? 'warn' : undefined}
+              />
+            )}
             <Tile label={t('live.since')} value={fmtDurationShort(now - rates.since)} />
           </div>
         )}
@@ -117,7 +126,7 @@ export function LiveView() {
                 stock: liveStock(u.stock, -u.perHour, lastAt, now),
                 sign: '−',
                 emptyMs: leftNow(u.emptyMs, lastAt, now),
-                first: u.item === flow.stop?.item,
+                first: u.item === flow.stop?.item || u.item === flow.foodOut?.item,
               }))}
             />
           </div>
@@ -179,7 +188,7 @@ function Tile({ label, value, sub, tone }: { label: string; value: string; sub?:
 }
 
 /** Gewinn bzw. Verbrauch je Stunde, mit Bestand; beim Verbrauch, wann er leer ist */
-function FlowList({ title, rows, empty }: { title: string; empty?: string; rows: { item: string; perHour: number; stock: number; sign: string; emptyMs?: number; first?: boolean }[] }) {
+function FlowList({ title, rows, empty }: { title: string; empty?: string; rows: { item: string; perHour: number; stock: number; sign: string; emptyMs?: number; first?: boolean; food?: boolean }[] }) {
   const { index } = useGame()
   const { t, locale } = useI18n()
   const now = Date.now()
@@ -192,7 +201,10 @@ function FlowList({ title, rows, empty }: { title: string; empty?: string; rows:
           <GameIcon src={index.items.get(r.item)?.icon} size={22} />
           <span className="grow">
             <b>{index.items.get(r.item)?.name ?? r.item}</b>
-            <span className="muted">{t('live.stock', { n: fmtInt(Math.floor(r.stock)) })}</span>
+            <span className="muted">
+              {r.food && `${t('live.foodTag')} · `}
+              {t('live.stock', { n: fmtInt(Math.floor(r.stock)) })}
+            </span>
           </span>
           <span className="lv-num">
             <b>

@@ -11,7 +11,7 @@
 // GameEntity.ReadFrom, BaseExperience, CurrencyWalletComponent,
 // BankInventoryComponent/StackableInventory, ShopComponent, ToolbeltComponent.
 
-import type { Id, Msg } from './types'
+import type { Id, MasteryTaskState, Msg, QuestState, QuestStepState, QuestTaskState } from './types'
 
 /** Fehler mit Übersetzungsschlüssel (die Oberfläche übersetzt) */
 export class SaveError extends Error {
@@ -40,7 +40,13 @@ export interface SaveData {
   combat: { gear: Record<string, { item: Id; qty: number }>; stances: Record<string, string>; food: Id | null; spell: Id | null; hp: number | null }
   /** Wörterbuch-Statistiken aller Einheiten: Statistik → (Schlüssel → Zähler) */
   stats: Record<Id, Record<Id, number>>
+  /** Einfache Statistiken (eine Zahl je Id, z. B. Spielzeit in ms) */
+  values: Record<Id, number>
   bankTabs: { name: string; items: { item: Id; qty: number }[] }[]
+  /** Mastery Guild je Skill: Aufgabe → Fortschritt (Punkte und Rang rechnet das Spiel daraus) */
+  mastery: Record<Id, Record<Id, MasteryTaskState>>
+  /** Quests: Zustand, Schritte, Aufgaben, Ziele */
+  quests: Record<Id, QuestState>
   entities: string[]
   warnings: Msg[]
 }
@@ -139,7 +145,10 @@ export function parseSave(raw: Uint8Array): SaveData {
     equipped: [],
     combat: { gear: {}, stances: {}, food: null, spell: null, hp: null },
     stats: {},
+    values: {},
     bankTabs: [],
+    mastery: {},
+    quests: {},
     entities: [],
     warnings: [],
   }
@@ -192,6 +201,8 @@ export function parseSave(raw: Uint8Array): SaveData {
 
 function readComponent(out: SaveData, entity: string, component: string, r: Reader) {
   if (component === 'Statistics') return readStatistics(out, r)
+  if (component === 'MasteryGuild') return readMastery(out, entity, r)
+  if (component === 'Quests' && entity === 'MelvorBase:Quests') return readQuests(out, r)
   if (entity === 'MelvorBase:Combat') return readCombat(out, component, r)
   switch (component) {
     case 'Experience': {
@@ -339,8 +350,8 @@ function readStatistics(out: SaveData, r: Reader) {
   try {
     const simple = r.i32()
     for (let i = 0; i < simple; i++) {
-      r.str()
-      r.region()
+      const id = r.str()
+      out.values[id] = r.region().f64()
     }
     while (r.pos < r.length) {
       const n = r.i32()
@@ -357,6 +368,67 @@ function readStatistics(out: SaveData, r: Reader) {
     }
   } catch {
     // Eine unbekannte Statistik-Form ändert nichts am Rest — still überspringen
+  }
+}
+
+// Mastery Guild (MasteryGuildComponent / ActiveMasteryGuildTask.WriteTo): die
+// gewählte Kategorie, dann je Aufgabe ihr Ziel (ActiveGoal: Fortschritt, fertig,
+// aktiv) und ob der Auslöser erfüllt ist. Punkte, Rang und Boni stehen nicht
+// drin — das Spiel rechnet sie beim Laden aus, der Planer genauso.
+function readMastery(out: SaveData, entity: string, r: Reader) {
+  if (r.bool()) r.str() // gewählte Kategorie (nur Anzeige)
+  const tasks: Record<Id, MasteryTaskState> = {}
+  const n = r.i32()
+  for (let i = 0; i < n; i++) {
+    const id = r.str()
+    const tr = r.region()
+    const state: MasteryTaskState = { progress: 0, complete: false, triggerMet: false }
+    if (tr.bool()) {
+      tr.str() // Ziel-Id
+      const g = tr.region()
+      state.progress = g.f64()
+      state.complete = g.bool()
+    }
+    state.triggerMet = tr.bool()
+    tasks[id] = state
+  }
+  out.mastery[entity] = tasks
+}
+
+// Quests (QuestsComponent → ActiveQuest → ActiveQuestStep → ActiveQuestTask):
+// Zustand 0 nicht begonnen, 1 läuft, 2 fertig (Belohnung offen), 3 abgeholt
+function readQuests(out: SaveData, r: Reader) {
+  const n = r.i32()
+  for (let i = 0; i < n; i++) {
+    const id = r.str()
+    const qr = r.region()
+    const quest: QuestState = { state: qr.i32(), steps: {} }
+    const steps = qr.i32()
+    for (let s = 0; s < steps; s++) {
+      const stepId = qr.str()
+      const sr = qr.region()
+      const step: QuestStepState = { state: 0, tasks: {} }
+      const tasks = sr.i32()
+      for (let k = 0; k < tasks; k++) {
+        const taskId = sr.str()
+        const kr = sr.region()
+        const task: QuestTaskState = { state: 0, costsMet: false, goals: {} }
+        const goals = kr.i32()
+        for (let g = 0; g < goals; g++) {
+          const goalId = kr.str()
+          const gr = kr.region()
+          task.goals[goalId] = { progress: gr.f64(), complete: gr.bool() }
+        }
+        kr.bool() // sichtbar
+        task.costsMet = kr.bool()
+        task.state = kr.i32()
+        step.tasks[taskId] = task
+      }
+      sr.bool() // sichtbar
+      step.state = sr.i32()
+      quest.steps[stepId] = step
+    }
+    out.quests[id] = quest
   }
 }
 
