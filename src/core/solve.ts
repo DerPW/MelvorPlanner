@@ -227,7 +227,7 @@ export function solve(baseIndex: GameIndex, target: Target, profile: Profile, ch
       .map((b) => ({
         id: `unlock:${b.name}`,
         name: b.name,
-        apply: () => resolveNeeds(b.needs, { key: 'why.unlocks', params: { name: b.name } }, 1),
+        apply: () => resolveNeeds(b.needs, { key: 'why.unlocks', params: { name: b.name, ref: b.ref } }, 1),
       }))
   }
 
@@ -304,7 +304,7 @@ export function solve(baseIndex: GameIndex, target: Target, profile: Profile, ch
   /** Rezepte des Skills, die an Käufen, Werkzeugen oder Materialquellen hängen */
   function blockedRecipes(skill: Id, upTo: number) {
     const unit = unitCosts(idx(), p)
-    const out: { name: string; needs: Req[]; cost: number }[] = []
+    const out: { name: string; ref: string; needs: Req[]; cost: number }[] = []
     for (const r of baseIndex.data.recipes) {
       if (r.skill !== skill || r.demoLocked || r.xp <= 0 || r.level > upTo) continue
       const needs = unmetReqs(r.reqs, p).filter((q) => q.type !== 'level' || q.skill !== skill)
@@ -323,7 +323,7 @@ export function solve(baseIndex: GameIndex, target: Target, profile: Profile, ch
         needs.push(...options[0])
       }
       if (!needs.length || needs.some((q) => q.type === 'other')) continue
-      out.push({ name: r.name, needs, cost: reqCost(needs) })
+      out.push({ name: r.name, ref: r.outputs[0] ? `item:${r.outputs[0].item}` : '', needs, cost: reqCost(needs) })
     }
     return out.sort((a, b) => a.cost - b.cost)
   }
@@ -342,7 +342,7 @@ export function solve(baseIndex: GameIndex, target: Target, profile: Profile, ch
   function unlockNext(skill: Id, depth: number): boolean {
     const best = blockedRecipes(skill, levelOf(p, skill))[0]
     if (!best) return false
-    resolveNeeds(best.needs, { key: 'why.unlocks', params: { name: best.name } }, depth)
+    resolveNeeds(best.needs, { key: 'why.unlocks', params: { name: best.name, ref: best.ref } }, depth)
     return unmetReqs(best.needs, p).length === 0
   }
 
@@ -354,7 +354,7 @@ export function solve(baseIndex: GameIndex, target: Target, profile: Profile, ch
       return
     }
     if (purchase.demoLocked) problem({ key: 'problem.locked', params: { name: purchase.name } })
-    const own: Msg = { key: 'why.forPurchase', params: { name: purchase.name } }
+    const own: Msg = { key: 'why.forPurchase', params: { name: purchase.name, ref: `purchase:${id}` } }
     for (const q of purchase.reqs) {
       if (q.type === 'level') ensureLevel(q.skill, q.level, own, depth + 1)
       else if (q.type === 'purchase' && depth < 5) ensurePurchase(q.purchase, own, depth + 1)
@@ -389,7 +389,7 @@ export function solve(baseIndex: GameIndex, target: Target, profile: Profile, ch
       let changed = false
       for (const tool of plan.tools) {
         if (goals.some((g) => g.item === tool)) continue
-        ensureItems([{ item: tool, qty: 1 }], { key: 'why.tool', params: { name: itemName(tool) } }, depth + 1)
+        ensureItems([{ item: tool, qty: 1 }], { key: 'why.tool', params: { name: itemName(tool), ref: `item:${tool}` } }, depth + 1)
         changed = true
       }
       for (const id of plan.purchases) {

@@ -7,12 +7,15 @@ import { fmtDurationShort, fmtInt } from '../core/format'
 import { actionTime, rankSources, yieldOf } from '../core/planner'
 import { GP } from '../core/route'
 import { useI18n } from '../i18n'
-import { GameIcon, LevelTag } from './components'
-import { recipeAction } from './SolutionView'
-import { newId, useGame, type DetailType } from './state'
+import { xpForLevel } from '../core/experience'
+import { GameIcon, LevelTag, openEntity } from './components'
+import { recipeAction, shopCategory } from './SolutionView'
+import { itemRoute, newId, planItem, useGame, type DetailType } from './state'
+
+type EntityType = DetailType | 'skill'
 
 interface Target {
-  type: DetailType
+  type: EntityType
   id: string
   x: number
   y: number
@@ -23,7 +26,7 @@ const parse = (el: Element | null) => {
   const raw = el?.closest('[data-entity]')?.getAttribute('data-entity')
   if (!raw) return null
   const i = raw.indexOf(':')
-  return { type: raw.slice(0, i) as DetailType, id: raw.slice(i + 1), el: el!.closest('[data-entity]')! }
+  return { type: raw.slice(0, i) as EntityType, id: raw.slice(i + 1), el: el!.closest('[data-entity]')! }
 }
 
 export function EntityHover() {
@@ -116,7 +119,7 @@ function Tooltip({ target }: { target: Target }) {
     const src = rankSources(index, item.id, state.profile)[0]
     const per = src ? yieldOf(src, item.id, state.profile) : 0
     const uses = index.consumers.get(item.id)?.filter((r) => !r.demoLocked).length ?? 0
-    const goal = state.items.find((g) => g.item === item.id)
+    const goal = itemRoute(state, item.id)
     body = (
       <>
         <Head icon={item.icon} name={item.name} />
@@ -128,7 +131,7 @@ function Tooltip({ target }: { target: Target }) {
             </span>
           )}
           <span>{t('tip.inBank', { n: fmtInt(state.profile.inventory[item.id] ?? 0) })}</span>
-          {goal && <span className="ok">{t('tip.inPlan', { n: fmtInt(goal.qty) })}</span>}
+          {goal && <span className="ok">{t('tip.inRoute', { n: fmtInt(goal.qty) })}</span>}
           {item.food && <span>{t('detail.heals', { n: item.food.healing })}</span>}
           {item.equipment && <span>{item.equipment.type}</span>}
         </div>
@@ -136,6 +139,7 @@ function Tooltip({ target }: { target: Target }) {
           <div className="tip-line">
             <GameIcon src={src.skill ? index.skills.get(src.skill)?.icon : src.icon} size={14} />
             {recipeAction(t, src)}
+            {shopCategory(index, src) && <span className="muted">· {shopCategory(index, src)}</span>}
             <LevelTag level={src.level} have={src.skill ? (state.profile.levels[src.skill] ?? 1) : 1} />
             {per > 0 && src.timeMs > 0 && <span className="muted">{t('insp.perUnit', { time: fmtDurationShort(actionTime(src, state.profile) / per) })}</span>}
           </div>
@@ -143,6 +147,25 @@ function Tooltip({ target }: { target: Target }) {
         <div className="tip-foot">
           {t('tip.counts', { sources: index.producers.get(item.id)?.length ?? 0, uses })} · {t('tip.menuHint')}
         </div>
+      </>
+    )
+  } else if (target.type === 'skill') {
+    const s = index.skills.get(target.id)
+    if (!s) return null
+    const level = state.profile.levels[s.id] ?? 1
+    const xp = state.profile.xp?.[s.id] ?? xpForLevel(level)
+    const recipes = index.data.recipes.filter((r) => r.skill === s.id && !r.demoLocked && r.xp > 0)
+    const free = recipes.filter((r) => r.level <= level).length
+    body = (
+      <>
+        <Head icon={s.icon} name={s.name} />
+        <div className="tip-facts">
+          <span>Level {level}</span>
+          <span>{fmtInt(xp)} XP</span>
+          {level < (state.profile.levelCap ?? 120) && <span>{t('tip.toNext', { xp: fmtInt(xpForLevel(level + 1) - xp) })}</span>}
+        </div>
+        <div className="tip-line">{t('skill.free', { free, total: recipes.length })}</div>
+        <div className="tip-foot">{t('tip.menuHint')}</div>
       </>
     )
   } else if (target.type === 'enemy') {
@@ -185,6 +208,7 @@ function Tooltip({ target }: { target: Target }) {
     body = (
       <>
         <Head icon={p.icon} name={p.name} />
+        {p.category && <div className="tip-cat">{t('tip.shopCategory', { category: p.category })}</div>}
         {p.description && <p className="tip-desc">{p.description}</p>}
         <div className="tip-facts">
           {p.costs.map((c) => (
@@ -225,7 +249,9 @@ function ContextMenu({ target, onClose }: { target: Target; onClose: () => void 
   }, [onClose])
 
   const name =
-    target.type === 'item'
+    target.type === 'skill'
+      ? index.skills.get(target.id)?.name
+      : target.type === 'item'
       ? index.items.get(target.id)?.name
       : target.type === 'enemy'
         ? index.data.enemies?.find((e) => e.id === target.id)?.name
@@ -237,16 +263,27 @@ function ContextMenu({ target, onClose }: { target: Target; onClose: () => void 
     onClose()
   }
   const items: (ReactNode | null)[] = [
-    <MenuItem key="open" label={t('menu.open')} onClick={act(() => dispatch({ type: 'view', view: { kind: 'detail', type: target.type, id: target.id } }))} />,
+    <MenuItem key="open" label={t('menu.open')} onClick={act(() => openEntity(dispatch, `${target.type}:${target.id}`))} />,
   ]
-  if (target.type === 'item') {
-    const inPlan = state.items.some((g) => g.item === target.id)
+  if (target.type === 'skill') {
+    const level = state.profile.levels[target.id] ?? 1
     items.push(
-      inPlan ? (
-        <MenuItem key="rm" label={t('menu.removeFromPlan')} onClick={act(() => dispatch({ type: 'removeItem', item: target.id }))} />
-      ) : (
-        <MenuItem key="add" label={t('detail.addToPlan')} onClick={act(() => dispatch({ type: 'addItem', item: target.id }))} />
-      ),
+      <MenuItem
+        key="route"
+        label={t('skill.levelRoute')}
+        onClick={act(() => dispatch({ type: 'addRoute', route: { id: newId(), kind: 'level', skill: target.id, level: Math.min(state.profile.levelCap ?? 120, level + 10) } }))}
+      />,
+    )
+  }
+  if (target.type === 'item') {
+    const route = itemRoute(state, target.id)
+    if (route)
+      items.push(
+        <MenuItem key="open-route" label={t('route.open')} onClick={act(() => dispatch({ type: 'view', view: { kind: 'route', id: route.id } }))} />,
+        <MenuItem key="rm" label={t('route.remove')} onClick={act(() => dispatch({ type: 'removeRoute', id: route.id }))} />,
+      )
+    else items.push(<MenuItem key="add" label={t('detail.planRoute')} onClick={act(() => dispatch(planItem(target.id)))} />)
+    items.push(
       <MenuItem key="insp" label={t('menu.inspector')} onClick={act(() => dispatch({ type: 'select', item: target.id }))} />,
     )
   }

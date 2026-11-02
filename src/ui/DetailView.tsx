@@ -9,8 +9,8 @@ import type { Id, InfoSource, Mod, NamedValue, Req } from '../core/types'
 import { useI18n } from '../i18n'
 import { modLabel, modScope, modValue } from './bonusText'
 import { GameIcon, LevelTag, Stepper, Switch, Sym, Toolbar } from './components'
-import { recipeAction } from './SolutionView'
-import { newId, useGame, type DetailType } from './state'
+import { Needs, recipeAction, SourceText, sourceEntity } from './SolutionView'
+import { itemRoute, newId, planItem, useGame, type DetailType } from './state'
 
 export function DetailView({ type, id }: { type: DetailType; id: Id }) {
   if (type === 'item') return <ItemDetail id={id} />
@@ -120,7 +120,7 @@ function Reqs({ reqs }: { reqs: Req[] }) {
       {reqs.map((q, i) =>
         q.type === 'level' ? (
           <span key={i} className="chip">
-            <GameIcon src={index.skills.get(q.skill)?.icon} size={14} /> {index.skills.get(q.skill)?.name}
+            <GameIcon src={index.skills.get(q.skill)?.icon} size={14} entity={`skill:${q.skill}`} /> {index.skills.get(q.skill)?.name}
             <LevelTag level={q.level} have={state.profile.levels[q.skill] ?? 1} />
           </span>
         ) : q.type === 'purchase' ? (
@@ -148,7 +148,7 @@ function ItemDetail({ id }: { id: Id }) {
   const item = index.items.get(id)
   if (!item) return <Missing />
 
-  const goal = state.items.find((g) => g.item === id)
+  const route = itemRoute(state, id)
   const stock = state.profile.inventory[id] ?? 0
   const sources = rankSources(index, id, state.profile)
   const chosen = state.choices[id]
@@ -178,23 +178,25 @@ function ItemDetail({ id }: { id: Id }) {
                 .filter((x) => x.product)
                 .map((x) => (
                   <span key={x.tag} className="chip" title={t('detail.madeIn')}>
-                    {x.skill && <GameIcon src={x.skill.icon} size={14} />} {x.skill?.name ?? x.tag.replace(/^MelvorBase:/, '')}
+                    {x.skill && <GameIcon src={x.skill.icon} size={14} entity={`skill:${x.skill.id}`} />} {x.skill?.name ?? x.tag.replace(/^MelvorBase:/, '')}
                   </span>
                 ))}
             </>
           }
         >
-          {goal ? (
-            <div className="hero-goal">
-              <span className="muted">{t('detail.inPlan')}</span>
-              <Stepper label={t('insp.goalQty')} value={goal.qty} min={1} onChange={(qty) => dispatch({ type: 'setItemQty', item: id, qty })} />
-              <button className="btn plain small danger" onClick={() => dispatch({ type: 'removeItem', item: id })}>
-                {t('common.remove')}
+          {route ? (
+            <>
+              <button className="btn primary" onClick={() => dispatch({ type: 'view', view: { kind: 'route', id: route.id } })}>
+                {t('route.open')} <Sym name="chevron" size={11} />
               </button>
-            </div>
+              <div className="hero-goal">
+                <span className="muted">{t('route.qty')}</span>
+                <Stepper label={t('route.qty')} value={route.qty} min={1} onChange={(qty) => dispatch({ type: 'updateRoute', route: { ...route, qty } })} />
+              </div>
+            </>
           ) : (
-            <button className="btn primary" onClick={() => dispatch({ type: 'addItem', item: id })}>
-              <Sym name="plus" size={13} /> {t('detail.addToPlan')}
+            <button className="btn primary" onClick={() => dispatch(planItem(id))}>
+              <Sym name="plus" size={13} /> {t('detail.planRoute')}
             </button>
           )}
           <div className="hero-goal">
@@ -228,10 +230,12 @@ function ItemDetail({ id }: { id: Id }) {
                       </td>
                       <td>
                         <div className="cell-source">
-                          <GameIcon src={skill?.icon ?? r.icon} size={18} />
-                          <span className="name">{recipeAction(t, r)}</span>
+                          <GameIcon src={skill?.icon ?? r.icon} size={18} entity={sourceEntity(r)} />
+                          <span className="name">
+                            <SourceText r={r} self={id} />
+                          </span>
                           {r.demoLocked && <span className="tag locked">Demo</span>}
-                          {unmet.length > 0 && <span className="tag warn">{t('insp.needs', { name: unmet.map((q) => (q.type === 'purchase' ? q.name : q.type === 'item' ? index.items.get(q.item)?.name : '')).join(', ') })}</span>}
+                          <Needs reqs={unmet} />
                         </div>
                       </td>
                       <td>
@@ -246,8 +250,8 @@ function ItemDetail({ id }: { id: Id }) {
                             </span>
                           ))}
                           {r.inputs.map((i) => (
-                            <span key={i.item} data-entity={`item:${i.item}`}>
-                              <GameIcon src={index.items.get(i.item)?.icon} size={16} /> {fmtNum(i.qty)}
+                            <span key={i.item}>
+                              <GameIcon src={index.items.get(i.item)?.icon} size={16} entity={`item:${i.item}`} /> {fmtNum(i.qty)}
                             </span>
                           ))}
                         </span>
@@ -279,9 +283,9 @@ function ItemDetail({ id }: { id: Id }) {
                     <tr key={r.id} data-entity={out ? `item:${out}` : undefined} onClick={() => out && dispatch({ type: 'view', view: { kind: 'detail', type: 'item', id: out } })}>
                       <td>
                         <div className="cell-source">
-                          <GameIcon src={index.items.get(out)?.icon ?? r.icon} size={18} />
+                          <GameIcon src={index.items.get(out)?.icon ?? r.icon} size={18} entity={out ? `item:${out}` : null} />
                           <span className="name">{recipeAction(t, r)}</span>
-                          {skill && <GameIcon src={skill.icon} size={14} />}
+                          {skill && <GameIcon src={skill.icon} size={14} entity={`skill:${skill.id}`} />}
                         </div>
                       </td>
                       <td>
@@ -304,7 +308,7 @@ function ItemDetail({ id }: { id: Id }) {
               ))}
               {toolFor.map((r) => (
                 <span key={r.id} className="chip">
-                  <GameIcon src={r.icon} size={14} /> {recipeAction(t, r)}
+                  <GameIcon src={r.icon} size={14} entity={r.outputs[0] ? `item:${r.outputs[0].item}` : null} /> <SourceText r={r} />
                 </span>
               ))}
             </div>
@@ -411,7 +415,7 @@ function ItemRef({ id }: { id: Id }) {
   const item = index.items.get(id)
   return (
     <div className="cell-item">
-      <GameIcon src={item?.icon} size={18} />
+      <GameIcon src={item?.icon} size={18} entity={`item:${id}`} />
       <span className="name">{item?.name ?? id}</span>
     </div>
   )
@@ -443,7 +447,7 @@ function InfoSources({ rows }: { rows: InfoSource[] }) {
                 <tr key={i} data-entity={entity} onClick={() => open(s)} className={entity ? '' : 'static'}>
                   <td>
                     <div className="cell-item">
-                      <GameIcon src={enemy?.icon ?? s.icon} size={18} />
+                      <GameIcon src={enemy?.icon ?? s.icon} size={18} entity={enemy ? `enemy:${enemy.id}` : s.chest ? `item:${s.chest}` : null} />
                       <span className="name">{s.name}</span>
                       {s.level ? <span className="lv">Lv {s.level}</span> : null}
                     </div>
@@ -499,7 +503,7 @@ function EnemyDetail({ id }: { id: Id }) {
             {COMBAT.map((s) => (
               <div key={s} className="stat">
                 <span>
-                  <GameIcon src={index.skills.get(s)?.icon} size={14} /> {index.skills.get(s)?.name ?? s}
+                  <GameIcon src={index.skills.get(s)?.icon} size={14} entity={`skill:${s}`} /> {index.skills.get(s)?.name ?? s}
                 </span>
                 <b>{e.levels[s] ?? 1}</b>
               </div>
@@ -600,7 +604,7 @@ function AreaDetail({ id }: { id: Id }) {
                 <tr key={e.id} data-entity={`enemy:${e.id}`} onClick={() => dispatch({ type: 'view', view: { kind: 'detail', type: 'enemy', id: e.id } })}>
                   <td>
                     <div className="cell-item">
-                      <GameIcon src={e.icon} size={22} />
+                      <GameIcon src={e.icon} size={22} entity={`enemy:${e.id}`} />
                       <span className="name">{e.name}</span>
                     </div>
                   </td>

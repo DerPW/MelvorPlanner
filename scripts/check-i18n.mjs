@@ -30,6 +30,8 @@ for (const f of files) {
   for (const m of s.matchAll(/\bt\(\s*'([^']+)'/g)) used.add(m[1])
   for (const m of s.matchAll(/\bt\(\s*[\w.]+\s*\?\s*'([^']+)'\s*:\s*'([^']+)'/g)) used.add(m[1]).add(m[2])
   for (const m of s.matchAll(/key:\s*'([^':]+)'/g)) used.add(m[1])
+  // <TNodes k="insp.needs" …/>
+  for (const m of s.matchAll(/\bk="([\w.]+)"/g)) used.add(m[1])
   for (const m of s.matchAll(/key:\s*[\w.]+\s*===\s*'[^']+'\s*\?\s*'([^']+)'\s*:\s*'([^']+)'/g)) used.add(m[1]).add(m[2])
 }
 

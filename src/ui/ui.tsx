@@ -10,5 +10,8 @@ export interface Ui {
 export const UiContext = createContext<Ui>({ openImport: () => {}, openNotes: () => {} })
 export const useUi = () => useContext(UiContext)
 
-/** Globale Suche fokussieren (Knopf „Item hinzufügen" im Plan) */
+/** Globale Suche fokussieren */
 export const focusSearch = () => window.dispatchEvent(new Event('melvor:focus-search'))
+
+/** Fenster-Ereignis: das Item-Feld der Routen-Übersicht nimmt den Fokus */
+export const PICK_ITEM_EVENT = 'melvor:pick-item'

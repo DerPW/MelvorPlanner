@@ -121,7 +121,7 @@ export function ProfileView() {
             <Stepper label={t('sum.gold')} value={p.currencies[GP] ?? 0} step={1000} onChange={(qty) => dispatch({ type: 'setCurrency', currency: GP, qty })} />
           </div>
           <div className="form-row">
-            <GameIcon src={index.skills.get('MelvorBase:Farming')?.icon} size={22} />
+            <GameIcon src={index.skills.get('MelvorBase:Farming')?.icon} size={22} entity="skill:MelvorBase:Farming" />
             <span className="grow">
               {t('profile.plots')}
               <div className="hint">{t('profile.plots.hint')}</div>
@@ -163,7 +163,7 @@ export function ProfileView() {
             const level = p.levels[s.id] ?? 1
             return (
               <div className="form-row" key={s.id}>
-                <GameIcon src={s.icon} size={22} />
+                <GameIcon src={s.icon} size={22} entity={`skill:${s.id}`} />
                 <span className="grow">
                   {s.name}
                   <div className="hint">{fmtInt(p.xp?.[s.id] ?? xpForLevel(level))} XP</div>
@@ -190,7 +190,7 @@ export function ProfileView() {
             if (!s) return null
             return (
               <div className="form-row" key={skill}>
-                <GameIcon src={s.icon} size={22} />
+                <GameIcon src={s.icon} size={22} entity={`skill:${skill}`} />
                 <span className="grow">{s.name}</span>
                 <Select
                   label={t('guild.rankOf', { skill: s.name })}
@@ -221,7 +221,11 @@ export function ProfileView() {
             <div className="form-group">
               {bonus.active.map(({ source, count }) => (
                 <div className="form-row bonus-row" key={`${source.kind}:${source.id}`}>
-                  <GameIcon src={source.icon ?? (source.skill ? index.skills.get(source.skill)?.icon : null)} size={22} />
+                  <GameIcon
+                    src={source.icon ?? (source.skill ? index.skills.get(source.skill)?.icon : null)}
+                    size={22}
+                    entity={source.kind === 'purchase' ? `purchase:${source.id}` : source.kind === 'item' ? `item:${source.id}` : source.skill ? `skill:${source.skill}` : null}
+                  />
                   <span className="grow">
                     {source.name}
                     {count > 1 && <span className="muted"> ×{count}</span>}
@@ -258,7 +262,7 @@ export function ProfileView() {
             const item = index.items.get(id)
             return (
               <div className="form-row" key={id}>
-                <GameIcon src={item?.icon} size={22} />
+                <GameIcon src={item?.icon} size={22} entity={`item:${id}`} />
                 <span className="grow" data-entity={`item:${id}`}>
                   {item?.name ?? id}
                 </span>
@@ -277,7 +281,7 @@ export function ProfileView() {
             <div className="form-group">
               {p.equipped.map((id) => (
                 <div className="form-row" key={id}>
-                  <GameIcon src={index.items.get(id)?.icon} size={22} />
+                  <GameIcon src={index.items.get(id)?.icon} size={22} entity={`item:${id}`} />
                   <span className="grow">{index.items.get(id)?.name ?? id}</span>
                   <span className="muted">{t('toolbelt.equipped')}</span>
                 </div>
@@ -298,7 +302,7 @@ export function ProfileView() {
         <div className="form-group">
           {unlocks.map((u) => (
             <div className="form-row" key={u.id}>
-              <GameIcon src={u.icon} size={22} />
+              <GameIcon src={u.icon} size={22} entity={`purchase:${u.id}`} />
               <span className="grow">
                 {u.name}
                 <div className="hint">

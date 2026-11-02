@@ -1,24 +1,26 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { applyBonuses } from '../core/bonuses'
 import { fmtInt } from '../core/format'
 import { GP } from '../core/route'
 import type { GameIndex } from '../core/planner'
 import { useI18n, type LangSetting } from '../i18n'
 import { GameIcon, Sym } from './components'
+import { Breadcrumbs } from './Breadcrumbs'
 import { DetailView } from './DetailView'
 import { EntityHover } from './EntityHover'
 import { ImportSheet } from './ImportSheet'
 import { Inspector } from './Inspector'
 import { LiveSyncProvider, useLive } from './LiveSync'
-import { PlanView } from './PlanView'
 import { ProfileView } from './ProfileView'
 import { ReleaseNotes, useReleaseNotesOnUpdate } from './ReleaseNotes'
-import { routeIcon, routeLabel } from './routeText'
+import { newRoute, routeEntity, routeIcon, routeLabel } from './routeText'
+import { RoutesHome } from './RoutesHome'
 import { RouteView } from './RouteView'
 import { GlobalSearch } from './search'
 import { SkillView } from './SkillView'
-import { GameContext, loadState, newId, reducer, saveState, useGame, type RouteTarget } from './state'
-import { UiContext, useUi } from './ui'
+import { GameContext, loadState, reducer, saveState, useGame } from './state'
+import { PICK_ITEM_EVENT, UiContext, useUi } from './ui'
 
 export function App({ index }: { index: GameIndex }) {
   const [state, dispatch] = useReducer(reducer, undefined, loadState)
@@ -36,7 +38,7 @@ export function App({ index }: { index: GameIndex }) {
   else if (view.kind === 'skill') main = <SkillView skill={view.skill} />
   else if (view.kind === 'detail') main = <DetailView type={view.type} id={view.id} />
   else if (view.kind === 'route' && state.routes.some((r) => r.id === view.id)) main = <RouteView id={view.id} />
-  else main = <PlanView />
+  else main = <RoutesHome />
 
   return (
     <GameContext.Provider value={{ index: bonus.index, baseIndex: index, bonus, state, dispatch }}>
@@ -44,9 +46,12 @@ export function App({ index }: { index: GameIndex }) {
         <LiveSyncProvider>
           <div className={`window ${state.selected ? '' : 'no-inspector'}`}>
             <Sidebar />
-            <main className="main view-in" key={viewKey}>
-              {main}
-            </main>
+            <div className="main-col">
+              <Breadcrumbs />
+              <main className="main view-in" key={viewKey}>
+                {main}
+              </main>
+            </div>
             {state.selected && (
               <aside className={`inspector ${state.inspectorOpen ? '' : 'closed'}`}>
                 <Inspector item={state.selected} key={state.selected} />
@@ -87,59 +92,17 @@ function Sidebar() {
 
       <div className="sidebar-scroll">
         <div className="side-section" style={{ marginTop: 4 }}>
-          <button className={`side-row ${v.kind === 'plan' ? 'active' : ''}`} onClick={() => dispatch({ type: 'view', view: { kind: 'plan' } })}>
+          <button className={`side-row ${v.kind === 'routes' ? 'active' : ''}`} onClick={() => dispatch({ type: 'view', view: { kind: 'routes' }, root: true })}>
             <img src={ui('CompletionLog')} alt="" />
-            <span className="grow">{t('plan.title')}</span>
-            {state.items.length > 0 && <span className="badge">{state.items.length}</span>}
+            <span className="grow">{t('home.title')}</span>
+            {state.routes.length > 0 && <span className="badge">{state.routes.length}</span>}
           </button>
-          <button className={`side-row ${v.kind === 'profile' ? 'active' : ''}`} onClick={() => dispatch({ type: 'view', view: { kind: 'profile' } })}>
+          <button className={`side-row ${v.kind === 'profile' ? 'active' : ''}`} onClick={() => dispatch({ type: 'view', view: { kind: 'profile' }, root: true })}>
             <img src={ui('Bank')} alt="" />
             <span className="grow">{t('profile.title')}</span>
             <LiveBadge />
           </button>
         </div>
-
-        {state.items.length > 0 && (
-          <div className="side-section">
-            <div className="side-label">{t('nav.items')}</div>
-            {state.items.map((g) => {
-              const item = index.items.get(g.item)
-              const active = v.kind === 'detail' && v.type === 'item' && v.id === g.item
-              return (
-                <button
-                  key={g.item}
-                  data-entity={`item:${g.item}`}
-                  className={`side-row removable ${active ? 'active' : ''}`}
-                  onClick={() => dispatch({ type: 'view', view: { kind: 'detail', type: 'item', id: g.item } })}
-                >
-                  <GameIcon src={item?.icon} size={18} />
-                  <span className="grow">{item?.name ?? g.item}</span>
-                  <span className="badge">×{fmtInt(g.qty)}</span>
-                  <span
-                    className="side-remove"
-                    role="button"
-                    tabIndex={0}
-                    aria-label={t('menu.removeFromPlan')}
-                    title={t('menu.removeFromPlan')}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      dispatch({ type: 'removeItem', item: g.item })
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        dispatch({ type: 'removeItem', item: g.item })
-                      }
-                    }}
-                  >
-                    <Sym name="close" size={11} />
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        )}
 
         <div className="side-section">
           <div className="side-label">
@@ -150,11 +113,13 @@ function Sidebar() {
           {state.routes.map((r) => (
             <button
               key={r.id}
+              data-entity={routeEntity(r) ?? undefined}
               className={`side-row removable ${v.kind === 'route' && v.id === r.id ? 'active' : ''}`}
-              onClick={() => dispatch({ type: 'view', view: { kind: 'route', id: r.id } })}
+              onClick={() => dispatch({ type: 'view', view: { kind: 'route', id: r.id }, root: true })}
             >
               <GameIcon src={routeIcon(index, r)} size={18} />
               <span className="grow">{routeLabel(index, r)}</span>
+              {r.kind === 'item' && <span className="badge">×{fmtInt(r.qty)}</span>}
               <span
                 className="side-remove"
                 role="button"
@@ -186,8 +151,9 @@ function Sidebar() {
             .map((s) => (
               <button
                 key={s.id}
+                data-entity={`skill:${s.id}`}
                 className={`side-row ${v.kind === 'skill' && v.skill === s.id ? 'active' : ''}`}
-                onClick={() => dispatch({ type: 'view', view: { kind: 'skill', skill: s.id } })}
+                onClick={() => dispatch({ type: 'view', view: { kind: 'skill', skill: s.id }, root: true })}
               >
                 <GameIcon src={s.icon} size={18} />
                 <span className="grow">{s.name}</span>
@@ -226,54 +192,84 @@ function SidebarFooter() {
   )
 }
 
+/** Sinnbild für „Item herstellen" */
+export const ITEM_ICON = 'MelvorBase:IronBar'
+
 function AddRouteMenu() {
   const { index, state, dispatch } = useGame()
   const { t } = useI18n()
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLSpanElement>(null)
+  // Das Menü hängt am Body: in der scrollenden Seitenleiste wurde es
+  // abgeschnitten und lag unter dem Hauptbereich
+  const [at, setAt] = useState<{ left: number; top: number } | null>(null)
+  const open = at !== null
+  const setOpen = (v: boolean) => {
+    const r = button.current?.getBoundingClientRect()
+    setAt(v && r ? { left: Math.max(8, r.right - 230), top: r.bottom + 6 } : null)
+  }
+  const button = useRef<HTMLButtonElement>(null)
+  const menu = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
-    const close = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setOpen(false)
+    const close = (e: MouseEvent) => {
+      const n = e.target as Node
+      if (!menu.current?.contains(n) && !button.current?.contains(n)) setAt(null)
+    }
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setAt(null)
+    const away = () => setAt(null)
     document.addEventListener('mousedown', close)
-    return () => document.removeEventListener('mousedown', close)
+    document.addEventListener('keydown', esc)
+    window.addEventListener('resize', away)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', esc)
+      window.removeEventListener('resize', away)
+    }
   }, [open])
 
-  const add = (route: RouteTarget) => {
-    dispatch({ type: 'addRoute', route })
+  const add = (kind: 'level' | 'gold' | 'unlock') => {
+    const route = newRoute(index, state.profile, kind)
+    if (route) dispatch({ type: 'addRoute', route, root: true })
     setOpen(false)
   }
-  const firstSkill = index.data.skills.find((s) => s.id === 'MelvorBase:Woodcutting') ?? index.data.skills[0]
-  const firstUnlock = index.data.purchases.find((p) => !p.items.length && !p.demoLocked && !(state.profile.owned[p.id] > 0))
+  // Item: auf der Übersicht im Suchfeld wählen
+  const pickItem = () => {
+    dispatch({ type: 'view', view: { kind: 'routes' }, root: true })
+    setOpen(false)
+    setTimeout(() => window.dispatchEvent(new Event(PICK_ITEM_EVENT)), 60)
+  }
+  const level = newRoute(index, state.profile, 'level')
+  const unlock = newRoute(index, state.profile, 'unlock')
 
   return (
-    <span ref={ref} style={{ position: 'relative' }}>
-      <button aria-label={t('nav.addRoute')} onClick={() => setOpen(!open)}>
+    <>
+      <button ref={button} aria-label={t('nav.addRoute')} title={t('nav.addRoute')} aria-expanded={open} onClick={() => setOpen(!open)}>
         <Sym name="plus" size={13} />
       </button>
-      {open && (
-        <div className="popover" style={{ left: -8, right: 'auto', top: 22, width: 230 }}>
-          <button
-            className="pop-row"
-            onClick={() =>
-              add({ id: newId(), kind: 'level', skill: firstSkill.id, level: Math.min(state.profile.levelCap ?? 120, (state.profile.levels[firstSkill.id] ?? 1) + 10) })
-            }
-          >
-            <GameIcon src={firstSkill.icon} size={20} />
-            <span className="grow">{t('nav.addLevel')}</span>
-          </button>
-          <button className="pop-row" onClick={() => add({ id: newId(), kind: 'gold', amount: 10000 })}>
-            <GameIcon src={index.currencies.get(GP)?.icon} size={20} />
-            <span className="grow">{t('nav.addGold')}</span>
-          </button>
-          {firstUnlock && (
-            <button className="pop-row" onClick={() => add({ id: newId(), kind: 'unlock', purchase: firstUnlock.id })}>
-              <GameIcon src={firstUnlock.icon} size={20} />
-              <span className="grow">{t('nav.addUnlock')}</span>
+      {at &&
+        createPortal(
+          <div ref={menu} className="popover floating" style={{ left: at.left, top: at.top, width: 230 }}>
+            <button className="pop-row" onClick={pickItem}>
+              <GameIcon src={index.items.get(ITEM_ICON)?.icon} size={20} />
+              <span className="grow">{t('home.item')}</span>
             </button>
-          )}
-        </div>
-      )}
-    </span>
+            <button className="pop-row" onClick={() => add('level')}>
+              <GameIcon src={level ? routeIcon(index, level) : null} size={20} />
+              <span className="grow">{t('nav.addLevel')}</span>
+            </button>
+            <button className="pop-row" onClick={() => add('gold')}>
+              <GameIcon src={index.currencies.get(GP)?.icon} size={20} />
+              <span className="grow">{t('nav.addGold')}</span>
+            </button>
+            {unlock && (
+              <button className="pop-row" onClick={() => add('unlock')}>
+                <GameIcon src={routeIcon(index, unlock)} size={20} />
+                <span className="grow">{t('nav.addUnlock')}</span>
+              </button>
+            )}
+          </div>,
+          document.body,
+        )}
+    </>
   )
 }
 

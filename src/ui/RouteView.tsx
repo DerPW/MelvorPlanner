@@ -1,38 +1,64 @@
+// Eine Route: ein Ziel und der ganze Weg dorthin — Trainieren, Gold
+// verdienen, Freischaltungen kaufen, Herstellen, in der Reihenfolge, in der es
+// gemacht werden muss. Bei Item-Zielen zusätzlich Baum und Material.
+
 import { useMemo } from 'react'
 import { MAX_LEVEL } from '../core/experience'
-import { solve, type Target } from '../core/solve'
+import { isGoal, solve } from '../core/solve'
 import { useT } from '../i18n'
-import { Select, Stepper, Switch, Sym, Toolbar } from './components'
-import { routeLabel } from './routeText'
+import { GameIcon, Ref, Segmented, Select, Stepper, Switch, Sym, Toolbar } from './components'
+import { Materials, TreeTable } from './PlanTables'
+import { routeEntity, routeIcon, routeLabel, routeTarget } from './routeText'
 import { RouteOverview, SolutionFlow, SolutionSummary } from './SolutionView'
-import { useGame, type RouteTarget } from './state'
+import { useGame, type PlanTab, type RouteTarget } from './state'
 
 export function RouteView({ id }: { id: string }) {
   const { index, baseIndex, state, dispatch } = useGame()
   const t = useT()
   const route = state.routes.find((r) => r.id === id)!
-  const target: Target = useMemo(() => {
-    const { id: _id, ...rest } = route
-    return rest
-  }, [route])
+  const target = useMemo(() => routeTarget(route), [route])
+  // Der Löser rechnet Boni selbst — auch die, die unterwegs gekauft werden
   const solution = useMemo(
     () => solve(baseIndex, target, state.profile, state.choices, state.options),
     [baseIndex, target, state.profile, state.choices, state.options],
   )
   const update = (r: RouteTarget) => dispatch({ type: 'updateRoute', route: r })
+  // Baum und Material zeigen den Plan für das Ziel selbst (nach allem Training)
+  const plan = route.kind === 'item' ? [...solution.phases].reverse().find((p) => p.kind === 'craft' && isGoal(p.why)) : undefined
+  const tab = plan ? state.tab : 'flow'
 
   const trainable = index.data.skills.filter((s) => index.data.recipes.some((r) => r.skill === s.id && r.xp > 0))
   const unlocks = index.data.purchases
     .filter((p) => !p.items.length)
     .sort((a, b) => (a.category ?? '').localeCompare(b.category ?? '') || a.name.localeCompare(b.name))
+  const entity = routeEntity(route)
 
   return (
     <>
       <Toolbar
-        title={routeLabel(index, route)}
+        title={
+          <span className="route-title">
+            <GameIcon src={routeIcon(index, route)} size={20} entity={entity} />
+            {entity ? <Ref entity={entity}>{routeLabel(index, route)}</Ref> : routeLabel(index, route)}
+          </span>
+        }
         subtitle={`${t(`route.kind.${route.kind}`)} · ${t(state.options.smart ? 'route.subtitleSmart' : 'route.subtitle')}`}
       >
+        {plan && (
+          <Segmented<PlanTab>
+            value={tab}
+            onChange={(tab) => dispatch({ type: 'tab', tab })}
+            options={[
+              { value: 'flow', label: t('plan.tab.flow'), icon: 'list' },
+              { value: 'tree', label: t('plan.tab.tree'), icon: 'tree' },
+              { value: 'materials', label: t('plan.tab.materials'), icon: 'box' },
+            ]}
+          />
+        )}
         <div className="toolbar-controls">
+          {route.kind === 'item' && (
+            <Stepper label={t('route.qty')} value={route.qty} min={1} onChange={(qty) => update({ ...route, qty })} />
+          )}
           {route.kind === 'level' && (
             <>
               <Select label={t('route.skill')} value={route.skill} onChange={(skill) => update({ ...route, skill })}>
@@ -81,19 +107,25 @@ export function RouteView({ id }: { id: string }) {
       </Toolbar>
       <div className="content">
         <SolutionSummary solution={solution} />
-        <RouteOverview solution={solution} />
-        <div className="inline-option">
-          <Switch
-            label={t('opt.materials')}
-            checked={state.options.includeMaterials}
-            onChange={(includeMaterials) => dispatch({ type: 'setOption', options: { includeMaterials } })}
-          />
-          <span>
-            {t('opt.materials')}
-            <span className="muted"> — {t('opt.materials.off')}</span>
-          </span>
+        <RouteOverview solution={solution} onOpen={plan ? () => dispatch({ type: 'tab', tab: 'flow' }) : undefined} />
+        {tab === 'flow' && (
+          <div className="inline-option">
+            <Switch
+              label={t('opt.materials')}
+              checked={state.options.includeMaterials}
+              onChange={(includeMaterials) => dispatch({ type: 'setOption', options: { includeMaterials } })}
+            />
+            <span>
+              {t('opt.materials')}
+              <span className="muted"> — {t('opt.materials.off')}</span>
+            </span>
+          </div>
+        )}
+        <div className="fade-in" key={tab}>
+          {tab === 'flow' && <SolutionFlow solution={solution} scope={id} />}
+          {tab === 'tree' && plan?.kind === 'craft' && <TreeTable plan={plan.plan} levels={plan.at.levels} solution={solution} />}
+          {tab === 'materials' && plan?.kind === 'craft' && <Materials plan={plan.plan} />}
         </div>
-        <SolutionFlow solution={solution} scope={id} />
       </div>
     </>
   )

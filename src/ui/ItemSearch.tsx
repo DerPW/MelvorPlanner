@@ -10,11 +10,16 @@ export function ItemSearch({
   placeholder,
   shortcut = false,
   width,
+  focusOn,
+  autoFocus = false,
 }: {
   onPick: (item: Id) => void
   placeholder?: string
   shortcut?: boolean
   width?: number
+  /** Fenster-Ereignis, auf das das Feld den Fokus nimmt */
+  focusOn?: string
+  autoFocus?: boolean
 }) {
   const { index } = useGame()
   const t = useT()
@@ -36,6 +41,13 @@ export function ItemSearch({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [shortcut])
+
+  useEffect(() => {
+    if (!focusOn) return
+    const focus = () => input.current?.focus()
+    window.addEventListener(focusOn, focus)
+    return () => window.removeEventListener(focusOn, focus)
+  }, [focusOn])
 
   useEffect(() => {
     if (!open) return
@@ -68,6 +80,7 @@ export function ItemSearch({
       <Sym name="search" size={15} className="sym-lead" />
       <input
         ref={input}
+        autoFocus={autoFocus}
         value={q}
         placeholder={placeholder ?? t('search.placeholder')}
         onChange={(e) => {

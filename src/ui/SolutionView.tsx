@@ -1,15 +1,96 @@
-import { useState } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import { fmtDuration, fmtDurationShort, fmtInt } from '../core/format'
 import type { MakeStep } from '../core/planner'
 import { GP, type Route, type RouteSegment } from '../core/route'
 import { isGoal, solutionXp, type Phase, type Solution } from '../core/solve'
-import type { Msg, Recipe } from '../core/types'
+import type { Id, Msg, Recipe, Req } from '../core/types'
 import { useT, type T } from '../i18n'
-import { GameIcon, LevelTag, Sym } from './components'
+import { GameIcon, LevelTag, Ref, Sym } from './components'
 import { useGame } from './state'
+
+/** Wofür das Quell-Symbol eines Rezepts steht: sein Skill, sonst der Shop-Kauf */
+export const sourceEntity = (r: { skill: string | null; purchase?: string }) =>
+  r.skill ? `skill:${r.skill}` : r.purchase ? `purchase:${r.purchase}` : null
+
+/** Shop-Quelle: in welcher Shop-Kategorie der Kauf steht */
+export const shopCategory = (index: { purchases: Map<string, { category: string | null }> }, r: { purchase?: string }) =>
+  r.purchase ? (index.purchases.get(r.purchase)?.category ?? null) : null
 
 /** „Normal Tree fällen" / „Cut Normal Tree" */
 export const recipeAction = (t: T, r: Recipe) => t(`verb.${r.kind}`, { name: r.name })
+
+/** Übersetzung, in der einzelne Platzhalter React-Knoten sind
+ *  („braucht {name}" → der Name als Link) */
+export function TNodes({ k, nodes }: { k: string | Msg; nodes: Record<string, ReactNode> }) {
+  const t = useT()
+  const names = Object.keys(nodes)
+  const marks = Object.fromEntries(names.map((n, i) => [n, `\u0000${i}\u0000`]))
+  const parts = (typeof k === 'string' ? t(k, marks) : t({ ...k, params: { ...k.params, ...marks } })).split('\u0000')
+  return <>{parts.map((p, i) => (i % 2 ? <Fragment key={i}>{nodes[names[Number(p)]]}</Fragment> : p))}</>
+}
+
+/** Eine Quelle als Text: „Iron Ore abbauen". Shop-Käufe tragen ihre Kategorie
+ *  und verweisen auf den Kauf, sonst verweist der Text aufs erzeugte Item —
+ *  außer das ist `self`, das Item, um das es gerade geht. */
+export function SourceText({ r, self }: { r: Recipe; self?: Id }) {
+  const { index } = useGame()
+  const t = useT()
+  const category = shopCategory(index, r)
+  const out = r.outputs[0]?.item
+  const entity = r.purchase ? `purchase:${r.purchase}` : out && out !== self ? `item:${out}` : null
+  return (
+    <>
+      {entity ? <Ref entity={entity}>{recipeAction(t, r)}</Ref> : recipeAction(t, r)}
+      {category && <span className="src-cat">{t('tip.shopCategory', { category })}</span>}
+    </>
+  )
+}
+
+/** „braucht X, Y" — jeder Name mit Tooltip, Kontextmenü und Klick */
+export function Needs({ reqs, className = 'tag warn' }: { reqs: Req[]; className?: string }) {
+  const { index } = useGame()
+  const parts = reqs.flatMap((q) => {
+    if (q.type === 'purchase') return [{ entity: `purchase:${q.purchase}`, name: q.name }]
+    if (q.type === 'item') return [{ entity: `item:${q.item}`, name: index.items.get(q.item)?.name ?? q.item }]
+    if (q.type === 'level') return [{ entity: `skill:${q.skill}`, name: `${index.skills.get(q.skill)?.name ?? q.skill} ${q.level}` }]
+    return []
+  })
+  if (!parts.length) return null
+  return (
+    <span className={className}>
+      <TNodes
+        k="insp.needs"
+        nodes={{
+          name: parts.map((x, i) => (
+            <Fragment key={x.entity}>
+              {i > 0 && ', '}
+              <Ref entity={x.entity}>{x.name}</Ref>
+            </Fragment>
+          )),
+        }}
+      />
+    </span>
+  )
+}
+
+/** Wofür ein Schritt da ist — mit Verweis, wenn der Löser einen mitgibt */
+export function WhyTag({ why }: { why: Msg }) {
+  const t = useT()
+  const ref = typeof why.params?.ref === 'string' ? why.params.ref : null
+  return ref ? (
+    <Ref entity={ref} className="tag std">
+      {t(why)}
+    </Ref>
+  ) : (
+    <span className="tag std">{t(why)}</span>
+  )
+}
+
+/** Ein Item-Name als Verweis */
+export function ItemName({ id }: { id: Id }) {
+  const { index } = useGame()
+  return <Ref entity={`item:${id}`}>{index.items.get(id)?.name ?? id}</Ref>
+}
 
 /** Zusammenfassung als Pergament-Tafel + Hinweise */
 export function SolutionSummary({ solution }: { solution: Solution }) {
@@ -87,7 +168,7 @@ export function SolutionSummary({ solution }: { solution: Solution }) {
           )}
           {ups.map(({ s, from, to }) => (
             <span key={s.id} className="note">
-              <GameIcon src={s.icon} size={16} />
+              <GameIcon src={s.icon} size={16} entity={`skill:${s.id}`} />
               {s.name}
               <b>
                 {from} → {to}
@@ -117,6 +198,7 @@ export function RouteOverview({ solution, onOpen }: { solution: Solution; onOpen
       <ol>
         {solution.phases.map((ph, i) => {
           let icon: string | null | undefined
+          let entity: string | null = null
           let label: string
           let time: string
           if (ph.kind === 'route') {
@@ -124,6 +206,7 @@ export function RouteOverview({ solution, onOpen }: { solution: Solution; onOpen
             if (g.kind === 'level') {
               const s = index.skills.get(g.skill)
               icon = s?.icon
+              entity = `skill:${g.skill}`
               label = `${s?.name ?? g.skill} ${ph.route.before.levels[g.skill] ?? 1} → ${g.level}`
             } else {
               icon = index.currencies.get(GP)?.icon
@@ -132,10 +215,12 @@ export function RouteOverview({ solution, onOpen }: { solution: Solution; onOpen
             time = fmtDurationShort(ph.route.totalMs)
           } else if (ph.kind === 'buy') {
             icon = ph.purchase.icon
+            entity = `purchase:${ph.purchase.id}`
             label = ph.purchase.name
             time = t('flow.shop')
           } else {
             icon = index.items.get(ph.goals[0]?.item)?.icon
+            entity = ph.goals[0] ? `item:${ph.goals[0].item}` : null
             label = t('overview.make', { n: ph.plan.steps.length })
             time = fmtDurationShort(ph.plan.activeMs + ph.plan.passiveMs)
           }
@@ -143,7 +228,7 @@ export function RouteOverview({ solution, onOpen }: { solution: Solution; onOpen
             <li key={i} style={{ '--i': i } as React.CSSProperties}>
               <button onClick={onOpen} title={isGoal(ph.why) ? undefined : t(ph.why)}>
                 <span className="n">{i + 1}</span>
-                <GameIcon src={icon} size={16} />
+                <GameIcon src={icon} size={16} entity={entity} />
                 <span className="txt">{label}</span>
                 <span className="time">{time}</span>
               </button>
@@ -252,16 +337,17 @@ function PhaseBlock({ phase, index, keyFor }: { phase: Phase; index: number; key
             k={keyFor(buyKey(index))}
             entity={`purchase:${phase.purchase.id}`}
             icon={phase.purchase.icon}
-            title={t('flow.buy', { name: phase.purchase.name })}
+            title={<TNodes k="flow.buy" nodes={{ name: <Ref entity={`purchase:${phase.purchase.id}`}>{phase.purchase.name}</Ref> }} />}
             sub={
               <>
                 <GameIcon src={game.currencies.get(GP)?.icon} size={14} /> {fmtInt(price)} GP
                 {phase.purchase.inputs.map((i) => (
                   <span key={i.item}>
-                    <GameIcon src={game.items.get(i.item)?.icon} size={14} /> {fmtInt(i.qty)}
+                    <GameIcon src={game.items.get(i.item)?.icon} size={14} entity={`item:${i.item}`} /> {fmtInt(i.qty)}
                   </span>
                 ))}
-                {!isGoal(phase.why) && <span className="tag std">{t(phase.why)}</span>}
+                {phase.purchase.category && <span className="muted">{t('tip.shopCategory', { category: phase.purchase.category })}</span>}
+                {!isGoal(phase.why) && <WhyTag why={phase.why} />}
                 {phase.savesMs ? <span className="tag bonus">{t('flow.saves', { time: fmtDuration(phase.savesMs) })}</span> : null}
               </>
             }
@@ -273,11 +359,16 @@ function PhaseBlock({ phase, index, keyFor }: { phase: Phase; index: number; key
   }
   const steps = phase.plan.steps
   if (!steps.length) return null
-  const goalText = phase.goals.map((g) => `${fmtInt(g.qty)}× ${game.items.get(g.item)?.name ?? g.item}`).join(', ')
+  const goals = phase.goals.map((g, i) => (
+    <Fragment key={g.item}>
+      {i > 0 && ', '}
+      {fmtInt(g.qty)}× <ItemName id={g.item} />
+    </Fragment>
+  ))
   return (
     <section className="phase">
       <PhaseHead
-        title={t('flow.make', { items: goalText })}
+        title={<TNodes k="flow.make" nodes={{ items: goals }} />}
         why={phase.why}
         time={phase.plan.activeMs}
         extra={phase.plan.passiveMs > 0 ? t('flow.growth', { time: fmtDurationShort(phase.plan.passiveMs) }) : undefined}
@@ -292,11 +383,10 @@ function PhaseBlock({ phase, index, keyFor }: { phase: Phase; index: number; key
 }
 
 function PhaseHead({ title, why, time, extra }: { title: React.ReactNode; why: Msg; time: number; extra?: string }) {
-  const t = useT()
   return (
     <div className="phase-head">
       <span className="phase-title">{title}</span>
-      {!isGoal(why) && <span className="tag std">{t(why)}</span>}
+      {!isGoal(why) && <WhyTag why={why} />}
       <span className="spacer" />
       {extra && <span className="muted">{extra}</span>}
       <span className="phase-time">{fmtDuration(time)}</span>
@@ -312,8 +402,11 @@ function RouteBlock({ route, why, phase, keyFor }: { route: Route; why: Msg; pha
   const title =
     goal.kind === 'level' ? (
       <>
-        <GameIcon src={skill?.icon} size={18} />{' '}
-        {t('flow.train', { skill: skill?.name ?? '', from: route.before.levels[goal.skill] ?? 1, to: goal.level })}
+        <GameIcon src={skill?.icon} size={18} entity={`skill:${goal.skill}`} />{' '}
+        <TNodes
+          k={{ key: 'flow.train', params: { from: route.before.levels[goal.skill] ?? 1, to: goal.level } }}
+          nodes={{ skill: <Ref entity={`skill:${goal.skill}`}>{skill?.name ?? ''}</Ref> }}
+        />
       </>
     ) : (
       <>
@@ -353,6 +446,7 @@ function SegmentRow({ seg, route, k, share }: { seg: RouteSegment; route: Route;
     <StepRow
       k={k}
       icon={r.icon}
+      entity={r.outputs[0] ? `item:${r.outputs[0].item}` : undefined}
       title={
         <>
           {goal.kind === 'level' ? (
@@ -364,13 +458,13 @@ function SegmentRow({ seg, route, k, share }: { seg: RouteSegment; route: Route;
               {fmtInt(seg.from)} → {fmtInt(seg.to)} GP
             </span>
           )}{' '}
-          {recipeAction(t, r)}
+          <SourceText r={r} />
         </>
       }
       sub={
         <>
           <span>
-            <GameIcon src={skill?.icon} size={14} /> {fmtInt(seg.actions)}×
+            <GameIcon src={skill?.icon} size={14} entity={r.skill ? `skill:${r.skill}` : null} /> {fmtInt(seg.actions)}×
           </span>
           <span>
             {fmtInt(seg.ratePerHour)} {goal.kind === 'level' ? 'XP/h' : 'GP/h'}
@@ -389,7 +483,7 @@ function SegmentRow({ seg, route, k, share }: { seg: RouteSegment; route: Route;
                 const cr = index.recipes.get(id)!
                 return (
                   <span key={id}>
-                    <GameIcon src={cr.icon} size={14} /> {fmtInt(Math.ceil(n))}× {recipeAction(t, cr)}
+                    <GameIcon src={cr.icon} size={14} entity={cr.outputs[0] ? `item:${cr.outputs[0].item}` : null} /> {fmtInt(Math.ceil(n))}× <SourceText r={cr} />
                   </span>
                 )
               })}
@@ -422,13 +516,13 @@ function MakeRow({ step, k, levels }: { step: MakeStep; k: string; levels: Recor
       icon={item?.icon ?? r.icon}
       title={
         <>
-          {fmtInt(step.amount)}× {item?.name ?? step.item}
+          {fmtInt(step.amount)}× <Ref entity={`item:${step.item}`}>{item?.name ?? step.item}</Ref>
         </>
       }
       sub={
         <>
-          {skill && <GameIcon src={skill.icon} size={14} />}
-          {recipeAction(t, r)}
+          {skill && <GameIcon src={skill.icon} size={14} entity={`skill:${skill.id}`} />}
+          <SourceText r={r} self={step.item} />
           {step.completions !== step.amount && <span className="muted">{t('flow.runs', { n: fmtInt(step.completions) })}</span>}
           <LevelTag level={r.level} have={r.skill ? (levels[r.skill] ?? 1) : 1} />
         </>
@@ -467,7 +561,7 @@ function StepRow({
       <button className="check" role="checkbox" aria-checked={done} aria-label={t('flow.markDone')} onClick={() => dispatch({ type: 'toggleDone', key: k })}>
         {done && <Sym name="check" size={12} />}
       </button>
-      <GameIcon src={icon} size={26} />
+      <GameIcon src={icon} size={26} entity={entity} />
       <div className="what">
         <b>{title}</b>
         <div className="sub">{sub}</div>

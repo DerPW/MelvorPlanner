@@ -6,10 +6,16 @@ dafür erst freigeschaltet werden muss.
 
 Privates Projekt, nicht mit Games by Malcs oder Jagex verbunden.
 
-## Ziele
+## Routen
 
-- **Items** (Crafting-Plan): alles bis zum Rohstoff heruntergerechnet, abzüglich
-  Lager; Ansichten Ablauf · Baum · Material, Quelle je Item im Inspector wählbar.
+Jedes Ziel ist eine **Route** in der Seitenleiste — der Weg dorthin samt
+allem, was vorher nötig ist. Die Übersicht („Routen") legt neue an und
+schlägt vor, was mit dem jetzigen Stand gleich zu bauen ist.
+
+- **Items**: alles bis zum Rohstoff heruntergerechnet, abzüglich Lager;
+  Ansichten Ablauf · Baum · Material, Quelle je Item im Inspector wählbar.
+  (Bis 0.5 gab es dafür einen gemeinsamen Crafting-Plan; gespeicherte Items
+  werden beim Start zu je einer Item-Route.)
 - **Level**: Skill X auf Level Y.
 - **Gold**: Betrag Z verdienen (Herstellen + Verkaufen, Thieving).
 - **Freischaltungen**: Shop-Käufe wie die Grain Mill, samt deren Anforderungen.
@@ -29,7 +35,12 @@ Thieving 35 → erst Thieving trainieren").
 - **Detailseiten** für Items, Monster, Gebiete und Shop-Käufe mit allem, was
   die Spieldaten hergeben; alles verlinkt, mit Zurück.
 - **Tooltip und Kontextmenü** für jedes Element mit `data-entity="typ:id"`
-  (`src/ui/EntityHover.tsx`).
+  (`src/ui/EntityHover.tsx`) — Items, Skills, Monster, Gebiete, Shop-Käufe.
+  Icons tragen es über `GameIcon entity=…`, Texte über `<Ref>`; „braucht X",
+  Quellen (`SourceText`, bei Shop-Käufen mit Kategorie) und die Begründungen
+  im Ablauf (`WhyTag`, Verweis über `params.ref` der Meldung) sind klickbar.
+- **Brotkrumen** (`src/ui/Breadcrumbs.tsx`): Folgt man Verweisen, wächst
+  oben der Pfad; Seitenleiste und Suche (`root: true`) beginnen einen neuen.
 - **Deutsch/Englisch** nach Browser, umstellbar (`src/i18n/`; `pnpm check:i18n`
   prüft, dass jeder Schlüssel in beiden Sprachen steht).
 - Versionsanzeige mit Release Notes (`src/releaseNotes.ts`).

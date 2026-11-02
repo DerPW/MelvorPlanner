@@ -165,16 +165,19 @@ button { cursor: default; }
 
 .side-empty { padding: 4px 8px 2px; color: var(--text-3); font-size: 12px; }
 
-.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.main-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
 .toolbar {
   display: flex; align-items: center; gap: 12px;
   height: 56px; flex: none;
   padding: 0 16px 0 22px;
 }
-.toolbar-title { min-width: 0; }
-.toolbar-title h1 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.015em; white-space: nowrap; }
-.toolbar-title p { margin: 0; font-size: 11px; color: var(--text-3); white-space: nowrap; }
+/* Wird es eng, kürzt der Titel — Umschalter und Knöpfe bleiben ganz */
+.toolbar-title { min-width: 0; flex: 0 1 auto; overflow: hidden; }
+.toolbar-title h1 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.toolbar-title p { margin: 0; font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.toolbar > :not(.toolbar-title):not(.spacer) { flex: none; }
 .toolbar .spacer { flex: 1; }
 
 .content {
@@ -322,7 +325,7 @@ button { cursor: default; }
 .select select:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent); }
 .select .select-chev { position: absolute; right: 9px; top: 8px; transform: rotate(90deg); color: var(--text-2); pointer-events: none; }
 
-.toolbar-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.toolbar-controls { display: flex; align-items: center; gap: 8px; }
 .toolbar-controls .lbl { font-size: 12px; color: var(--text-2); }
 
 .check {
@@ -413,7 +416,14 @@ button.note:hover { background: var(--control-strong); color: var(--text); }
 
 /* ---------------------------------------------------------------- Tabellen */
 
-.table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+/* Automatisches Layout: Wertespalten werden so breit wie ihr Inhalt — die
+   Übersetzungen sind verschieden lang, feste Breiten kürzten „5 je Durchlauf".
+   Die <col>-Breiten gelten als Mindestmass. Kürzen dürfen nur Zellen mit einem
+   Namen (.cell-item/.cell-source/.ref): max-width 0 nimmt ihnen die
+   Mindestbreite, sie bekommen den Rest. */
+.table { width: 100%; border-collapse: collapse; table-layout: auto; }
+.table td { width: 1px; }
+.table td:has(> .cell-item, > .cell-source, > .ref) { width: auto; max-width: 0; }
 .table th {
   position: sticky; top: 0; z-index: 2;
   height: 28px; padding: 0 8px;
@@ -989,3 +999,86 @@ button.note:hover { background: var(--control-strong); color: var(--text); }
 .sidebar-head { border-radius: 16px 16px 0 0; }
 .sidebar-foot { border-radius: 0 0 16px 16px; }
 .global-search { z-index: 40; }
+/* Seitenleiste (mit Suchpalette) liegt über dem Inhalt — backdrop-filter macht
+   sie zu einer eigenen Ebene, sonst malen positionierte Elemente des
+   Inhalts (Schalter, Segment-Knöpfe) über die Palette */
+.sidebar { position: relative; z-index: 30; }
+
+/* Icons mit eigener Seite: klickbar */
+.gi-link { display: inline-flex; flex: none; border-radius: 4px; cursor: pointer; transition: transform 0.12s var(--ease), filter 0.12s ease; }
+.gi-link:hover { transform: scale(1.12); filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35)); }
+.gi-link:active { transform: scale(0.94); }
+
+/* Text mit eigener Seite: klickbar, dezent unterstrichen beim Überfahren */
+.ref { cursor: pointer; border-radius: 3px; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 2px; transition: text-decoration-color 0.15s ease, color 0.15s ease; }
+.ref:hover { text-decoration-color: currentColor; }
+.ref:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; }
+
+/* ---------------------------------------------------------------- Routen-Übersicht */
+
+.route-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.route-title .ref { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.new-routes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 6px; }
+.new-route {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  padding: 14px; border: 0; border-radius: 14px;
+  background: var(--group); box-shadow: 0 0 0 0.5px var(--separator);
+  font: inherit; color: var(--text); text-align: left;
+  transition: background 0.15s var(--ease), transform 0.12s var(--ease);
+}
+button.new-route:hover { background: var(--hover); }
+button.new-route:active { transform: scale(0.98); }
+button.new-route:disabled { opacity: 0.5; }
+.new-route b { font-size: 13px; font-weight: 600; margin-top: 2px; }
+.new-route p { margin: 0; font-size: 12px; color: var(--text-2); line-height: 1.4; }
+.new-route.wide { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 14px; }
+.new-route.wide .nr-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.new-route.wide .search { width: 300px; flex: none; }
+.new-route.wide .popover { left: 0; right: auto; width: 100%; min-width: 300px; }
+@media (max-width: 760px) {
+  .new-routes { grid-template-columns: 1fr; }
+  .new-route.wide { flex-direction: column; align-items: stretch; }
+  .new-route.wide .search { width: 100%; }
+}
+.route-list {
+  border-radius: 12px; overflow: hidden; margin-bottom: 6px;
+  background: var(--group); box-shadow: 0 0 0 0.5px var(--separator);
+}
+.route-row {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  height: 40px; padding: 0 12px; border: 0; background: transparent;
+  font: inherit; color: var(--text); text-align: left;
+}
+.route-row + .route-row { border-top: 0.5px solid var(--separator); }
+.route-row:hover { background: var(--hover); }
+.route-row .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.route-row .muted { font-size: 12px; }
+.route-row .sym { color: var(--text-3); }
+
+/* Shop-Kategorie hinter einer Kaufquelle */
+.src-cat { margin-left: 6px; font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.tag.ref { cursor: pointer; }
+
+/* Menüs, die am Body hängen (über Seitenleiste und Hauptbereich) */
+.popover.floating { position: fixed; right: auto; z-index: 60; transform-origin: top right; }
+
+/* ---------------------------------------------------------------- Brotkrumen */
+
+.crumbs {
+  display: flex; align-items: center; gap: 2px; flex: none;
+  height: 30px; padding: 8px 16px 0 16px; min-width: 0; overflow: hidden;
+  font-size: 12px; color: var(--text-3);
+  animation: fade-in 0.18s var(--ease) both;
+}
+.crumb {
+  display: inline-flex; align-items: center; gap: 5px; min-width: 0; max-width: 200px;
+  height: 22px; padding: 0 7px; border: 0; border-radius: 6px;
+  background: transparent; font: inherit; color: inherit;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+/* Ältere Stationen geben zuerst nach, die jetzige bleibt lesbar */
+.crumb:not(.current) { flex: 0 1 auto; }
+.crumb.current { flex: 0 0 auto; max-width: 260px; color: var(--text-2); font-weight: 500; }
+button.crumb:hover { background: var(--hover); color: var(--text); }
+.crumb-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crumb-sep { flex: none; color: var(--text-3); opacity: 0.7; }

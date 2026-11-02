@@ -10,6 +10,34 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.6.0',
+    date: '2026-11-02',
+    de: {
+      title: 'Alles ist eine Route',
+      items: [
+        'Item, Level, Gold oder Freischaltung: Jedes Ziel ist jetzt eine eigene Route in der Seitenleiste, mit dem ganzen Weg dorthin — auch dem, was vorher nötig ist.',
+        'Der gemeinsame Crafting-Plan ist in den Item-Routen aufgegangen; gespeicherte Items werden übernommen. Item-Routen zeigen Ablauf, Baum und Material, die Menge steht direkt in der Route.',
+        'Neue Übersicht „Routen": neue Route anlegen (Item direkt suchen), deine Routen, Ideen für deinen Stand.',
+        'Brotkrumen-Leiste: Folgst du Verweisen von Seite zu Seite, steht oben der Pfad — jede Station anklickbar.',
+        'Alles mit Detailseite ist klickbar, mit Tooltip und Kontextmenü — Icons wie Texte, auch „braucht X" und die Begründungen im Ablauf. Skills haben jetzt ebenfalls Tooltip und Menü.',
+        'Shop-Käufe als Quelle zeigen, in welcher Shop-Kategorie sie stehen.',
+        'Tabellen kürzen Werte nicht mehr unnötig; Suche und „+"-Menü liegen sauber über der Oberfläche.',
+      ],
+    },
+    en: {
+      title: 'Everything is a route',
+      items: [
+        'Item, level, gold or unlock: every goal is now its own route in the sidebar, with the whole way there — including what has to happen first.',
+        'The shared crafting plan has become item routes; saved items carry over. Item routes show steps, tree and materials, with the amount right in the route.',
+        'New “Routes” overview: create a route (search an item right there), your routes, ideas for where you are.',
+        'Breadcrumb bar: follow links from page to page and the path shows at the top — every stop clickable.',
+        'Everything with a detail page is clickable, with tooltip and context menu — icons and text alike, including “needs X” and the reasons in the steps. Skills now have a tooltip and menu too.',
+        'Shop purchases used as a source show which shop category they are in.',
+        'Tables no longer cut values short; search and the “+” menu sit cleanly on top.',
+      ],
+    },
+  },
+  {
     version: '0.5.0',
     date: '2026-11-02',
     de: {

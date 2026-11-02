@@ -1,21 +1,75 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useT } from '../i18n'
+import { GameContext, type Action, type DetailType } from './state'
 
-/** Spiel-Symbol (Item, Skill, Währung) */
-export function GameIcon({ src, size = 20, alt = '', className = '' }: { src: string | null | undefined; size?: number; alt?: string; className?: string }) {
+/** Spiel-Symbol (Item, Skill, Währung). Mit `entity` („item:<id>",
+ *  „skill:<id>", „enemy:<id>" …) ist es klickbar und hat Tooltip und
+ *  Kontextmenü — wie alles mit eigener Seite. */
+export function GameIcon({
+  src,
+  size = 20,
+  alt = '',
+  className = '',
+  entity,
+}: {
+  src: string | null | undefined
+  size?: number
+  alt?: string
+  className?: string
+  entity?: string | null
+}) {
+  const game = useContext(GameContext)
   const [failed, setFailed] = useState(false)
-  if (!src || failed) return <span className="gi-missing" style={{ width: size, height: size }} aria-hidden />
+  const img =
+    !src || failed ? (
+      <span className="gi-missing" style={{ width: size, height: size }} aria-hidden />
+    ) : (
+      <img className={`gi ${className}`} src={src} width={size} height={size} alt={alt} loading="lazy" decoding="async" onError={() => setFailed(true)} />
+    )
+  if (!entity || !game) return img
   return (
-    <img
-      className={`gi ${className}`}
-      src={src}
-      width={size}
-      height={size}
-      alt={alt}
-      loading="lazy"
-      decoding="async"
-      onError={() => setFailed(true)}
-    />
+    <span
+      className="gi-link"
+      data-entity={entity}
+      onClick={(e) => {
+        // eigene Seite öffnen, nicht die Zeile drumherum auswählen
+        e.stopPropagation()
+        openEntity(game.dispatch, entity)
+      }}
+    >
+      {img}
+    </span>
+  )
+}
+
+/** „item:<id>" / „skill:<id>" / „enemy:<id>" … → passende Seite öffnen */
+export function openEntity(dispatch: (a: Action) => void, entity: string) {
+  const i = entity.indexOf(':')
+  const type = entity.slice(0, i)
+  const id = entity.slice(i + 1)
+  if (type === 'skill') dispatch({ type: 'view', view: { kind: 'skill', skill: id } })
+  else dispatch({ type: 'view', view: { kind: 'detail', type: type as DetailType, id } })
+}
+
+/** Text, der für etwas mit eigener Seite steht: klickbar, Tooltip, Kontextmenü */
+export function Ref({ entity, children, className = '' }: { entity?: string | null; children: ReactNode; className?: string }) {
+  const game = useContext(GameContext)
+  if (!entity || !game) return <>{children}</>
+  const open = (e: React.SyntheticEvent) => {
+    e.stopPropagation()
+    openEntity(game.dispatch, entity)
+  }
+  return (
+    <span
+      className={`ref ${className}`}
+      data-entity={entity}
+      role="link"
+      tabIndex={0}
+      onClick={open}
+      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && open(e)}
+    >
+      {children}
+    </span>
   )
 }
 

@@ -4,13 +4,17 @@ import type { GameIndex, SourceChoices } from '../core/planner'
 import type { RouteOptions } from '../core/route'
 import type { Id, ItemGoal, Profile } from '../core/types'
 
+// Eine Route ist ein Ziel — ein Item, ein Level, Gold, ein Kauf — samt dem
+// ganzen Weg dorthin. Früher gab es daneben einen Crafting-Plan, der alle
+// Items zu einem Baum verschmolz; der ist in den Item-Routen aufgegangen.
 export type RouteTarget =
+  | { id: string; kind: 'item'; item: Id; qty: number }
   | { id: string; kind: 'level'; skill: Id; level: number }
   | { id: string; kind: 'gold'; amount: number }
   | { id: string; kind: 'unlock'; purchase: Id }
 
 export type View =
-  | { kind: 'plan' }
+  | { kind: 'routes' }
   | { kind: 'route'; id: string }
   | { kind: 'profile' }
   | { kind: 'skill'; skill: Id }
@@ -21,7 +25,6 @@ export type DetailType = 'item' | 'enemy' | 'area' | 'purchase'
 export type PlanTab = 'flow' | 'tree' | 'materials'
 
 export interface State {
-  items: ItemGoal[]
   routes: RouteTarget[]
   profile: Profile
   choices: SourceChoices
@@ -35,13 +38,12 @@ export interface State {
   live: { save: string } | null
   /** Vorige Ansichten für „Zurück" (nicht gespeichert) */
   history: View[]
+  /** Brotkrumen: der Pfad über Verweise bis zur jetzigen Ansicht (nicht gespeichert) */
+  trail: View[]
 }
 
 export type Action =
-  | { type: 'addItem'; item: Id; qty?: number }
-  | { type: 'setItemQty'; item: Id; qty: number }
-  | { type: 'removeItem'; item: Id }
-  | { type: 'addRoute'; route: RouteTarget }
+  | { type: 'addRoute'; route: RouteTarget; root?: boolean }
   | { type: 'updateRoute'; route: RouteTarget }
   | { type: 'removeRoute'; id: string }
   | { type: 'setLevel'; skill: Id; level: number }
@@ -56,7 +58,8 @@ export type Action =
   | { type: 'setOption'; options: Partial<RouteOptions> }
   | { type: 'toggleDone'; key: string }
   | { type: 'clearDone' }
-  | { type: 'view'; view: View }
+  /** `root`: Navigation aus Seitenleiste oder Suche — beginnt einen neuen Pfad */
+  | { type: 'view'; view: View; root?: boolean }
   | { type: 'tab'; tab: PlanTab }
   | { type: 'select'; item: Id | null }
   | { type: 'inspector'; open: boolean }
@@ -66,45 +69,45 @@ export type Action =
 export const emptyProfile = (): Profile => ({ levels: {}, inventory: {}, currencies: {}, owned: {}, farmingPlots: 4 })
 
 export const initialState = (): State => ({
-  items: [],
   routes: [],
   profile: emptyProfile(),
   choices: {},
   options: { includeMaterials: true, bonuses: true, smart: true },
   done: {},
-  view: { kind: 'plan' },
+  view: { kind: 'routes' },
   tab: 'flow',
   selected: null,
   inspectorOpen: true,
   live: null,
   history: [],
+  trail: [{ kind: 'routes' }],
 })
 
 export function reducer(s: State, a: Action): State {
   const p = s.profile
   switch (a.type) {
-    case 'addItem': {
-      const qty = a.qty ?? 1
-      const has = s.items.some((g) => g.item === a.item)
-      return {
-        ...s,
-        items: has ? s.items.map((g) => (g.item === a.item ? { ...g, qty: g.qty + qty } : g)) : [...s.items, { item: a.item, qty }],
-      }
+    case 'addRoute': {
+      // Dasselbe Ziel gibt es schon → das öffnen statt doppelt anzulegen
+      const same = s.routes.find((r) => sameGoal(r, a.route))
+      const route = same ?? a.route
+      return reducer({ ...s, routes: same ? s.routes : [...s.routes, route] }, { type: 'view', view: { kind: 'route', id: route.id }, root: a.root })
     }
-    case 'setItemQty':
-      return { ...s, items: s.items.map((g) => (g.item === a.item ? { ...g, qty: Math.max(1, a.qty) } : g)) }
-    case 'removeItem':
-      return { ...s, items: s.items.filter((g) => g.item !== a.item) }
-    case 'addRoute':
-      return { ...s, routes: [...s.routes, a.route], view: { kind: 'route', id: a.route.id } }
     case 'updateRoute':
       return { ...s, routes: s.routes.map((r) => (r.id === a.route.id ? a.route : r)) }
-    case 'removeRoute':
+    case 'removeRoute': {
+      const i = s.routes.findIndex((r) => r.id === a.id)
+      const routes = s.routes.filter((r) => r.id !== a.id)
+      const gone = (v: View) => v.kind === 'route' && v.id === a.id
+      // Offen war genau diese → die nächste zeigen, sonst die Übersicht
+      const next = routes[Math.min(i, routes.length - 1)]
       return {
         ...s,
-        routes: s.routes.filter((r) => r.id !== a.id),
-        view: s.view.kind === 'route' && s.view.id === a.id ? { kind: 'plan' } : s.view,
+        routes,
+        view: gone(s.view) ? (next ? { kind: 'route', id: next.id } : { kind: 'routes' }) : s.view,
+        history: s.history.filter((v) => !gone(v)),
+        trail: gone(s.view) ? [next ? { kind: 'route', id: next.id } : { kind: 'routes' }] : s.trail.filter((v) => !gone(v)),
       }
+    }
     case 'setLevel': {
       // Von Hand gesetzt: die genauen XP aus dem Spielstand gelten nicht mehr
       const xp = p.xp ? { ...p.xp } : undefined
@@ -146,11 +149,13 @@ export function reducer(s: State, a: Action): State {
     case 'clearDone':
       return { ...s, done: {} }
     case 'view':
-      if (JSON.stringify(a.view) === JSON.stringify(s.view)) return s
-      return { ...s, view: a.view, history: [...s.history, s.view].slice(-30) }
+      if (sameView(a.view, s.view)) return s
+      return { ...s, view: a.view, history: [...s.history, s.view].slice(-30), trail: nextTrail(s.trail, a.view, a.root) }
     case 'back': {
       const prev = s.history.at(-1)
-      return prev ? { ...s, view: prev, history: s.history.slice(0, -1) } : s
+      if (!prev) return s
+      const trail = s.trail.length > 1 && sameView(s.trail.at(-2)!, prev) ? s.trail.slice(0, -1) : [prev]
+      return { ...s, view: prev, history: s.history.slice(0, -1), trail }
     }
     case 'tab':
       return { ...s, tab: a.tab }
@@ -171,14 +176,24 @@ export function loadState(): State {
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return base
-    const saved = JSON.parse(raw) as Partial<State>
+    const saved = JSON.parse(raw) as Partial<State> & { items?: ItemGoal[] }
+    // Bis 0.5: Items lagen in einem gemeinsamen Crafting-Plan → je eine Item-Route
+    const { items: oldItems, ...rest } = saved
+    const routes: RouteTarget[] = [
+      ...(oldItems ?? []).map((g) => ({ id: newId(), kind: 'item' as const, item: g.item, qty: g.qty })),
+      ...(saved.routes ?? []),
+    ]
+    const view = (saved.view as { kind: string } | undefined)?.kind === 'plan' ? base.view : (saved.view ?? base.view)
     return {
       ...base,
-      ...saved,
+      ...rest,
+      routes,
+      view,
       profile: { ...base.profile, ...saved.profile },
       options: { ...base.options, ...saved.options },
       selected: null,
       history: [],
+      trail: [view],
     }
   } catch {
     return base
@@ -187,7 +202,7 @@ export function loadState(): State {
 
 export function saveState(s: State) {
   try {
-    const { selected: _s, inspectorOpen: _i, history: _h, ...keep } = s
+    const { selected: _s, inspectorOpen: _i, history: _h, trail: _t, ...keep } = s
     localStorage.setItem(KEY, JSON.stringify(keep))
   } catch {
     // privat / voll — dann eben nicht
@@ -213,3 +228,27 @@ export function useGame(): Ctx {
 }
 
 export const newId = () => Math.random().toString(36).slice(2, 9)
+
+export const sameView = (a: View, b: View) => JSON.stringify(a) === JSON.stringify(b)
+
+/** Pfad weiterführen: neu beginnen (Seitenleiste/Suche), auf eine frühere
+ *  Stelle zurückkürzen oder anhängen — höchstens acht Stationen */
+function nextTrail(trail: View[], view: View, root?: boolean): View[] {
+  if (root) return [view]
+  const i = trail.findIndex((v) => sameView(v, view))
+  return i >= 0 ? trail.slice(0, i + 1) : [...trail, view].slice(-8)
+}
+
+/** Gleiches Ziel (die Menge bzw. das Level zählt mit, außer bei Items) */
+export function sameGoal(a: RouteTarget, b: RouteTarget): boolean {
+  if (a.kind === 'item' && b.kind === 'item') return a.item === b.item
+  if (a.kind === 'level' && b.kind === 'level') return a.skill === b.skill && a.level === b.level
+  if (a.kind === 'gold' && b.kind === 'gold') return a.amount === b.amount
+  if (a.kind === 'unlock' && b.kind === 'unlock') return a.purchase === b.purchase
+  return false
+}
+
+export const itemRoute = (s: State, item: Id) => s.routes.find((r): r is Extract<RouteTarget, { kind: 'item' }> => r.kind === 'item' && r.item === item)
+
+/** Route aufs Item: vorhandene öffnen, sonst anlegen */
+export const planItem = (item: Id, qty = 1): Action => ({ type: 'addRoute', route: { id: newId(), kind: 'item', item, qty } })

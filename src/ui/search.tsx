@@ -4,11 +4,11 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useI18n, type LangSetting, type T } from '../i18n'
-import { routeIcon, routeLabel } from './routeText'
+import { newRoute, routeIcon, routeLabel } from './routeText'
 import { GameIcon, Sym } from './components'
 import { recipeAction } from './SolutionView'
-import { newId, useGame, type Action, type DetailType, type State } from './state'
-import { useUi } from './ui'
+import { itemRoute, useGame, type Action, type DetailType, type State } from './state'
+import { PICK_ITEM_EVENT, useUi } from './ui'
 import type { GameIndex } from '../core/planner'
 
 export interface Entry {
@@ -37,22 +37,22 @@ interface Kind {
 }
 
 const ui = (name: string) => `game/icons/Icons/${name}.webp`
-const detail = (c: Ctx, type: DetailType, id: string) => () => c.dispatch({ type: 'view', view: { kind: 'detail', type, id } })
+const detail = (c: Ctx, type: DetailType, id: string) => () => c.dispatch({ type: 'view', view: { kind: 'detail', type, id }, root: true })
 
 export const KINDS: Kind[] = [
   {
     id: 'view',
     group: 'search.group.views',
     entries: (c) => [
-      { key: 'view:plan', name: c.t('plan.title'), icon: ui('CompletionLog'), keywords: 'crafting plan baum tree steps ablauf', run: () => c.dispatch({ type: 'view', view: { kind: 'plan' } }) },
-      { key: 'view:profile', name: c.t('profile.title'), icon: ui('Bank'), keywords: 'profil profile bank lager settings einstellungen', run: () => c.dispatch({ type: 'view', view: { kind: 'profile' } }) },
+      { key: 'view:routes', name: c.t('home.title'), icon: ui('CompletionLog'), keywords: 'routen routes ziele goals crafting plan baum tree', run: () => c.dispatch({ type: 'view', view: { kind: 'routes' }, root: true }) },
+      { key: 'view:profile', name: c.t('profile.title'), icon: ui('Bank'), keywords: 'profil profile bank lager settings einstellungen', run: () => c.dispatch({ type: 'view', view: { kind: 'profile' }, root: true }) },
       ...c.state.routes.map((r) => ({
         key: `route:${r.id}`,
         name: routeLabel(c.index, r),
         icon: routeIcon(c.index, r),
         sub: c.t(`route.kind.${r.kind}`),
         keywords: 'route',
-        run: () => c.dispatch({ type: 'view', view: { kind: 'route', id: r.id } }),
+        run: () => c.dispatch({ type: 'view', view: { kind: 'route', id: r.id }, root: true }),
       })),
     ],
   },
@@ -60,7 +60,14 @@ export const KINDS: Kind[] = [
     id: 'action',
     group: 'search.group.actions',
     entries: (c) => {
-      const add = (route: Parameters<typeof newRoute>[1]) => () => c.dispatch({ type: 'addRoute', route: newRoute(c, route) })
+      const add = (kind: 'level' | 'gold' | 'unlock') => () => {
+        const route = newRoute(c.index, c.state.profile, kind)
+        if (route) c.dispatch({ type: 'addRoute', route, root: true })
+      }
+      const pickItem = () => {
+        c.dispatch({ type: 'view', view: { kind: 'routes' }, root: true })
+        setTimeout(() => window.dispatchEvent(new Event(PICK_ITEM_EVENT)), 60)
+      }
       const toggle = (key: keyof State['options'], label: string) => ({
         key: `opt:${key}`,
         name: `${label}: ${c.t(c.state.options[key] ? 'search.turnOff' : 'search.turnOn')}`,
@@ -68,6 +75,7 @@ export const KINDS: Kind[] = [
         run: () => c.dispatch({ type: 'setOption', options: { [key]: !c.state.options[key] } }),
       })
       return [
+        { key: 'act:item', name: c.t('home.item'), keywords: 'route item herstellen craft neu new', run: pickItem },
         { key: 'act:level', name: c.t('nav.addLevel'), keywords: 'route level neu new', run: add('level') },
         { key: 'act:gold', name: c.t('nav.addGold'), keywords: 'route gold gp neu new', run: add('gold') },
         { key: 'act:unlock', name: c.t('nav.addUnlock'), keywords: 'route shop unlock freischaltung', run: add('unlock') },
@@ -90,7 +98,7 @@ export const KINDS: Kind[] = [
         key: `item:${i.id}`,
         name: i.name,
         icon: i.icon,
-        sub: c.state.items.some((g) => g.item === i.id) ? c.t('search.inPlan') : undefined,
+        sub: itemRoute(c.state, i.id) ? c.t('search.inRoute') : undefined,
         run: detail(c, 'item', i.id),
       })),
   },
@@ -103,7 +111,7 @@ export const KINDS: Kind[] = [
         name: s.name,
         icon: s.icon,
         sub: `Level ${c.state.profile.levels[s.id] ?? 1}`,
-        run: () => c.dispatch({ type: 'view', view: { kind: 'skill', skill: s.id } }),
+        run: () => c.dispatch({ type: 'view', view: { kind: 'skill', skill: s.id }, root: true }),
       })),
   },
   {
@@ -162,14 +170,6 @@ export const KINDS: Kind[] = [
         })),
   },
 ]
-
-function newRoute(c: Ctx, kind: 'level' | 'gold' | 'unlock') {
-  const skill = c.index.data.skills.find((s) => s.id === 'MelvorBase:Woodcutting') ?? c.index.data.skills[0]
-  if (kind === 'level') return { id: newId(), kind, skill: skill.id, level: Math.min(c.state.profile.levelCap ?? 120, (c.state.profile.levels[skill.id] ?? 1) + 10) } as const
-  if (kind === 'gold') return { id: newId(), kind, amount: 10000 } as const
-  const p = c.index.data.purchases.find((x) => !x.items.length && !x.demoLocked && !(c.state.profile.owned[x.id] > 0))!
-  return { id: newId(), kind, purchase: p.id } as const
-}
 
 // --- Suche
 

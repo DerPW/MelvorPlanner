@@ -3,8 +3,8 @@ import { actionTime, rankSources, unmetReqs, yieldOf } from '../core/planner'
 import type { Id } from '../core/types'
 import { useT } from '../i18n'
 import { GameIcon, LevelTag, Stepper, Sym } from './components'
-import { recipeAction } from './SolutionView'
-import { useGame } from './state'
+import { Needs, SourceText, sourceEntity } from './SolutionView'
+import { itemRoute, planItem, useGame } from './state'
 
 export function Inspector({ item: id }: { item: Id }) {
   const { index, bonus, state, dispatch } = useGame()
@@ -12,7 +12,8 @@ export function Inspector({ item: id }: { item: Id }) {
   const item = index.items.get(id)
   if (!item) return <div className="insp-empty">{t('insp.unknown')}</div>
 
-  const goal = state.items.find((g) => g.item === id)
+  const route = itemRoute(state, id)
+  const viewing = route && state.view.kind === 'route' && state.view.id === route.id
   const stock = state.profile.inventory[id] ?? 0
   const sources = rankSources(index, id, state.profile)
   const chosen = state.choices[id]
@@ -29,7 +30,7 @@ export function Inspector({ item: id }: { item: Id }) {
       </div>
       <div className="insp-head">
         <div className="insp-icon">
-          <GameIcon src={item.icon} size={60} />
+          <GameIcon src={item.icon} size={60} entity={`item:${id}`} />
         </div>
         <h2>{item.name}</h2>
         <button className="link" onClick={() => dispatch({ type: 'view', view: { kind: 'detail', type: 'item', id } })}>
@@ -45,17 +46,19 @@ export function Inspector({ item: id }: { item: Id }) {
       <div className="insp-section">
         <div className="insp-box">
           <div className="insp-line">
-            <span className="grow">{t(goal ? 'insp.goal' : 'insp.build')}</span>
-            {goal ? (
+            <span className="grow">{t(route ? 'insp.goal' : 'insp.build')}</span>
+            {route ? (
               <>
-                <Stepper label={t('insp.goalQty')} value={goal.qty} min={1} onChange={(qty) => dispatch({ type: 'setItemQty', item: id, qty })} />
-                <button className="icon-btn" aria-label={t('insp.removeGoal')} title={t('insp.removeGoal')} onClick={() => dispatch({ type: 'removeItem', item: id })}>
-                  <Sym name="close" size={13} />
-                </button>
+                <Stepper label={t('route.qty')} value={route.qty} min={1} onChange={(qty) => dispatch({ type: 'updateRoute', route: { ...route, qty } })} />
+                {!viewing && (
+                  <button className="icon-btn" aria-label={t('route.open')} title={t('route.open')} onClick={() => dispatch({ type: 'view', view: { kind: 'route', id: route.id } })}>
+                    <Sym name="chevron" size={12} />
+                  </button>
+                )}
               </>
             ) : (
-              <button className="btn primary small" onClick={() => dispatch({ type: 'addItem', item: id })}>
-                <Sym name="plus" size={12} /> {t('insp.addToPlan')}
+              <button className="btn primary small" onClick={() => dispatch(planItem(id))}>
+                <Sym name="plus" size={12} /> {t('insp.planRoute')}
               </button>
             )}
           </div>
@@ -90,10 +93,12 @@ export function Inspector({ item: id }: { item: Id }) {
                 title={r.demoLocked ? t('insp.demoLocked') : undefined}
               >
                 <span className={`radio ${current?.id === r.id ? 'on' : ''}`} />
-                <GameIcon src={skill?.icon ?? r.icon} size={20} className="skill" />
+                <GameIcon src={skill?.icon ?? r.icon} size={20} className="skill" entity={sourceEntity(r)} />
                 <span style={{ minWidth: 0 }}>
                   <span className="t">
-                    <span className="name">{recipeAction(t, r)}</span>
+                    <span className="name">
+                      <SourceText r={r} self={id} />
+                    </span>
                     <LevelTag level={r.level} have={r.skill ? (state.profile.levels[r.skill] ?? 1) : 1} />
                     {i === 0 && !chosen && <span className="tag std">{t('insp.default')}</span>}
                     {bonus.perRecipe.get(r.id)?.some((a) => a.supported) && <span className="tag bonus">{t('bonus.tag')}</span>}
@@ -111,17 +116,11 @@ export function Inspector({ item: id }: { item: Id }) {
                     ))}
                     {r.inputs.map((inp) => (
                       <span key={inp.item}>
-                        <GameIcon src={index.items.get(inp.item)?.icon} size={13} />
+                        <GameIcon src={index.items.get(inp.item)?.icon} size={13} entity={`item:${inp.item}`} />
                         {fmtNum(inp.qty)}
                       </span>
                     ))}
-                    {unmet
-                      .filter((q) => q.type !== 'level')
-                      .map((q, k) => (
-                        <span key={k} className="bad">
-                          {t('insp.needs', { name: q.type === 'purchase' ? q.name : q.type === 'item' ? (index.items.get(q.item)?.name ?? '') : '' })}
-                        </span>
-                      ))}
+                    <Needs reqs={unmet.filter((q) => q.type !== 'level')} className="bad" />
                   </span>
                 </span>
               </button>

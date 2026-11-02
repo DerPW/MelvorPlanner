@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import { fmtDurationShort, fmtInt, fmtNum } from '../core/format'
-import { actionTime, isAvailable, successChance } from '../core/planner'
+import { actionTime, isAvailable, successChance, unmetReqs } from '../core/planner'
 import { GP, unitCosts } from '../core/route'
 import type { Id } from '../core/types'
 import { useT } from '../i18n'
 import { GameIcon, LevelTag, Segmented, Sym, Toolbar } from './components'
 import { modLabel, modValue } from './bonusText'
-import { recipeAction } from './SolutionView'
+import { Needs, recipeAction } from './SolutionView'
 import { newId, useGame } from './state'
 
 type Sort = 'level' | 'xp' | 'gold'
@@ -132,7 +132,7 @@ export function SkillView({ skill }: { skill: Id }) {
                 >
                   <td>
                     <div className="cell-item">
-                      <GameIcon src={r.icon} size={20} />
+                      <GameIcon src={r.icon} size={20} entity={out ? `item:${out}` : null} />
                       <span className="name">{recipeAction(t, r)}</span>
                       {r.demoLocked && <span className="tag locked">Demo</span>}
                       {bonus.perRecipe.has(r.id) && (
@@ -146,11 +146,7 @@ export function SkillView({ skill }: { skill: Id }) {
                           {t('bonus.tag')}
                         </span>
                       )}
-                      {!r.demoLocked && r.reqs.some((q) => q.type === 'purchase' || q.type === 'item') && !available && (
-                        <span className="tag warn" title={r.reqs.map((q) => (q.type === 'purchase' ? q.name : q.type === 'item' ? index.items.get(q.item)?.name : '')).join(', ')}>
-                          {t('skill.locked')}
-                        </span>
-                      )}
+                      {!r.demoLocked && !available && <Needs reqs={unmetReqs(r.reqs, state.profile).filter((q) => q.type !== 'level')} />}
                     </div>
                   </td>
                   <td>
@@ -165,7 +161,7 @@ export function SkillView({ skill }: { skill: Id }) {
                     <span className="ingredients">
                       {r.inputs.slice(0, 4).map((i) => (
                         <span key={i.item} title={index.items.get(i.item)?.name}>
-                          <GameIcon src={index.items.get(i.item)?.icon} size={16} />
+                          <GameIcon src={index.items.get(i.item)?.icon} size={16} entity={`item:${i.item}`} />
                           {fmtNum(i.qty)}
                         </span>
                       ))}

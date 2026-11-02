@@ -1,106 +1,18 @@
-import { useMemo, useState } from 'react'
+// Baum und Material einer Item-Route: der Plan für die Ziele selbst,
+// gerechnet mit dem Stand nach allem Training davor.
+
+import { useState } from 'react'
 import { fmtDurationShort, fmtInt, fmtNum } from '../core/format'
-import { isAvailable, type Plan, type PlanNode } from '../core/planner'
+import type { Plan, PlanNode } from '../core/planner'
 import { GP } from '../core/route'
-import { isGoal, solve, type Solution } from '../core/solve'
+import type { Solution } from '../core/solve'
 import type { Id } from '../core/types'
 import { useT } from '../i18n'
-import { GameIcon, LevelTag, Segmented, Sym, Toolbar } from './components'
-import { recipeAction, RouteOverview, SolutionFlow, SolutionSummary, unlockStep } from './SolutionView'
-import { useGame, type PlanTab } from './state'
-import { focusSearch } from './ui'
+import { GameIcon, LevelTag, Sym } from './components'
+import { SourceText, sourceEntity, unlockStep } from './SolutionView'
+import { useGame } from './state'
 
-export function PlanView() {
-  const { baseIndex, state, dispatch } = useGame()
-  const t = useT()
-  // Der Löser rechnet Boni selbst — auch die, die unterwegs gekauft werden
-  const solution = useMemo(
-    () => solve(baseIndex, { kind: 'items', items: state.items }, state.profile, state.choices, state.options),
-    [baseIndex, state.items, state.profile, state.choices, state.options],
-  )
-  // Baum und Material zeigen den Plan für die Ziele selbst (nach allem Training)
-  const plan = [...solution.phases].reverse().find((p) => p.kind === 'craft' && isGoal(p.why))
-
-  return (
-    <>
-      <Toolbar
-        title={t('plan.title')}
-        subtitle={
-          state.items.length
-            ? `${t('plan.goals', { n: state.items.length })} · ${t(state.options.bonuses ? 'common.withBonuses' : 'common.baseValues')}`
-            : baseIndex.data.meta.packages.join(', ')
-        }
-      >
-        {state.items.length > 0 && (
-          <Segmented<PlanTab>
-            value={state.tab}
-            onChange={(tab) => dispatch({ type: 'tab', tab })}
-            options={[
-              { value: 'flow', label: t('plan.tab.flow'), icon: 'list' },
-              { value: 'tree', label: t('plan.tab.tree'), icon: 'tree' },
-              { value: 'materials', label: t('plan.tab.materials'), icon: 'box' },
-            ]}
-          />
-        )}
-        <button className="btn" onClick={focusSearch}>
-          <Sym name="plus" size={13} /> {t('plan.add')}
-          <kbd className="kbd">⌘K</kbd>
-        </button>
-      </Toolbar>
-      <div className="content">
-        {state.items.length === 0 ? (
-          <EmptyPlan />
-        ) : (
-          <>
-            <SolutionSummary solution={solution} />
-            <RouteOverview solution={solution} onOpen={() => dispatch({ type: 'tab', tab: 'flow' })} />
-            <div className="fade-in" key={state.tab}>
-              {state.tab === 'flow' && <SolutionFlow solution={solution} scope="plan" />}
-              {state.tab === 'tree' && plan?.kind === 'craft' && <TreeTable plan={plan.plan} levels={plan.at.levels} solution={solution} />}
-              {state.tab === 'materials' && plan?.kind === 'craft' && <Materials plan={plan.plan} />}
-            </div>
-          </>
-        )}
-      </div>
-    </>
-  )
-}
-
-function EmptyPlan() {
-  const { index, state, dispatch } = useGame()
-  const t = useT()
-  // Ein paar Dinge, die man mit dem jetzigen Stand gleich bauen kann
-  const suggestions = useMemo(() => {
-    const seen = new Set<Id>()
-    return index.data.recipes
-      .filter((r) => (r.kind === 'artisan' || r.kind === 'cooking') && isAvailable(r, state.profile) && r.inputs.length >= 2)
-      .map((r) => r.outputs[0]?.item)
-      .filter((id): id is Id => !!id && !seen.has(id) && !!seen.add(id))
-      .slice(0, 6)
-  }, [index, state.profile])
-
-  return (
-    <div className="empty">
-      <div className="art">
-        {suggestions.slice(0, 3).map((id) => (
-          <GameIcon key={id} src={index.items.get(id)?.icon} size={40} />
-        ))}
-      </div>
-      <h2>{t('plan.empty.title')}</h2>
-      <p>{t('plan.empty.text')}</p>
-      <div className="suggest">
-        {suggestions.map((id) => (
-          <button key={id} className="note" data-entity={`item:${id}`} onClick={() => dispatch({ type: 'view', view: { kind: 'detail', type: 'item', id } })}>
-            <GameIcon src={index.items.get(id)?.icon} size={16} />
-            {index.items.get(id)?.name}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function TreeTable({ plan, levels, solution }: { plan: Plan; levels: Record<Id, number>; solution: Solution }) {
+export function TreeTable({ plan, levels, solution }: { plan: Plan; levels: Record<Id, number>; solution: Solution }) {
   const t = useT()
   const [closed, setClosed] = useState<Set<string>>(new Set())
   const toggle = (key: string) =>
@@ -195,7 +107,7 @@ function TreeRow({
           ) : (
             <span className="disclosure-spacer" />
           )}
-          <GameIcon src={item?.icon} size={20} />
+          <GameIcon src={item?.icon} size={20} entity={`item:${node.item}`} />
           <span className="name">{item?.name ?? node.item}</span>
           {node.issue === 'noSource' && <span className="tag warn">{t('tree.noSource')}</span>}
           {node.issue === 'locked' && <span className="tag locked">Demo</span>}
@@ -212,9 +124,9 @@ function TreeRow({
       <td>
         {r ? (
           <div className="cell-source">
-            <GameIcon src={skill?.icon ?? r.icon} size={16} />
+            <GameIcon src={skill?.icon ?? r.icon} size={16} entity={sourceEntity(r)} />
             <span className="name">
-              {recipeAction(t, r)}
+              <SourceText r={r} self={node.item} />
               {node.completions !== node.toMake && node.completions > 0 && <span className="muted"> · {fmtInt(node.completions)}×</span>}
             </span>
             <LevelTag level={r.level} have={r.skill ? (levels[r.skill] ?? 1) : 1} />
@@ -242,7 +154,7 @@ function TreeRow({
   )
 }
 
-function Materials({ plan }: { plan: Plan }) {
+export function Materials({ plan }: { plan: Plan }) {
   const { index, dispatch, state } = useGame()
   const t = useT()
   const groups: { id: string; map: Map<Id, number> }[] = [
@@ -283,7 +195,7 @@ function Materials({ plan }: { plan: Plan }) {
                       >
                         <td>
                           <div className="cell-item">
-                            <GameIcon src={item?.icon} size={20} />
+                            <GameIcon src={item?.icon} size={20} entity={`item:${id}`} />
                             <span className="name">{item?.name ?? id}</span>
                           </div>
                         </td>
