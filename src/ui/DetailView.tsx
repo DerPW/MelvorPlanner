@@ -1,9 +1,10 @@
 // Detailseiten: Item, Monster, Gebiet, Shop-Kauf — alles, was die Spieldaten
 // darüber wissen, und überall verlinkt (Klick öffnet, Rechtsklick = Menü).
 
-import type { ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { fmtDurationShort, fmtInt, fmtNum } from '../core/format'
-import { actionTime, rankSources, unmetReqs, yieldOf } from '../core/planner'
+import { actionTime, rankSources, successChance, unmetReqs, yieldOf } from '../core/planner'
+import { masteryProgress } from '../core/mastery'
 import { GP } from '../core/route'
 import type { Id, InfoSource, Mod, NamedValue, Req } from '../core/types'
 import { useI18n } from '../i18n'
@@ -11,6 +12,8 @@ import { modLabel, modScope, modValue } from './bonusText'
 import { GameIcon, LevelTag, Ref, Stepper, Switch, Sym, Toolbar } from './components'
 import { EnemyFight } from './CombatView'
 import { useTrack } from './LiveTrack'
+import { ActionBonuses, ActionValues } from './LiveView'
+import { TaskRow } from './MasteryView'
 import { Needs, recipeAction, reqPart, SourceText, sourceEntity } from './SolutionView'
 import { itemRoute, newId, planItem, useGame, type DetailType } from './state'
 
@@ -18,6 +21,7 @@ export function DetailView({ type, id }: { type: DetailType; id: Id }) {
   if (type === 'item') return <ItemDetail id={id} />
   if (type === 'enemy') return <EnemyDetail id={id} />
   if (type === 'area') return <AreaDetail id={id} />
+  if (type === 'recipe') return <RecipeDetail id={id} />
   return <PurchaseDetail id={id} />
 }
 
@@ -588,6 +592,130 @@ function DropRow({ item, amount, chance }: { item: Id; amount: string; chance: s
       <td className="num">{amount}×</td>
       <td className="num">{chance}</td>
     </tr>
+  )
+}
+
+// --- Aktion: ein Baum, ein Fischplatz, ein NPC zum Bestehlen, ein Rezept
+
+function RecipeDetail({ id }: { id: Id }) {
+  const { index, state, dispatch } = useGame()
+  const { t } = useI18n()
+  const r = index.recipes.get(id)
+  if (!r) return <Missing />
+  const p = state.profile
+  const skill = r.skill ? index.skills.get(r.skill) : null
+  const ms = actionTime(r, p)
+  const success = r.success ? successChance(r, p) : null
+  // Ergebnis in Gruppen: festes Produkt, Beute (gewöhnlich/selten), nebenbei
+  const groups: { key: string; rows: typeof r.outputs }[] = [
+    { key: 'main', rows: r.outputs.filter((o) => !o.extra && !o.table) },
+    { key: 'common', rows: r.outputs.filter((o) => o.table === 'common') },
+    { key: 'rare', rows: r.outputs.filter((o) => o.table === 'rare') },
+    { key: 'extra', rows: r.outputs.filter((o) => o.extra && !o.table) },
+  ].filter((g) => g.rows.length)
+  // Mastery-Aufgaben, die genau diese Aktion meinen
+  const tasks = r.skill
+    ? (masteryProgress(index, p, r.skill)?.tasks ?? []).filter((x) => x.goal.recipe === r.ref)
+    : []
+  return (
+    <>
+      <DetailToolbar title={recipeAction(t, r)} subtitle={skill ? `${skill.name} · Lv ${r.level}` : t('detail.action')} />
+      <div className="content narrow-content">
+        <Hero
+          icon={r.icon}
+          title={r.name}
+          chips={
+            <>
+              {skill && (
+                <span className="chip" data-entity={`skill:${skill.id}`}>
+                  <GameIcon src={skill.icon} size={14} /> {skill.name} <LevelTag level={r.level} have={p.levels[skill.id] ?? 1} />
+                </span>
+              )}
+              {ms > 0 && <span className="chip">{t('detail.perAction', { time: fmtDurationShort(ms) })}</span>}
+              {r.xp > 0 && <span className="chip">{fmtNum(Math.round(r.xp * 10) / 10)} XP</span>}
+              {success !== null && <span className="chip">{t('detail.success', { pct: pct(success) })}</span>}
+              {r.success?.kind === 'thieving' && <span className="chip">{t('detail.perception', { n: fmtInt(r.success.perception) })}</span>}
+            </>
+          }
+        >
+          {skill && (
+            <button className="btn small" onClick={() => dispatch({ type: 'view', view: { kind: 'skill', skill: skill.id } })}>
+              {skill.name}
+            </button>
+          )}
+        </Hero>
+        {r.reqs.length > 0 && (
+          <Section title={t('detail.requirements')}>
+            <Reqs reqs={r.reqs} />
+          </Section>
+        )}
+        {(r.inputs.length > 0 || r.costs.length > 0) && (
+          <Section title={t('detail.inputs')}>
+            <div className="chips">
+              {r.costs.map((c) => (
+                <span key={c.currency} className="chip">
+                  <GameIcon src={index.currencies.get(c.currency)?.icon} size={14} /> {fmtInt(c.qty)}
+                </span>
+              ))}
+              {r.inputs.map((i) => (
+                <ItemLink key={i.item} id={i.item} qty={`${fmtNum(i.qty)}×`} />
+              ))}
+            </div>
+          </Section>
+        )}
+        {(groups.length > 0 || (r.currencyOutputs ?? []).length > 0) && (
+          <Section title={t('detail.outputs')} hint={success !== null && success < 1 ? t('detail.onSuccess') : undefined}>
+            <table className="table">
+              <colgroup>
+                <col />
+                <col style={{ width: 110 }} />
+                <col style={{ width: 90 }} />
+              </colgroup>
+              <tbody>
+                {(r.currencyOutputs ?? []).map((c) => (
+                  <tr key={c.currency} className="static">
+                    <td>
+                      <GameIcon src={index.currencies.get(c.currency)?.icon} size={16} /> {index.currencies.get(c.currency)?.name}
+                    </td>
+                    <td className="num">{fmtNum(Math.round(c.qty * 10) / 10)}×</td>
+                    <td className="num">{pct(c.chance)}</td>
+                  </tr>
+                ))}
+                {groups.map((g) => (
+                  <Fragment key={g.key}>
+                    {groups.length > 1 && (
+                      <tr className="static group-row">
+                        <td colSpan={3}>{t(`detail.out.${g.key}`)}</td>
+                      </tr>
+                    )}
+                    {[...g.rows]
+                      .sort((a, b) => b.chance - a.chance)
+                      .map((o, i) => (
+                        <DropRow key={`${o.item}${i}`} item={o.item} amount={fmtNum(Math.round(o.qty * 100) / 100)} chance={pct(o.chance)} />
+                      ))}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </Section>
+        )}
+        {!r.combat && r.base && (
+          <div className="lv-cols">
+            <ActionValues recipe={r} />
+            <ActionBonuses recipe={r} />
+          </div>
+        )}
+        {tasks.length > 0 && (
+          <Section title={t('mastery.title')}>
+            <ol className="task-list">
+              {tasks.map((x) => (
+                <TaskRow key={x.task.id} x={x} />
+              ))}
+            </ol>
+          </Section>
+        )}
+      </div>
+    </>
   )
 }
 

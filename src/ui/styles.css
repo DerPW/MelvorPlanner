@@ -1620,3 +1620,7 @@ button.wiki-group-title:hover { color: var(--accent); }
 .editor-actions .grow { flex: 1; }
 .editor-out { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
 .editor-out .muted { margin: 0; font-size: 12px; }
+
+/* Aktions-Seite: Gruppen im Ergebnis, Produkte im Tooltip */
+.table tr.group-row td { padding-top: 10px; font-size: 11px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-3); background: none; }
+.tip-out { display: inline-flex; align-items: center; gap: 3px; margin-right: 8px; font-variant-numeric: tabular-nums; }

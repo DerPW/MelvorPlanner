@@ -34,12 +34,13 @@ export function TNodes({ k, nodes }: { k: string | Msg; nodes: Record<string, Re
 /** Eine Quelle als Text: „Iron Ore abbauen". Shop-Käufe tragen ihre Kategorie
  *  und verweisen auf den Kauf, sonst verweist der Text aufs erzeugte Item —
  *  außer das ist `self`, das Item, um das es gerade geht. */
-export function SourceText({ r, self }: { r: Recipe; self?: Id }) {
+export function SourceText({ r }: { r: Recipe; self?: Id }) {
   const { index } = useGame()
   const t = useT()
   const category = shopCategory(index, r)
-  const out = r.outputs[0]?.item
-  const entity = r.combat ? `enemy:${r.combat.enemy}` : r.purchase ? `purchase:${r.purchase}` : out && out !== self ? `item:${out}` : null
+  // Die Quelle ist eine Aktion: Kampf → Monster, Kauf → Kauf, sonst ihre eigene Seite
+  // (nicht das erste Produkt — bei Beutetabellen wäre das ein Zufalls-Item)
+  const entity = r.combat ? `enemy:${r.combat.enemy}` : r.purchase ? `purchase:${r.purchase}` : `recipe:${r.id}`
   return (
     <>
       {entity ? <Ref entity={entity}>{recipeAction(t, r)}</Ref> : recipeAction(t, r)}

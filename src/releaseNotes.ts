@@ -10,6 +10,26 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.13.1',
+    date: '2026-11-03',
+    de: {
+      title: 'Eigene Seiten für Aktionen und NPCs',
+      items: [
+        'Neu: Detailseite für jede Aktion — einen Baum, Fischplatz, Felsen, NPC zum Bestehlen oder ein Rezept. Mit Level, Zeit, XP, Erfolgschance und Wahrnehmung, Zutaten, dem Ergebnis samt Beutetabellen (gewöhnlich, selten, nebenbei) mit Chancen, den Werten und Boni wie im Spiel und den Mastery-Aufgaben zu dieser Aktion.',
+        'Quellen verlinken jetzt auf ihre Aktions-Seite statt aufs erste Produkt — „Thug bestehlen“ führt zum Thug, nicht zu einem zufälligen Beute-Item. Auch die laufende Aktion in der Live-Ansicht führt dorthin.',
+        'Wiki: neue Art „Aktionen“, nach Skill gruppiert.',
+      ],
+    },
+    en: {
+      title: 'Pages for actions and NPCs',
+      items: [
+        'New: a detail page for every action — a tree, fishing spot, rock, NPC to pickpocket or a recipe. With level, time, XP, success chance and perception, ingredients, the result including loot tables (common, rare, extra) with chances, the stats and bonuses like in the game and the mastery tasks for this action.',
+        'Sources now link to their action page instead of the first product — “Pickpocket Thug” opens the Thug, not a random loot item. The running action in the live view goes there too.',
+        'Wiki: new kind “Actions”, grouped by skill.',
+      ],
+    },
+  },
+  {
     version: '0.13.0',
     date: '2026-11-03',
     de: {

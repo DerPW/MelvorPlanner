@@ -15,11 +15,11 @@ const ui = (name: string) => `game/icons/Icons/${name}.webp`
 /** Das Fragezeichen des Spiels zählt nicht als Symbol (gesperrte Monster, Gebiete ohne Bild) */
 const real = (icon: string | null | undefined) => (icon && !icon.endsWith('/question.webp') ? icon : null)
 
-export const WIKI_KINDS: WikiKind[] = ['item', 'enemy', 'area', 'purchase', 'skill']
-const KIND_ICON: Record<WikiKind, string> = { item: ui('Bank'), enemy: ui('Combat'), area: ui('CheckeredFlag'), purchase: ui('Shop'), skill: ui('Milestones') }
+export const WIKI_KINDS: WikiKind[] = ['item', 'enemy', 'area', 'recipe', 'purchase', 'skill']
+const KIND_ICON: Record<WikiKind, string> = { item: ui('Bank'), enemy: ui('Combat'), area: ui('CheckeredFlag'), recipe: ui('Ingredient'), purchase: ui('Shop'), skill: ui('Milestones') }
 
 export function wikiKindLabel(t: T, k: WikiKind) {
-  return k === 'item' ? t('search.group.items') : k === 'enemy' ? t('search.group.enemies') : k === 'area' ? t('wiki.areas') : k === 'purchase' ? t('shop.title') : t('search.group.skills')
+  return k === 'item' ? t('search.group.items') : k === 'enemy' ? t('search.group.enemies') : k === 'area' ? t('wiki.areas') : k === 'recipe' ? t('wiki.actions') : k === 'purchase' ? t('shop.title') : t('search.group.skills')
 }
 
 interface Entry {
@@ -126,6 +126,30 @@ function build(index: GameIndex, kind: WikiKind, t: T): Entry[] {
           rank: 0,
           view: { kind: 'detail', type: 'purchase', id: p.id },
           entity: `purchase:${p.id}`,
+        }
+      })
+  }
+  if (kind === 'recipe') {
+    // Aktionen je Skill: Bäume, Fischplätze, NPCs, Rezepte … (ohne Kauf, Upgrade, Kampf)
+    const skillOrder = d.skills.map((s) => s.id)
+    return d.recipes
+      .filter((r) => !r.demoLocked && r.skill && !r.combat && !['shop', 'upgrade', 'open'].includes(r.kind))
+      .map((r) => {
+        const s = index.skills.get(r.skill!)
+        return {
+          id: r.id,
+          name: r.name,
+          icon: r.icon,
+          sub: `Lv ${r.level}${r.xp > 0 ? ` · ${fmtInt(r.xp)} XP` : ''}`,
+          kind,
+          group: `skill:${r.skill}`,
+          groupName: s?.name ?? r.skill!,
+          groupIcon: s?.icon ?? null,
+          groupOrder: skillOrder.indexOf(r.skill!),
+          section: '',
+          rank: 0,
+          view: { kind: 'detail', type: 'recipe', id: r.id },
+          entity: `recipe:${r.id}`,
         }
       })
   }

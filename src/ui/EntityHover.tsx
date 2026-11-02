@@ -175,6 +175,36 @@ function Tooltip({ target }: { target: Target }) {
         <div className="tip-foot">{t('tip.menuHint')}</div>
       </>
     )
+  } else if (target.type === 'recipe') {
+    const r = index.recipes.get(target.id)
+    if (!r) return null
+    const skill = r.skill ? index.skills.get(r.skill) : null
+    const top = [...r.outputs].sort((a, b) => b.chance - a.chance).slice(0, 4)
+    body = (
+      <>
+        <Head icon={r.icon} name={recipeAction(t, r)} />
+        <div className="tip-facts">
+          {skill && (
+            <span>
+              <GameIcon src={skill.icon} size={13} /> {skill.name} <LevelTag level={r.level} have={state.profile.levels[skill.id] ?? 1} />
+            </span>
+          )}
+          {r.timeMs > 0 && <span>{fmtDurationShort(actionTime(r, state.profile))}</span>}
+          {r.xp > 0 && <span>{fmtInt(r.xp)} XP</span>}
+        </div>
+        {top.length > 0 && (
+          <div className="tip-line">
+            {top.map((o) => (
+              <span key={o.item} className="tip-out">
+                <GameIcon src={index.items.get(o.item)?.icon} size={14} /> {o.chance < 1 ? `${Math.round(o.chance * 1000) / 10} %` : `${o.qty}×`}
+              </span>
+            ))}
+            {r.outputs.length > top.length && <span className="muted">+{r.outputs.length - top.length}</span>}
+          </div>
+        )}
+        <div className="tip-foot">{t('tip.menuHint')}</div>
+      </>
+    )
   } else if (target.type === 'enemy') {
     const e = index.data.enemies?.find((x) => x.id === target.id)
     if (!e) return null

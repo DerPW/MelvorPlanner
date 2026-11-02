@@ -9,6 +9,7 @@ import { GameIcon, Sym } from './components'
 import { routeEntity, routeIcon, routeLabel } from './routeText'
 import { useGame, type State, type View } from './state'
 import { wikiStation } from './WikiView'
+import { recipeAction } from './SolutionView'
 import { entityIcon, entityName } from './StatsView'
 
 const ui = (name: string) => `game/icons/Icons/${name}.webp`
@@ -44,6 +45,10 @@ function station(index: GameIndex, state: State, v: View, t: T): { label: string
     return r ? { label: routeLabel(index, r), icon: routeIcon(index, r), entity: routeEntity(r) } : { label: '—', icon: null, entity: null }
   }
   const entity = `${v.type}:${v.id}`
+  if (v.type === 'recipe') {
+    const r = index.recipes.get(v.id)
+    return { label: r ? recipeAction(t, r) : v.id, icon: r?.icon ?? null, entity }
+  }
   if (v.type === 'item') {
     const i = index.items.get(v.id)
     return { label: i?.name ?? v.id, icon: i?.icon ?? null, entity }

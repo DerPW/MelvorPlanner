@@ -38,7 +38,7 @@ export type View =
   | { kind: 'skill'; skill: Id }
   | { kind: 'detail'; type: DetailType; id: Id }
 
-export type DetailType = 'item' | 'enemy' | 'area' | 'purchase'
+export type DetailType = 'item' | 'enemy' | 'area' | 'purchase' | 'recipe'
 export type WikiKind = DetailType | 'skill'
 
 export type PlanTab = 'flow' | 'tree' | 'materials'

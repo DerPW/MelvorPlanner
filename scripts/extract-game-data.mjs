@@ -780,7 +780,7 @@ fs.mkdirSync(ICON_DIR, { recursive: true })
 
 let written = 0
 // Symbole der Oberfläche, die keine Spieldaten nennen (Kopf-Knöpfe, Einheiten)
-for (const n of ['Statistics_64', 'Settings_64', 'codex', 'Edit', 'Mastery_Icon', 'GuideBook', 'Quests', 'QuestStepIcon', 'TimeInterval_48', 'doublingicon_48', 'XP_Icon_48', 'Slayer', 'Prayer', 'Agility', 'Astrology', 'Herblore', 'Ranching', 'Hunting'])
+for (const n of ['Statistics_64', 'Settings_64', 'codex', 'Edit', 'Ingredient', 'Mastery_Icon', 'GuideBook', 'Quests', 'QuestStepIcon', 'TimeInterval_48', 'doublingicon_48', 'XP_Icon_48', 'Slayer', 'Prayer', 'Agility', 'Astrology', 'Herblore', 'Ranching', 'Hunting'])
   icon(`res://Assets/Icons/${n}.png`)
 icon('res://Assets/Items/Lemon.png')
 

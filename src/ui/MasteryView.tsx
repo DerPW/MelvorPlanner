@@ -132,7 +132,7 @@ function SkillMastery({ m }: { m: MasteryProgress }) {
   )
 }
 
-function TaskRow({ x }: { x: TaskProgress }) {
+export function TaskRow({ x }: { x: TaskProgress }) {
   const { index, dispatch } = useGame()
   const { t, lang } = useI18n()
   const entity = goalEntity(index, x.goal)
