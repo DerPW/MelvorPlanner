@@ -5,6 +5,7 @@ import { GP } from '../core/route'
 import type { GameIndex } from '../core/planner'
 import { GameIcon, Sym } from './components'
 import { Inspector } from './Inspector'
+import { LiveSyncProvider, useLive } from './LiveSync'
 import { PlanView } from './PlanView'
 import { ProfileView } from './ProfileView'
 import { RouteView } from './RouteView'
@@ -25,6 +26,7 @@ export function App({ index }: { index: GameIndex }) {
 
   return (
     <GameContext.Provider value={{ index: bonus.index, baseIndex: index, bonus, state, dispatch }}>
+      <LiveSyncProvider>
       <div className={`window ${state.selected ? '' : 'no-inspector'}`}>
         <Sidebar />
         <main className="main">{main}</main>
@@ -34,6 +36,7 @@ export function App({ index }: { index: GameIndex }) {
           </aside>
         )}
       </div>
+      </LiveSyncProvider>
     </GameContext.Provider>
   )
 }
@@ -81,6 +84,7 @@ function Sidebar() {
           <button className={`side-row ${v.kind === 'profile' ? 'active' : ''}`} onClick={() => dispatch({ type: 'view', view: { kind: 'profile' } })}>
             <img src={ui('Bank')} alt="" />
             <span className="grow">Profil</span>
+            <LiveBadge />
           </button>
         </div>
 
@@ -192,6 +196,17 @@ function AddRouteMenu() {
           )}
         </div>
       )}
+    </span>
+  )
+}
+
+function LiveBadge() {
+  const { state } = useGame()
+  const live = useLive()
+  if (!state.live || !live.saves) return null
+  return (
+    <span className={`live-badge ${live.error ? 'warn' : ''}`} title={live.error ?? 'Liest den Spielstand live mit'}>
+      <i /> live
     </span>
   )
 }

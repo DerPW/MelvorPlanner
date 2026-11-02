@@ -6,6 +6,7 @@ import { modLabel, modScope, modValue } from './bonusText'
 import { GameIcon, Select, Stepper, Switch, Sym, Toolbar } from './components'
 import { ImportSheet } from './ImportSheet'
 import { ItemSearch } from './ItemSearch'
+import { useLive } from './LiveSync'
 import { useGame } from './state'
 
 export function ProfileView() {
@@ -22,6 +23,8 @@ export function ProfileView() {
     [index, unlockFilter],
   )
   const gp = index.currencies.get(GP)
+  const live = useLive()
+  const time = (ms: number) => new Date(ms).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'medium' })
 
   return (
     <>
@@ -42,6 +45,49 @@ export function ProfileView() {
       </Toolbar>
       {importing && <ImportSheet onClose={() => setImporting(false)} />}
       <div className="content narrow-content">
+        <div className="group-title">
+          Live-Verbindung <span className="muted">liest den Spielstand neu ein, sobald das Spiel speichert</span>
+        </div>
+        <div className="form-group">
+          {live.saves === null && (
+            <div className="form-row muted">Nur verfügbar, wenn der Planer lokal mit „pnpm dev" läuft — dann in jedem Browser.</div>
+          )}
+          {live.saves?.length === 0 && (
+            <div className="form-row muted">Kein Spielstand gefunden unter ~/Library/Application Support/Games By Malcs/Melvor Idle 2.</div>
+          )}
+          {live.saves?.map((f) => {
+            const h = live.headers[f.name]
+            const on = state.live?.save === f.name
+            return (
+              <div className="form-row" key={f.name}>
+                <GameIcon src="game/icons/Icons/Bank.webp" size={22} />
+                <span className="grow">
+                  {h ? h.character || 'Ohne Namen' : f.name}
+                  {h && (
+                    <span className="muted">
+                      {' '}
+                      · {h.gamemode}
+                      {h.isDemo ? ' · Demo' : ''} · {Object.values(h.levels).reduce((a, b) => a + b, 0)} Gesamtlevel
+                    </span>
+                  )}
+                  <div className="hint">gespeichert {time(f.mtime)}</div>
+                </span>
+                {on && <span className={`live-badge ${live.error ? 'warn' : ''}`}><i /> {live.busy ? 'liest …' : 'live'}</span>}
+                <Switch label="Live mitlesen" checked={on} onChange={(v) => dispatch({ type: 'setLive', save: v ? f.name : null })} />
+              </div>
+            )
+          })}
+        </div>
+        {state.live && (
+          <p className="form-caption">
+            {live.error
+              ? `Zuletzt fehlgeschlagen: ${live.error} — nächster Versuch in ein paar Sekunden.`
+              : live.lastSync
+                ? `Zuletzt übernommen ${time(live.lastSync)}. Gilden-Rang und Felder bleiben, wie du sie eingestellt hast.`
+                : 'Wird gelesen …'}
+          </p>
+        )}
+
         <div className="group-title">Allgemein</div>
         <div className="form-group">
           <div className="form-row">

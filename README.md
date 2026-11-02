@@ -34,6 +34,27 @@ der Planer braucht, der Rest wird übersprungen. Das Spiel schließt den
 Brotli-Strom nie ab; deshalb `brotli-dec-wasm` als Strom-Decoder, der alles
 bis dahin liefert. Geprüft mit SaveVersion 28 (Demo 0.11.4).
 
+### Live mitlesen
+
+Profil → „Live-Verbindung": Spielstand wählen und einschalten. Der lokale
+Server (`scripts/vite-save-plugin.ts`) findet die Spielstände selbst und
+liefert sie unter `/api/saves`; die App fragt alle 4 s nach der Speicherzeit
+und liest bei einer Änderung neu ein — in jedem Browser, solange der Planer
+mit `pnpm dev` (oder `pnpm preview`) läuft. Gilden-Rang und Farming-Felder
+bleiben dabei, wie sie eingestellt sind.
+
+## Boni
+
+Shop-Käufe (gekauft), Werkzeuge im Werkzeuggürtel (ausgerüstet) und
+Gilden-Boni (Rang im Profil einstellen) gehen in alle Zeiten, Mengen und
+Raten ein — abschaltbar im Profil. Jedes Rezept wird dafür aus seinen
+Grundwerten neu berechnet, mit den Formeln aus den `…ActionStats` des Spiels;
+ohne Boni ergibt das exakt die Grundwerte. Boni werden addiert, globale
+Gruppen (`GlobalPercentActionInterval`, `GlobalPercentXpGained`) fließen in
+jeden Skill ein. Noch nicht dabei: Tränke, Astrologie, Haustiere, angelegte
+Ausrüstung; Werte, die der Planer nicht modelliert (Vogelnester u. Ä.), sind in
+der Skill-Ansicht als „nicht gerechnet" markiert.
+
 ## Loslegen
 
 ```bash
@@ -64,31 +85,33 @@ Material wird wahlweise über dieselbe Quellenwahl selbst beschafft; dessen
 Zeit und XP zählen mit. Level-Routen behalten die Produkte (→ Lager),
 Gold-Routen verkaufen sie. Gold, das man nicht hat, wird nicht ausgegeben.
 
-Grundwerte ohne Boni (Meisterschaft, Ausrüstung, Tränke …). Die Formeln sind
-aus dem Spielcode der Demo 0.11.4 nachgebaut:
+Grundwerte (Boni siehe oben). Die Formeln sind aus dem Spielcode der Demo
+0.11.4 nachgebaut:
 
 | Skill | Zeit je Durchlauf |
 |---|---|
 | Schmieden, Handwerk, Bogenbau, Runen, Bestienhandwerk | Intervall × Schritte |
-| Kräuterkunde | Vorbereiten + Erhitzen + Rühren + Abfüllen |
+| Kräuterkunde | Vorbereiten + Erhitzen + Rühren + 10 × Abfüllen |
 | Kochen | Intervall; Erfolg = (69 + Level) / (69 + Schwierigkeit), Zutaten gehen auch beim Misserfolg weg |
 | Thieving | Intervall + (1 − Erfolg) × 2 s Betäubung; Erfolg = (100 + Level) / (100 + Wahrnehmung) |
 | Holzfällen | Intervall × Lebenspunkte des Baums |
 | Bergbau | Intervall × erwartete Schläge, (1 − (1 − p)ⁿ) / p |
 | Angeln | mittleres Intervall, Fischchance × Gewicht |
-| Farming | Wachstum ÷ Felder (Profil), als Wartezeit |
+| Farming | Wachstum ÷ Felder (Profil), als Wartezeit; Ertrag minus Krankheit/Schädlinge über dem Schutz |
 
 XP-Kurve: `XP(L) = ⌊¼ · Σ_{i=1}^{L−1} ⌊i + 300 · 2^(i/7)⌋⌋` (wie Teil 1, im
 Spielcode bestätigt).
 
 Noch nicht drin: Kampf/Stats (braucht einen Kampfsimulator), Monster-Drops,
-Hunting, Ranching, Astrology, Boni/Modifikatoren.
+Hunting, Ranching, Astrology; Gilden-Rang aus dem Spielstand lesen.
 
 ## Aufbau
 
 - `scripts/extract-game-data.mjs` — Godot-Paket lesen, Rezepte vereinheitlichen
+- `scripts/vite-save-plugin.ts` — Spielstände für die Live-Verbindung
 - `src/core/` — Rechenkern ohne UI: `planner` (Crafting-Baum), `route`
-  (Level/Gold-Simulation), `solve` (Ziele → Phasen), `experience`, `save`
-  (Spielstand lesen), `saveImport` (Datei/Text → Profil)
+  (Level/Gold-Simulation), `solve` (Ziele → Phasen), `bonuses` (Boni →
+  Rezepte neu berechnen), `experience`, `save` (Spielstand lesen),
+  `saveImport` (Datei/Text → Profil)
 - `src/ui/` — Oberfläche (React, eigenes CSS im macOS-Stil, Farben aus den
   UI-Texturen des Spiels)

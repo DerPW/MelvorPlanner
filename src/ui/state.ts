@@ -28,6 +28,8 @@ export interface State {
   tab: PlanTab
   selected: Id | null
   inspectorOpen: boolean
+  /** Live-Verbindung: Spielstand-Datei, die mitgelesen wird */
+  live: { save: string } | null
 }
 
 export type Action =
@@ -53,6 +55,7 @@ export type Action =
   | { type: 'tab'; tab: PlanTab }
   | { type: 'select'; item: Id | null }
   | { type: 'inspector'; open: boolean }
+  | { type: 'setLive'; save: string | null }
 
 export const emptyProfile = (): Profile => ({ levels: {}, inventory: {}, currencies: {}, owned: {}, farmingPlots: 4 })
 
@@ -67,6 +70,7 @@ export const initialState = (): State => ({
   tab: 'flow',
   selected: null,
   inspectorOpen: true,
+  live: null,
 })
 
 export function reducer(s: State, a: Action): State {
@@ -145,6 +149,8 @@ export function reducer(s: State, a: Action): State {
       return { ...s, selected: a.item, inspectorOpen: a.item ? true : s.inspectorOpen }
     case 'inspector':
       return { ...s, inspectorOpen: a.open }
+    case 'setLive':
+      return { ...s, live: a.save ? { save: a.save } : null }
   }
 }
 

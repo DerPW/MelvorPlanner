@@ -52,9 +52,10 @@ function base64ToBytes(text: string): Uint8Array {
   return bytes
 }
 
-/** Datei oder eingefügter Export-Text → gelesener Spielstand */
-export async function readSave(input: File | string): Promise<SaveData> {
-  const compressed = typeof input === 'string' ? base64ToBytes(input) : new Uint8Array(await input.arrayBuffer())
+/** Datei, Bytes oder eingefügter Export-Text → gelesener Spielstand */
+export async function readSave(input: File | Uint8Array | string): Promise<SaveData> {
+  const compressed =
+    typeof input === 'string' ? base64ToBytes(input) : input instanceof Uint8Array ? input : new Uint8Array(await input.arrayBuffer())
   return parseSave(await brotliDecode(compressed))
 }
 
@@ -65,7 +66,8 @@ export interface ImportResult {
   unknownItems: string[]
 }
 
-/** Spielstand → Profil. Farming-Felder bleiben, wie sie eingestellt waren. */
+/** Spielstand → Profil. Was nicht im Spielstand steht (Farming-Felder,
+ *  Gilden-Rang), bleibt, wie es eingestellt war. */
 export function profileFromSave(index: GameIndex, save: SaveData, current: Profile): ImportResult {
   const cap = save.isDemo ? DEMO_LEVEL_CAP : MAX_LEVEL
   const levels: Record<string, number> = {}
@@ -89,6 +91,7 @@ export function profileFromSave(index: GameIndex, save: SaveData, current: Profi
       equipped: save.equipped,
       levelCap: cap,
       farmingPlots: current.farmingPlots,
+      guildRanks: current.guildRanks,
       source: {
         character: save.character,
         savedAt: save.savedAt?.toISOString() ?? null,
