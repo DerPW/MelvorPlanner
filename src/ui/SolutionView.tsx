@@ -573,6 +573,8 @@ function PhaseBlock({ phase, index, keyFor }: { phase: Phase; index: number; key
         why={phase.why}
         time={phase.plan.activeMs}
         extra={phase.plan.passiveMs > 0 ? t('flow.growth', { time: fmtDurationShort(phase.plan.passiveMs) }) : undefined}
+        keys={steps.map((s) => keyFor(makeKey(index, s)))}
+        single={steps.length === 1}
       />
       <ol className="steps">
         {steps.map((s) => (
@@ -584,15 +586,30 @@ function PhaseBlock({ phase, index, keyFor }: { phase: Phase; index: number; key
   )
 }
 
-function PhaseHead({ title, why, time, extra }: { title: React.ReactNode; why: Msg; time: number; extra?: string }) {
+/** Kopf eines Abschnitts. Die Zeit fehlt, wenn er nur einen Schritt hat (sie
+ *  stünde doppelt da); läuft einer seiner Schritte gemessen, zählt sie mit */
+function PhaseHead({ title, why, time, extra, keys, single }: { title: React.ReactNode; why: Msg; time: number; extra?: string; keys: string[]; single?: boolean }) {
+  const track = useContext(TrackContext)
+  const live = track?.step && track.step.perMs > 0 && keys.includes(track.step.key) ? track.step : null
   return (
     <div className="phase-head">
       <span className="phase-title">{title}</span>
       {!isGoal(why) && <WhyTag why={why} />}
       <span className="spacer" />
       {extra && <span className="muted">{extra}</span>}
-      <span className="phase-time">{fmtDuration(time)}</span>
+      {!single && (live ? <LivePhaseTime step={live} rest={time - live.planMs} /> : <span className="phase-time">{fmtDuration(time)}</span>)}
     </div>
+  )
+}
+
+/** Abschnittszeit mit dem laufenden Schritt gemessen: der Rest geplant, der Schritt heruntergezählt */
+function LivePhaseTime({ step, rest }: { step: LiveStep; rest: number }) {
+  const t = useT()
+  const now = useNow(1000)
+  return (
+    <span className="phase-time live-time" title={t('track.measuredHint')}>
+      {fmtDuration(Math.max(0, rest) + liveRemaining(step, now))}
+    </span>
   )
 }
 
@@ -618,7 +635,16 @@ function RouteBlock({ route, why, phase, keyFor }: { route: Route; why: Msg; pha
   const longest = Math.max(...route.segments.map((s) => s.timeMs))
   return (
     <section className="phase">
-      <PhaseHead title={title} why={why} time={route.totalMs} />
+      <PhaseHead
+        title={title}
+        why={why}
+        time={route.totalMs}
+        keys={route.segments.flatMap((seg, i) => {
+          const k = keyFor(segmentKey(phase, i, seg))
+          return [k, ...[...seg.chain.keys()].map((id) => chainKey(k, id))]
+        })}
+        single={route.segments.length === 1 && ![...route.segments[0].chain.keys()].some((id) => id !== route.segments[0].recipe.id && index.recipes.has(id))}
+      />
       {!route.reached && route.stopReason && (
         <p className="bad" style={{ margin: '0 10px 8px', fontSize: 12 }}>
           {t(route.stopReason)}
@@ -827,7 +853,7 @@ function LiveStepTime({ step, planned }: { step: LiveStep; planned: React.ReactN
     return (
       <>
         {planned}
-        <span className="live-note">{t('track.measuring')}</span>
+        <span className="live-note">{t(step.measured ? 'track.noProgress' : 'track.measuring')}</span>
       </>
     )
   const left = liveRemaining(step, now)

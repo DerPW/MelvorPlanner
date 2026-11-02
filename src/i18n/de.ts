@@ -514,6 +514,7 @@ export const de = {
   'reserve.chip': 'zurückgelegt: {name}',
   'track.leftXp': 'noch {n} XP',
   'track.leftItems': 'noch {n}×',
+  'track.noProgress': 'kein Fortschritt gemessen',
   'track.nothing': 'Im Spiel läuft gerade nichts',
   'track.measuringN': 'misst … {n}/{of}',
   'track.measuringHint': 'Die ersten Werte kommen nach 20 s derselben Aktion — das Spiel speichert etwa alle 10 s.',

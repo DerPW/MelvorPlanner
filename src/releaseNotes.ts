@@ -10,6 +10,30 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.11.7',
+    date: '2026-11-02',
+    de: {
+      title: 'Eine Zeit statt zwei',
+      items: [
+        'Route: Hat ein Abschnitt nur einen Schritt, steht die Zeit nur noch am Schritt, nicht doppelt im Kopf.',
+        'Läuft ein Schritt gemessen, zählt auch die Zeit im Kopf seines Abschnitts mit — Kopf und Schritt rechnen jetzt mit derselben Messung.',
+        'Die Messung ist anfangs mit dem Plan gemittelt und gilt nach 2 Minuten ganz: In den ersten Sekunden macht eine Aktion mehr oder weniger sonst schnell 20 % aus.',
+        'Bringt der laufende Schritt laut Messung keinen Fortschritt (z. B. eine Kampfhaltung, die einen anderen Skill trainiert), steht dort „kein Fortschritt gemessen“ statt „misst …“.',
+        'Seitenleiste: kein Live-Badge mehr an „Einstellungen“ — den Stand zeigt der Punkt an „Live“, bei einem Lesefehler mit Hinweis.',
+      ],
+    },
+    en: {
+      title: 'One time instead of two',
+      items: [
+        'Route: when a section has a single step, its time is shown only at the step, not twice in the header.',
+        'While a step runs measured, the time in its section header counts along — header and step now use the same measurement.',
+        'The measurement is blended with the plan at first and fully counts after 2 minutes: in the first seconds, one action more or less easily makes 20 %.',
+        'When the running step shows no measured progress (e.g. a combat stance training another skill), it says “no progress measured” instead of “measuring …”.',
+        'Sidebar: no live badge on “Settings” any more — the dot on “Live” shows the state, with a hint on read errors.',
+      ],
+    },
+  },
+  {
     version: '0.11.6',
     date: '2026-11-02',
     de: {

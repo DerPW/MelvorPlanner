@@ -135,7 +135,7 @@ function Sidebar() {
           <NavRow kind="combat" icon={ui('Combat')} label={t('combat.title')} locked={!!featureLock(index, state.profile, 'MelvorBase:Combat')} />
           <NavRow kind="gear" icon={index.items.get('MelvorBase:IronHelmet')?.icon ?? ui('Combat')} label={t('gear.title')} />
           <NavRow kind="completion" icon={ui('Milestones')} label={t('completion.title')} />
-          <NavRow kind="profile" icon={ui('Mastery_Icon')} label={t('profile.title')} extra={<LiveBadge />} />
+          <NavRow kind="profile" icon={ui('Mastery_Icon')} label={t('profile.title')} />
         </div>
 
         <div className="side-section">
@@ -214,8 +214,11 @@ function LiveNav() {
   const { state } = useGame()
   const { t } = useI18n()
   const { action } = useTrack()
+  const live = useLive()
   const icon = action?.recipe?.icon ?? action?.enemy?.icon ?? action?.skill?.icon ?? 'game/icons/Icons/Mastery_Icon.webp'
-  return <NavRow kind="live" icon={icon} label={t('live.view')} extra={state.live ? <i className={action ? 'live-dot' : 'live-dot off'} /> : undefined} />
+  // Punkt: grün, solange eine Aktion läuft; beim Lesefehler mit Hinweis
+  const dot = state.live ? <i className={action && !live.error ? 'live-dot' : 'live-dot off'} title={live.error ? t(live.error) : t('live.badgeHint')} /> : undefined
+  return <NavRow kind="live" icon={icon} label={t('live.view')} extra={dot} />
 }
 
 function NavRow({ kind, icon, label, badge, locked, extra }: { kind: 'routes' | 'wiki' | 'live' | 'bank' | 'shop' | 'combat' | 'gear' | 'completion' | 'profile'; icon: string | null | undefined; label: string; badge?: number; locked?: boolean; extra?: React.ReactNode }) {
@@ -336,14 +339,3 @@ function AddRouteMenu() {
   )
 }
 
-function LiveBadge() {
-  const { state } = useGame()
-  const { t } = useI18n()
-  const live = useLive()
-  if (!state.live || !live.saves) return null
-  return (
-    <span className={`live-badge ${live.error ? 'warn' : ''}`} title={live.error ? t(live.error) : t('live.badgeHint')}>
-      <i /> live
-    </span>
-  )
-}

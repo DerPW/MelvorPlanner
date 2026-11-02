@@ -87,6 +87,8 @@ export interface LiveStep {
   /** Rest beim letzten Spielstand (XP oder Items) und gemessene Rate je ms (0 = noch nicht gemessen) */
   amount: number
   unit: 'xp' | 'items'
+  /** Raten liegen vor (sonst wird noch gemessen) — bei perMs 0 heißt das: kein Fortschritt */
+  measured: boolean
   perMs: number
   /** Rest, als der Schritt zuerst lief — für den Fortschritt */
   start: number

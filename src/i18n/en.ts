@@ -514,6 +514,7 @@ export const en: Record<Key, string> = {
   'reserve.chip': 'kept: {name}',
   'track.leftXp': '{n} XP left',
   'track.leftItems': '{n}× left',
+  'track.noProgress': 'no progress measured',
   'track.nothing': 'Nothing running in the game',
   'track.measuringN': 'measuring … {n}/{of}',
   'track.measuringHint': 'First values after 20 s of the same action — the game saves about every 10 s.',

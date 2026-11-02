@@ -136,7 +136,12 @@ export function TrackProvider({ children }: { children: ReactNode }) {
       starts.current.set(key, start)
       // Danach: der nächste Schritt im Block (z. B. erst angeln, dann kochen), sonst der nächste Block
       const next = i + 1 < current[g].steps.length ? recipeAction(t, current[g].steps[i + 1].recipe) : groups[g + 1] ? groupLabel(t, groups[g + 1]) : null
-      live = { key, amount: m.amount, unit: m.unit, perMs: m.perMs, start, planMs: step.ms, at: last?.at ?? Date.now(), next }
+      // Kurz gemessen ist ungenau — eine Aktion mehr oder weniger im Fenster macht
+      // bei 20 s schnell 20 % aus. Anfangs mit dem Plan gemittelt, nach 2 min ganz gemessen
+      const planPerMs = step.ms > 0 ? m.amount / step.ms : 0
+      const w = Math.min(1, (rates?.spanMs ?? 0) / 120_000)
+      const perMs = m.perMs > 0 && planPerMs > 0 ? w * m.perMs + (1 - w) * planPerMs : m.perMs
+      live = { key, amount: m.amount, unit: m.unit, measured: !!rates, perMs, start, planMs: step.ms, at: last?.at ?? Date.now(), next }
     }
     const planBlock = current.reduce((n, g) => n + g.ms, 0)
     const blockMs = current.reduce(
