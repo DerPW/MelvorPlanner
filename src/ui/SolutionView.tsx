@@ -9,8 +9,8 @@ import { GameIcon, LevelTag, Ref, Sym } from './components'
 import { useGame } from './state'
 
 /** Wofür das Quell-Symbol eines Rezepts steht: sein Skill, sonst der Shop-Kauf */
-export const sourceEntity = (r: { skill: string | null; purchase?: string }) =>
-  r.skill ? `skill:${r.skill}` : r.purchase ? `purchase:${r.purchase}` : null
+export const sourceEntity = (r: { skill: string | null; purchase?: string; combat?: { enemy: string } }) =>
+  r.combat ? `enemy:${r.combat.enemy}` : r.skill ? `skill:${r.skill}` : r.purchase ? `purchase:${r.purchase}` : null
 
 /** Shop-Quelle: in welcher Shop-Kategorie der Kauf steht */
 export const shopCategory = (index: { purchases: Map<string, { category: string | null }> }, r: { purchase?: string }) =>
@@ -37,7 +37,7 @@ export function SourceText({ r, self }: { r: Recipe; self?: Id }) {
   const t = useT()
   const category = shopCategory(index, r)
   const out = r.outputs[0]?.item
-  const entity = r.purchase ? `purchase:${r.purchase}` : out && out !== self ? `item:${out}` : null
+  const entity = r.combat ? `enemy:${r.combat.enemy}` : r.purchase ? `purchase:${r.purchase}` : out && out !== self ? `item:${out}` : null
   return (
     <>
       {entity ? <Ref entity={entity}>{recipeAction(t, r)}</Ref> : recipeAction(t, r)}

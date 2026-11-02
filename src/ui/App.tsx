@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { applyBonuses } from '../core/bonuses'
+import { COMBAT_SKILLS } from '../core/combat'
+import { withCombat } from '../core/combatSources'
 import { fmtInt } from '../core/format'
 import { GP } from '../core/route'
 import type { GameIndex } from '../core/planner'
@@ -27,7 +29,11 @@ import { PICK_ITEM_EVENT, UiContext, useUi } from './ui'
 export function App({ index }: { index: GameIndex }) {
   const [state, dispatch] = useReducer(reducer, undefined, loadState)
   useEffect(() => saveState(state), [state])
-  const bonus = useMemo(() => applyBonuses(index, state.profile, state.options.bonuses), [index, state.profile, state.options.bonuses])
+  // Monster als Quellen — neu, wenn sich Kampf-Level, Ausrüstung oder Lager-Essen ändern
+  const combatKey = JSON.stringify([COMBAT_SKILLS.map((s) => state.profile.levels[s]), state.profile.combat, state.profile.unlocked])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const gameIndex = useMemo(() => withCombat(index, state.profile), [index, combatKey])
+  const bonus = useMemo(() => applyBonuses(gameIndex, state.profile, state.options.bonuses), [gameIndex, state.profile, state.options.bonuses])
   const [notesOpen, setNotesOpen] = useReleaseNotesOnUpdate()
   const [importOpen, setImportOpen] = useState(false)
   const ui = useMemo(() => ({ openImport: () => setImportOpen(true), openNotes: () => setNotesOpen(true) }), [setNotesOpen])
@@ -44,7 +50,7 @@ export function App({ index }: { index: GameIndex }) {
   else main = <RoutesHome />
 
   return (
-    <GameContext.Provider value={{ index: bonus.index, baseIndex: index, bonus, state, dispatch }}>
+    <GameContext.Provider value={{ index: bonus.index, baseIndex: gameIndex, bonus, state, dispatch }}>
       <UiContext.Provider value={ui}>
         <LiveSyncProvider>
           <div className={`window ${state.selected ? '' : 'no-inspector'}`}>

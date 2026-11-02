@@ -169,7 +169,9 @@ function ItemDetail({ id }: { id: Id }) {
   const sources = rankSources(index, id, state.profile)
   const chosen = state.choices[id]
   const current = (chosen && sources.find((r) => r.id === chosen)) || sources[0]
-  const info = (index.data.infoSources ?? []).filter((s) => s.item === id)
+  // Monster, die schon als Quelle rechnen, nicht noch einmal als Info
+  const fought = new Set(sources.filter((r) => r.combat).map((r) => r.combat!.enemy))
+  const info = (index.data.infoSources ?? []).filter((s) => s.item === id && !(s.via === 'enemy' && s.from && fought.has(s.from)))
   const usedIn = (index.consumers.get(id) ?? []).filter((r) => !r.demoLocked)
   const neededBy = index.data.purchases.filter((p) => p.inputs.some((i) => i.item === id) && !p.demoLocked)
   const toolFor = index.data.recipes.filter((r) => !r.demoLocked && r.reqs.some((q) => q.type === 'item' && q.item === id))

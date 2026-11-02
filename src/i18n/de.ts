@@ -86,6 +86,7 @@ export const de = {
   'problem.unreachable': 'nicht erreichbar',
   'problem.unknownPurchase': 'Unbekannter Kauf {id}',
   'problem.locked': '„{name}" ist in dieser Version gesperrt',
+  'problem.combatStance': 'Keine Haltung deiner Waffe gibt dafür XP, oder kein Monster ist sicher zu besiegen — Waffe, Essen oder Ausrüstung im Kampf ändern.',
   'problem.demoFeature': '{name} ist in der Demo gesperrt.',
   'problem.noSource': 'Keine Quelle für {n}× {item}',
 
@@ -170,6 +171,7 @@ export const de = {
   'verb.shop': '{name} kaufen',
   'verb.upgrade': '{name} aufwerten',
   'verb.open': '{name} öffnen',
+  'verb.combat': '{name} besiegen',
 
   'kind.artisan': 'Herstellen',
   'kind.cooking': 'Kochen',
@@ -183,6 +185,7 @@ export const de = {
   'kind.shop': 'Shop',
   'kind.upgrade': 'Aufwerten',
   'kind.open': 'Öffnen',
+  'kind.combat': 'Kampf',
 
   'insp.unknown': 'Unbekanntes Item',
   'insp.sells': 'Verkauf',

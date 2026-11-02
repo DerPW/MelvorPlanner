@@ -86,6 +86,7 @@ export const en: Record<Key, string> = {
   'problem.unreachable': 'not reachable',
   'problem.unknownPurchase': 'Unknown purchase {id}',
   'problem.locked': '“{name}” is locked in this version',
+  'problem.combatStance': 'No stance of your weapon gives XP for it, or no monster is safe to defeat — change weapon, food or gear under Combat.',
   'problem.demoFeature': '{name} is locked in the demo.',
   'problem.noSource': 'No source for {n}× {item}',
 
@@ -170,6 +171,7 @@ export const en: Record<Key, string> = {
   'verb.shop': 'Buy {name}',
   'verb.upgrade': 'Upgrade {name}',
   'verb.open': 'Open {name}',
+  'verb.combat': 'Defeat {name}',
 
   'kind.artisan': 'Crafting',
   'kind.cooking': 'Cooking',
@@ -183,6 +185,7 @@ export const en: Record<Key, string> = {
   'kind.shop': 'Shop',
   'kind.upgrade': 'Upgrade',
   'kind.open': 'Open',
+  'kind.combat': 'Combat',
 
   'insp.unknown': 'Unknown item',
   'insp.sells': 'Sells for',

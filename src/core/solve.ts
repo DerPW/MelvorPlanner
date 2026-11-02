@@ -12,6 +12,7 @@
 // jeweils der ganze Weg (Probe auf einer Kopie des Stands), keine Schätzung.
 
 import { applyBonuses } from './bonuses'
+import { COMBAT_SKILLS } from './combat'
 import { MAX_LEVEL, levelForXp, xpForLevel } from './experience'
 import { add, avoidSources, isUnlocked, levelOf, makePlan, unlockReqFor, unmetReqs, type GameIndex, type Plan, type SourceChoices, type UnlockReq } from './planner'
 import { GP, planRoute, unitCosts, type Route, type RouteGoal, type RouteOptions } from './route'
@@ -271,7 +272,9 @@ export function solve(fullIndex: GameIndex, target: Target, profile: Profile, ch
       route = runRoute({ kind: 'level', skill, level }, why)
     }
     if (!route.reached) {
-      problem({ key: 'problem.level', params: { skill: skillName(skill), level, reason: route.stopReason ?? { key: 'problem.unreachable' } } })
+      // Kampf-Skills trainiert nur eine passende Haltung der Waffe
+      const reason = COMBAT_SKILLS.includes(skill) && !baseIndex.data.recipes.some((r) => r.combat && r.skill === skill) ? { key: 'problem.combatStance' } : route.stopReason
+      problem({ key: 'problem.level', params: { skill: skillName(skill), level, reason: reason ?? { key: 'problem.unreachable' } } })
     }
   }
 

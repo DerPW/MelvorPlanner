@@ -35,6 +35,28 @@ hinterlässt. Steckt ein Skill fest, sucht der Planer die billigste
 Freischaltung (z. B. „Farming braucht Samen → Samen gibt es nur per
 Thieving 35 → erst Thieving trainieren").
 
+## Kampf
+
+`src/core/combat.ts` rechnet einen Kampf mit den Formeln des Spiels
+(CharacterStats, TargetCharacterStats, CharacterComponent.ModifyAttackDamage,
+CombatActionComponent): Trefferwert `floor((L+9)·(Bonus+64))` gegen Ausweichen
+derselben Haltung, Max Hit, Resistenz `Schutz/(Kraft+Schutz)` (≤ 70 %),
+Kampf-Dreieck, Elemente, 3 s Respawn, der Angriffstimer beginnt jeden Kampf
+neu. Die Angriffe bis zum Kill kommen exakt aus der Schadensverteilung
+(`killTurns`), Essen über Auto-Essen (bei 25 % HP bis voll), XP je Schaden
+der Haltung, Beute als Chance je Kill. Noch nicht drin: Modifikator-Boni der
+Ausrüstung, Gebete, Slayer, Gebiets-Effekte, Schaden über Zeit.
+
+`src/core/combatSources.ts` macht daraus Rezepte (`kind: 'combat'`): Beute
+und Gold als Quelle, je Kampf-Skill eine Variante mit der passenden Haltung.
+Die Kill-Dauer wird bei jedem `actionTime` mit den aktuellen Leveln neu
+simuliert (`planner.hooks.combatTime`), damit Level-Routen schneller werden.
+
+**Alternativen**: Der Löser kann Rezepte und Käufe meiden (`avoid`, samt
+allem, was davon abhängt). „›“ (`nextBest`) probiert die Abzweigungen fürs
+Ziel einzeln weg und nimmt die günstigste — so entsteht eine Folge immer
+etwas langsamerer, aber anderer Wege.
+
 ## Oberfläche
 
 - **Globale Suche (⌘K)** oben in der Seitenleiste: Items, Skills, Monster,

@@ -64,6 +64,7 @@ export type RecipeKind =
   | 'shop'
   | 'upgrade'
   | 'open'
+  | 'combat'
 
 export type Success =
   | { kind: 'cooking'; difficulty: number; proficiency?: number }
@@ -98,6 +99,8 @@ export interface Recipe {
   success?: Success
   /** Shop-Rezept: der Kauf dahinter */
   purchase?: Id
+  /** Kampf: Monster, Haltung, Dunkelheit des Gebiets (Dauer wird simuliert) */
+  combat?: { enemy: Id; stance: string; darkness: number }
   demoLocked: boolean
 }
 

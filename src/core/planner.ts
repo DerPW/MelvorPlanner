@@ -87,7 +87,11 @@ export function successChance(r: Recipe, profile: Profile): number {
 
 /** Mittlere Zeit je Durchlauf — Thieving: Fehlschlag kostet die Betäubung;
  *  Farming: Wachstum, geteilt durch die Felder, die gleichzeitig wachsen */
+/** Einhängepunkte, die das Kampfmodul setzt (vermeidet einen Import-Kreis) */
+export const hooks: { combatTime: ((r: Recipe, profile: Profile) => number) | null } = { combatTime: null }
+
 export function actionTime(r: Recipe, profile: Profile): number {
+  if (r.combat && hooks.combatTime) return hooks.combatTime(r, profile)
   if (r.success?.kind === 'thieving') {
     return r.timeMs + (1 - successChance(r, profile)) * (1 - (r.success.stunAvoid ?? 0)) * r.success.stunMs
   }
@@ -148,14 +152,16 @@ export const isAvailable = (r: Recipe, profile: Profile) => !r.demoLocked && unm
 export function rankSources(index: GameIndex, item: Id, profile: Profile): Recipe[] {
   const list = index.producers.get(item) ?? []
   const key = (r: Recipe) => {
-    const kind = r.kind === 'upgrade' ? 1 : r.kind === 'shop' ? 2 : r.kind === 'thieving' || r.kind === 'open' ? 3 : r.kind === 'firemaking' ? 4 : 0
+    const kind = r.kind === 'upgrade' ? 1 : r.kind === 'shop' ? 2 : r.kind === 'thieving' || r.kind === 'open' || r.kind === 'combat' ? 3 : r.kind === 'firemaking' ? 4 : 0
     const out = r.outputs.find((o) => o.item === item)
     // Beim Öffnen ist jeder Griff in die Tabelle das eigentliche Ergebnis
     const byproduct = !isGathering(r) && r.kind !== 'open' && out && out.chance < 1 ? 1 : 0
     const unmet = unmetReqs(r.reqs, profile).length > 0 ? 1 : 0
     const y = yieldOf(r, item, profile)
     const perUnit = y > 0 ? actionTime(r, profile) / y : Infinity
-    return [r.demoLocked ? 1 : 0, kind, byproduct, unmet, perUnit]
+    // Eine Zutat, die es nirgends gibt und nicht im Lager liegt (z. B. Fundstücke zum Öffnen)
+    const stuck = r.inputs.some((i) => (profile.inventory[i.item] ?? 0) < i.qty && !(index.producers.get(i.item) ?? []).some((p) => !p.demoLocked)) ? 1 : 0
+    return [r.demoLocked ? 1 : 0, stuck, kind, byproduct, unmet, perUnit]
   }
   return [...list].sort((a, b) => {
     const ka = key(a)

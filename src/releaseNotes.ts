@@ -10,6 +10,32 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.7.0',
+    date: '2026-11-02',
+    de: {
+      title: 'Kampf & Monster-Beute, Alternativen',
+      items: [
+        'Neue Ansicht „Kampf“: Ausrüstung wie im Spiel (aus dem Spielstand oder selbst gewählt), Haltung, Zauber, Essen — und für jedes Monster Trefferchance, Zeit je Kill, XP/h, GP/h, Schaden und Essen je Stunde, Gefahr.',
+        'Gerechnet mit den Formeln des Spiels: Treffer gegen Ausweichen, Max Hit, Resistenz, Kampf-Dreieck, Elemente, 3 s Respawn, Auto-Essen; die Angriffe bis zum Kill exakt aus der Schadensverteilung.',
+        'Jede Monster-Seite zeigt die Simulation mit deiner Ausrüstung und den Vergleich der Haltungen.',
+        'Monster sind echte Quellen: Beute und Gold für Item- und Gold-Routen, Kampf-XP für Level-Routen in Attack, Strength, Defence, Ranged, Magic und Hitpoints — nur sichere Kämpfe, mit Essen als Verbrauch.',
+        'Routen: „Weg n ‹ ›“ — › rechnet den nächstbesten Weg ohne die Abzweigung, deren Wegfall am wenigsten kostet, ‹ geht zurück. Einzelne Schritte lassen sich mit ⊘ meiden, Gemiedenes steht als Chip da.',
+        'Quellen mit einer Zutat, die es nirgends gibt, rutschen nach hinten.',
+      ],
+    },
+    en: {
+      title: 'Combat & monster loot, alternatives',
+      items: [
+        'New “Combat” view: gear laid out like in the game (from your save or picked yourself), stance, spell, food — and for every monster hit chance, time per kill, XP/h, GP/h, damage and food per hour, danger.',
+        'Uses the game’s formulas: accuracy vs evasion, max hit, resistance, combat triangle, elements, 3 s respawn, auto-eat; attacks per kill exactly from the damage distribution.',
+        'Every monster page shows the simulation with your gear and compares stances.',
+        'Monsters are real sources: loot and gold for item and gold routes, combat XP for level routes in Attack, Strength, Defence, Ranged, Magic and Hitpoints — safe fights only, food counted as consumed.',
+        'Routes: “Way n ‹ ›” — › finds the next best way without the branch that costs least to drop, ‹ goes back. Avoid single steps with ⊘; avoided ones show as chips.',
+        'Sources needing an ingredient that exists nowhere drop to the back.',
+      ],
+    },
+  },
+  {
     version: '0.6.1',
     date: '2026-11-02',
     de: {
