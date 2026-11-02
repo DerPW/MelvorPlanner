@@ -206,9 +206,15 @@ function SkillHeaderButtons({ skill }: { skill: Id }) {
     index.data.statistics?.[skill] && { kind: 'stats' as const, icon: ui('Statistics_64'), label: t('stats.title') },
     index.data.tutorials?.[skill] && { kind: 'guide' as const, icon: ui('GuideBook'), label: t('guide.title') },
   ].filter((b): b is { kind: 'mastery' | 'stats' | 'guide'; icon: string; label: string } => !!b)
-  if (!buttons.length) return null
+  const hasGear = index.data.bonusSources.some((b) => b.kind === 'item' && b.slot?.replace(/^MelvorBase:/, '').startsWith(skill.replace(/^MelvorBase:/, '')))
+  if (!buttons.length && !hasGear) return null
   return (
     <div className="skill-head-buttons">
+      {hasGear && (
+        <button className="btn plain small" onClick={() => dispatch({ type: 'gearSkill', skill })}>
+          <img src={index.items.get('MelvorBase:IronHelmet')?.icon ?? ui('Combat')} alt="" width={16} height={16} /> {t('sgear.button')}
+        </button>
+      )}
       {buttons.map((b) => (
         <button
           key={b.kind}

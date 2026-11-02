@@ -512,7 +512,7 @@ for (const [id, o] of all('Item')) {
   const tool = o.Capabilities?.['MelvorBase:Toolbelt']
   const mods = bonusMods(tool?.Bonuses)
   if (mods.length) {
-    bonusSources.push({ id, kind: 'item', name: o.DisplayName?.Singular ?? short(id), icon: icon(o.Icon), slot: tool.FitsInSlot ?? null, mods })
+    bonusSources.push({ id, kind: 'item', name: o.DisplayName?.Singular ?? short(id), icon: icon(o.Icon), slot: tool.FitsInSlot ?? null, reqs: requirements({ Requirements: tool.Requirements }).reqs, mods })
   }
 }
 handled.add('MasteryGuildBonus')
@@ -779,6 +779,12 @@ fs.rmSync(OUT_DIR, { recursive: true, force: true })
 fs.mkdirSync(ICON_DIR, { recursive: true })
 
 let written = 0
+// Werkzeuggürtel: Platz-Arten (Name, Symbol, Kategorie wie Helm/Handschuhe)
+const toolbeltTypes = {}
+for (const [id, o] of all('ToolbeltSlotType')) {
+  toolbeltTypes[id] = { name: o.DisplayName, icon: realIcon(o.Icon), category: objects.ToolbeltSlotCategory?.get(o.Category)?.DisplayName ?? null }
+}
+
 // Symbole der Oberfläche, die keine Spieldaten nennen (Kopf-Knöpfe, Einheiten)
 for (const n of ['Statistics_64', 'Settings_64', 'codex', 'Edit', 'Ingredient', 'Mastery_Icon', 'GuideBook', 'Quests', 'QuestStepIcon', 'TimeInterval_48', 'doublingicon_48', 'XP_Icon_48', 'Slayer', 'Prayer', 'Agility', 'Astrology', 'Herblore', 'Ranching', 'Hunting'])
   icon(`res://Assets/Icons/${n}.png`)
@@ -1073,6 +1079,7 @@ const data = {
   statistics,
   entityNames,
   tutorials,
+  toolbeltTypes,
 }
 fs.writeFileSync(path.join(OUT_DIR, 'data.json'), JSON.stringify(data))
 

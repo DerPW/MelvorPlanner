@@ -210,6 +210,8 @@ export interface BonusSource {
   icon: string | null
   /** Werkzeug: Platz im Werkzeuggürtel */
   slot?: Id | null
+  /** Werkzeug: was man zum Anlegen braucht */
+  reqs?: Req[]
   /** Gilde: Skill und nötiger Rang */
   skill?: Id
   rank?: Id
@@ -263,6 +265,8 @@ export interface GameData {
   entityNames?: Record<Id, string>
   /** „Guide“ je Skill: Schwierigkeit (Zitronen), Hinweise, Abschnitte (BBCode) */
   tutorials?: Record<Id, Tutorial>
+  /** Werkzeuggürtel-Plätze: Name, Symbol, Kategorie (Helm, Handschuhe …) */
+  toolbeltTypes?: Record<Id, { name: string; icon: string | null; category: string | null }>
 }
 
 /** Ein Ziel aus den Spieldaten: Art, Höchststand, dazu die schlichten Felder (recipe, item, enemy, level …) */

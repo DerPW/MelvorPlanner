@@ -129,6 +129,14 @@ und liest bei einer Änderung neu ein — in jedem Browser, solange der Planer
 mit `pnpm dev` (oder `pnpm preview`) läuft. Gilden-Rang und Farming-Felder
 bleiben dabei, wie sie eingestellt sind.
 
+## Skill-Ausrüstung
+
+`src/core/skillGear.ts`: Skill-Boni kommen im Spiel vom Werkzeuggürtel (je
+Skill einige Plätze: Werkzeug, Handschuhe, Helm, Zubehör …). Für eine Aktion
+werden alle Belegungen der Plätze probiert und mit `recipeTotals` +
+`deriveRecipe` (dieselben Formeln wie die Boni) nach XP/h, Menge/h oder GP/h
+gerechnet.
+
 ## Spielstand-Editor
 
 `src/core/saveWrite.ts` zerlegt den entpackten Spielstand in Kopf, Einheiten
@@ -208,7 +216,7 @@ Hunting, Ranching, Astrology; Gilden-Rang aus dem Spielstand lesen.
 - `src/core/` — Rechenkern ohne UI: `planner` (Crafting-Baum), `route`
   (Level/Gold-Simulation), `solve` (Ziele → Phasen), `bonuses` (Boni →
   Rezepte neu berechnen), `experience`, `save` (Spielstand lesen),
-  `saveImport` (Datei/Text → Profil), `saveWrite` (Editor), `live` (Messung), `mastery`, `statDefs`
+  `saveImport` (Datei/Text → Profil), `saveWrite` (Editor), `live` (Messung), `mastery`, `statDefs`, `skillGear`
 - `scripts/godot-scene.mjs` — Godot-Szenen (RSRC) lesen, für die Tutorials
 - `src/ui/` — Oberfläche (React, eigenes CSS im macOS-Stil, Farben aus den
   UI-Texturen des Spiels)

@@ -12,6 +12,7 @@ import { GameIcon, Ref, Segmented, Select, TabPills, Toolbar } from './component
 import { better, CompareAB, fmtMetric, metricOf, OptimalGear, xpRate, type Metric } from './GearTools'
 import { Needs } from './SolutionView'
 import { useGame, type GearTab } from './state'
+import { SkillGear } from './SkillGear'
 
 interface Option {
   item: Item | null
@@ -49,17 +50,19 @@ export function GearView() {
 
   return (
     <>
-      <Toolbar title={t('gear.title')} subtitle={t(tab === 'compare' ? 'gear.subCompare' : tab === 'optimal' ? 'gear.subOptimal' : 'gear.subtitle')}>
-        <Segmented<Metric>
-          value={metric}
-          onChange={setMetric}
-          options={[
-            { value: 'xp', label: 'XP/h' },
-            { value: 'time', label: t('combat.kill') },
-            { value: 'gold', label: 'GP/h' },
-            { value: 'damage', label: t('combat.damageH') },
-          ]}
-        />
+      <Toolbar title={t('gear.title')} subtitle={t(tab === 'compare' ? 'gear.subCompare' : tab === 'optimal' ? 'gear.subOptimal' : tab === 'skills' ? 'gear.subSkills' : 'gear.subtitle')}>
+        {tab !== 'skills' && (
+          <Segmented<Metric>
+            value={metric}
+            onChange={setMetric}
+            options={[
+              { value: 'xp', label: 'XP/h' },
+              { value: 'time', label: t('combat.kill') },
+              { value: 'gold', label: 'GP/h' },
+              { value: 'damage', label: t('combat.damageH') },
+            ]}
+          />
+        )}
       </Toolbar>
       <div className="content">
         <TabPills<GearTab>
@@ -69,35 +72,39 @@ export function GearView() {
             { value: 'compare', label: t('gear.tabCompare') },
             { value: 'upgrades', label: t('gear.tabUpgrades') },
             { value: 'optimal', label: t('gear.tabOptimal') },
+            { value: 'skills', label: t('gear.tabSkills') },
           ]}
         />
+        {tab === 'skills' && <SkillGear />}
         {tab === 'upgrades' && <LoadoutPanel />}
-        <div className="gear-target">
-          <span className="muted">{t('gear.against')}</span>
-          <Select label={t('gear.against')} value={target?.id ?? ''} onChange={(id) => dispatch({ type: 'gearTarget', enemy: id })}>
-            {[...enemies]
-              .sort((a, b) => a.name.localeCompare(b.name))
-              .map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name}
-                  {e.id === best ? ` — ${t('gear.bestXp')}` : ''}
-                </option>
-              ))}
-          </Select>
-          {target && (
-            <span className="gear-now">
-              <GameIcon src={target.icon} size={20} entity={`enemy:${target.id}`} />
-              {result && (
-                <span className="muted">
-                  {t('gear.now', {
-                    value: fmtMetric(metric, result.base.value),
-                  })}
-                </span>
-              )}
-              {result && <DangerTag f={result.base.f} />}
-            </span>
-          )}
-        </div>
+        {tab !== 'skills' && (
+          <div className="gear-target">
+            <span className="muted">{t('gear.against')}</span>
+            <Select label={t('gear.against')} value={target?.id ?? ''} onChange={(id) => dispatch({ type: 'gearTarget', enemy: id })}>
+              {[...enemies]
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name}
+                    {e.id === best ? ` — ${t('gear.bestXp')}` : ''}
+                  </option>
+                ))}
+            </Select>
+            {target && (
+              <span className="gear-now">
+                <GameIcon src={target.icon} size={20} entity={`enemy:${target.id}`} />
+                {result && (
+                  <span className="muted">
+                    {t('gear.now', {
+                      value: fmtMetric(metric, result.base.value),
+                    })}
+                  </span>
+                )}
+                {result && <DangerTag f={result.base.f} />}
+              </span>
+            )}
+          </div>
+        )}
 
         {tab === 'compare' && target && <CompareAB enemy={target} metric={metric} />}
         {tab === 'optimal' && target && <OptimalGear enemy={target} metric={metric} />}

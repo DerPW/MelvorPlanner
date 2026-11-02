@@ -10,6 +10,26 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.14.0',
+    date: '2026-11-03',
+    de: {
+      title: 'Optimale Ausrüstung für Skills',
+      items: [
+        'Ausrüstung → neuer Reiter „Skills“: belegt den Werkzeuggürtel eines Skills optimal für eine Aktion — nach XP/h, Menge/h oder GP/h, aus dem Lager, tragbar oder aus allen Items. Je Platz (Werkzeug, Handschuhe, Helm, Zubehör …) das empfohlene Item mit seinen Boni, ob du es schon hast, was es zum Anlegen braucht, und „Planen“ für die Route dorthin.',
+        'Gerechnet wird mit denselben Formeln wie die Boni, für die gewählte Aktion — alle Kombinationen werden probiert. Vorbelegt ist die Aktion, die gerade läuft, sonst die höchste freie.',
+        'Skill-Seiten haben dafür den Knopf „Ausrüstung“.',
+      ],
+    },
+    en: {
+      title: 'Optimal gear for skills',
+      items: [
+        'Gear → new “Skills” tab: fills a skill’s toolbelt optimally for an action — by XP/h, amount/h or GP/h, from your bank, wearable or from all items. Per slot (tool, gloves, helmet, utility …) the recommended item with its bonuses, whether you have it, what it needs to equip, and “Plan” for a route to it.',
+        'Calculated with the same formulas as bonuses, for the chosen action — every combination is tried. The running action is preselected, otherwise the highest unlocked one.',
+        'Skill pages have a “Gear” button for it.',
+      ],
+    },
+  },
+  {
     version: '0.13.1',
     date: '2026-11-03',
     de: {

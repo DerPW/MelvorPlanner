@@ -42,7 +42,7 @@ export type DetailType = 'item' | 'enemy' | 'area' | 'purchase' | 'recipe'
 export type WikiKind = DetailType | 'skill'
 
 export type PlanTab = 'flow' | 'tree' | 'materials'
-export type GearTab = 'compare' | 'upgrades' | 'optimal'
+export type GearTab = 'compare' | 'upgrades' | 'optimal' | 'skills'
 
 export interface State {
   routes: RouteTarget[]
@@ -65,6 +65,8 @@ export interface State {
   gearTab: GearTab
   /** Zielmonster der Ausrüstungs-Ansicht (null = das mit den meisten XP) */
   gearTarget: Id | null
+  /** Skill im Reiter „Skills“ der Ausrüstung (Werkzeuggürtel) */
+  gearSkill?: Id | null
   /** Vorige Ansichten für „Zurück" (nicht gespeichert) */
   history: View[]
   /** Brotkrumen: der Pfad über Verweise bis zur jetzigen Ansicht (nicht gespeichert) */
@@ -106,6 +108,8 @@ export type Action =
   | { type: 'setCompare'; a?: Id | null; b?: Id | null }
   | { type: 'gearTab'; tab: GearTab }
   | { type: 'gearTarget'; enemy: Id | null }
+  /** Werkzeuggürtel für einen Skill optimieren (öffnet die Ausrüstung) */
+  | { type: 'gearSkill'; skill: Id }
   /** Optimale Ausrüstung gegen dieses Monster öffnen */
   | { type: 'optimizeFor'; enemy: Id }
   | { type: 'back' }
@@ -242,6 +246,8 @@ export function reducer(s: State, a: Action): State {
       return { ...s, gearTarget: a.enemy }
     case 'optimizeFor':
       return reducer({ ...s, gearTab: 'optimal', gearTarget: a.enemy }, { type: 'view', view: { kind: 'gear' } })
+    case 'gearSkill':
+      return reducer({ ...s, gearTab: 'skills', gearSkill: a.skill }, { type: 'view', view: { kind: 'gear' } })
     case 'setLive':
       return { ...s, live: a.save ? { save: a.save } : null }
   }
