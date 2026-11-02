@@ -9,7 +9,7 @@ import { GP } from '../core/route'
 import { useI18n } from '../i18n'
 import { xpForLevel } from '../core/experience'
 import { GameIcon, LevelTag, openEntity } from './components'
-import { recipeAction, shopCategory } from './SolutionView'
+import { featureLock, Needs, recipeAction, shopCategory } from './SolutionView'
 import { itemRoute, newId, planItem, useGame, type DetailType } from './state'
 
 type EntityType = DetailType | 'skill'
@@ -156,6 +156,7 @@ function Tooltip({ target }: { target: Target }) {
     const xp = state.profile.xp?.[s.id] ?? xpForLevel(level)
     const recipes = index.data.recipes.filter((r) => r.skill === s.id && !r.demoLocked && r.xp > 0)
     const free = recipes.filter((r) => r.level <= level).length
+    const lock = featureLock(index, state.profile, s.id)
     body = (
       <>
         <Head icon={s.icon} name={s.name} />
@@ -164,7 +165,13 @@ function Tooltip({ target }: { target: Target }) {
           <span>{fmtInt(xp)} XP</span>
           {level < (state.profile.levelCap ?? 120) && <span>{t('tip.toNext', { xp: fmtInt(xpForLevel(level + 1) - xp) })}</span>}
         </div>
-        <div className="tip-line">{t('skill.free', { free, total: recipes.length })}</div>
+        {lock ? (
+          <div className="tip-line warn">
+            {t('lock.short')} {lock.unmet.length ? <Needs reqs={lock.unmet} className="" /> : t('lock.demo')}
+          </div>
+        ) : (
+          <div className="tip-line">{t('skill.free', { free, total: recipes.length })}</div>
+        )}
         <div className="tip-foot">{t('tip.menuHint')}</div>
       </>
     )

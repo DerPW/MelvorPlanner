@@ -1,4 +1,4 @@
-import type { Currency, GameData, Id, Item, ItemGoal, Profile, Purchase, Recipe, Req, Skill } from './types'
+import type { Currency, Feature, GameData, Id, Item, ItemGoal, Profile, Purchase, Recipe, Req, Skill } from './types'
 
 // ---------------------------------------------------------------------------
 // Index
@@ -14,6 +14,8 @@ export interface GameIndex {
   producers: Map<Id, Recipe[]>
   /** Item → Rezepte, die es verbrauchen */
   consumers: Map<Id, Recipe[]>
+  /** Skills und Bereiche, die erst freigeschaltet werden */
+  features: Map<Id, Feature>
 }
 
 export function buildIndex(data: GameData): GameIndex {
@@ -32,7 +34,17 @@ export function buildIndex(data: GameData): GameIndex {
     purchases: new Map(data.purchases.map((p) => [p.id, p])),
     producers,
     consumers,
+    features: new Map((data.features ?? []).map((f) => [f.id, f])),
   }
+}
+
+export type UnlockReq = Extract<Req, { type: 'unlock' }>
+
+/** Die Freischaltung eines Skills/Bereichs als Anforderung — null, wenn er von Anfang an frei ist */
+export function unlockReqFor(index: GameIndex, feature: Id): UnlockReq | null {
+  const f = index.features.get(feature)
+  if (!f || (!f.reqs.length && !f.demoLocked)) return null
+  return { type: 'unlock', feature: f.id, name: f.name, reqs: f.reqs, ...(f.demoLocked ? { demoLocked: true } : {}) }
 }
 
 function push<K, V>(map: Map<K, V[]>, key: K, value: V) {
@@ -89,8 +101,28 @@ export function unmetReqs(reqs: Req[], profile: Profile): Req[] {
     if (q.type === 'level') return levelOf(profile, q.skill) < q.level
     if (q.type === 'purchase') return !(profile.owned[q.purchase] > 0)
     if (q.type === 'item') return !(profile.inventory[q.item] > 0) && !profile.equipped?.includes(q.item)
+    if (q.type === 'unlock') return !isUnlocked(profile, q)
+    // Statistiken kennt der Stand nicht: Lager als untere Schranke, der Rest gilt als offen
+    if (q.type === 'gained') return (profile.inventory[q.item] ?? 0) < q.qty
+    if (q.type === 'killed' || q.type === 'trapped' || q.type === 'sold') return true
     return false
   })
+}
+
+const COMBAT_SKILLS = ['MelvorBase:Attack', 'MelvorBase:Strength', 'MelvorBase:Defence', 'MelvorBase:Ranged', 'MelvorBase:Magic']
+
+/** Ist der Skill/Bereich frei? Was der Stand festhält (von Hand oder vom
+ *  Planer) gilt; sonst Indizien: schon trainiert, Käufe getätigt, oder alle
+ *  Bedingungen sind Level und erfüllt. Statistiken (geangelt, besiegt …)
+ *  stehen nicht im Stand — ohne Indiz gelten sie als offen. */
+export function isUnlocked(profile: Profile, q: Extract<Req, { type: 'unlock' }>): boolean {
+  if (q.demoLocked) return false
+  const set = profile.unlocked?.[q.feature]
+  if (set !== undefined) return set
+  if (levelOf(profile, q.feature) > 1 || (profile.xp?.[q.feature] ?? 0) > 0) return true
+  if (q.feature === 'MelvorBase:Shop' && Object.keys(profile.owned).length > 0) return true
+  if (q.feature === 'MelvorBase:Combat' && COMBAT_SKILLS.some((s) => levelOf(profile, s) > 1)) return true
+  return q.reqs.length > 0 && q.reqs.every((r) => r.type === 'level' || r.type === 'gained') && unmetReqs(q.reqs, profile).length === 0
 }
 
 export const isAvailable = (r: Recipe, profile: Profile) => !r.demoLocked && unmetReqs(r.reqs, profile).length === 0
@@ -100,9 +132,10 @@ export const isAvailable = (r: Recipe, profile: Profile) => !r.demoLocked && unm
 export function rankSources(index: GameIndex, item: Id, profile: Profile): Recipe[] {
   const list = index.producers.get(item) ?? []
   const key = (r: Recipe) => {
-    const kind = r.kind === 'upgrade' ? 1 : r.kind === 'shop' ? 2 : r.kind === 'thieving' ? 3 : r.kind === 'firemaking' ? 4 : 0
+    const kind = r.kind === 'upgrade' ? 1 : r.kind === 'shop' ? 2 : r.kind === 'thieving' || r.kind === 'open' ? 3 : r.kind === 'firemaking' ? 4 : 0
     const out = r.outputs.find((o) => o.item === item)
-    const byproduct = !isGathering(r) && out && out.chance < 1 ? 1 : 0
+    // Beim Öffnen ist jeder Griff in die Tabelle das eigentliche Ergebnis
+    const byproduct = !isGathering(r) && r.kind !== 'open' && out && out.chance < 1 ? 1 : 0
     const unmet = unmetReqs(r.reqs, profile).length > 0 ? 1 : 0
     const y = yieldOf(r, item, profile)
     const perUnit = y > 0 ? actionTime(r, profile) / y : Infinity
@@ -159,6 +192,8 @@ export interface Plan {
   levels: Map<Id, number>
   /** fehlende Freischaltungen, Werkzeuge, Unbekanntes */
   purchases: Set<Id>
+  /** gesperrte Skills/Bereiche, die eine Quelle braucht */
+  unlocks: Map<Id, UnlockReq>
   tools: Set<Id>
   otherReqs: string[]
   gathered: Map<Id, number>
@@ -242,6 +277,7 @@ export function makePlan(index: GameIndex, goals: ItemGoal[], profile: Profile, 
     purchases: new Set(),
     tools: new Set(),
     otherReqs: [],
+    unlocks: new Map(),
     gathered: new Map(),
     bought: new Map(),
     missing: new Map(),
@@ -266,6 +302,7 @@ export function makePlan(index: GameIndex, goals: ItemGoal[], profile: Profile, 
       if (q.type === 'level') plan.levels.set(q.skill, Math.max(plan.levels.get(q.skill) ?? 0, q.level))
       else if (q.type === 'purchase' && !(profile.owned[q.purchase] > 0)) plan.purchases.add(q.purchase)
       else if (q.type === 'item' && unmetReqs([q], profile).length) plan.tools.add(q.item)
+      else if (q.type === 'unlock' && !isUnlocked(profile, q)) plan.unlocks.set(q.feature, q)
       else if (q.type === 'other') other.add(q.text)
     }
     if (r.purchase && !(profile.owned[r.purchase] > 0)) {

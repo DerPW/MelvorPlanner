@@ -6,7 +6,7 @@ import type { Id } from '../core/types'
 import { useT } from '../i18n'
 import { GameIcon, LevelTag, Segmented, Sym, Toolbar } from './components'
 import { modLabel, modValue } from './bonusText'
-import { Needs, recipeAction } from './SolutionView'
+import { featureLock, Needs, recipeAction } from './SolutionView'
 import { newId, useGame } from './state'
 
 type Sort = 'level' | 'xp' | 'gold'
@@ -62,6 +62,7 @@ export function SkillView({ skill }: { skill: Id }) {
   }, [index, skill, state.profile, sort, withMaterials])
 
   const free = rows.filter((x) => x.available).length
+  const lock = featureLock(index, state.profile, skill)
   const boosted = rows.filter((x) => bonus.perRecipe.has(x.r.id)).length
 
   return (
@@ -100,6 +101,23 @@ export function SkillView({ skill }: { skill: Id }) {
         </button>
       </Toolbar>
       <div className="content">
+        {lock && (
+          <div className="lock-note">
+            <Sym name="lock" size={14} />
+            <span className="grow">
+              <b>{t('lock.title', { name: s?.name ?? skill })}</b>{' '}
+              {lock.unmet.length ? <Needs reqs={lock.unmet} className="" /> : t('lock.demo')}
+            </span>
+            {!lock.req.demoLocked && (
+              <button
+                className="btn small"
+                onClick={() => dispatch({ type: 'addRoute', route: { id: newId(), kind: 'level', skill, level: Math.min(state.profile.levelCap ?? 120, level + 1) } })}
+              >
+                {t('lock.route')}
+              </button>
+            )}
+          </div>
+        )}
         <table className="table">
           <colgroup>
             <col />

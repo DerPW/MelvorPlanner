@@ -52,6 +52,8 @@ export type Action =
   | { type: 'setOwned'; purchase: Id; owned: boolean }
   | { type: 'setPlots'; plots: number }
   | { type: 'setGuildRank'; skill: Id; rank: number }
+  /** Freischaltung von Hand festlegen; null = wieder schätzen */
+  | { type: 'setUnlocked'; feature: Id; unlocked: boolean | null }
   | { type: 'resetProfile' }
   | { type: 'importProfile'; profile: Profile }
   | { type: 'choose'; item: Id; recipe: Id | null }
@@ -127,6 +129,12 @@ export function reducer(s: State, a: Action): State {
       if (a.owned) owned[a.purchase] = 1
       else delete owned[a.purchase]
       return { ...s, profile: { ...p, owned } }
+    }
+    case 'setUnlocked': {
+      const unlocked = { ...p.unlocked }
+      if (a.unlocked === null) delete unlocked[a.feature]
+      else unlocked[a.feature] = a.unlocked
+      return { ...s, profile: { ...p, unlocked } }
     }
     case 'setGuildRank':
       return { ...s, profile: { ...p, guildRanks: { ...p.guildRanks, [a.skill]: a.rank } } }

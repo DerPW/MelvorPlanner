@@ -20,6 +20,15 @@ schlägt vor, was mit dem jetzigen Stand gleich zu bauen ist.
 - **Gold**: Betrag Z verdienen (Herstellen + Verkaufen, Thieving).
 - **Freischaltungen**: Shop-Käufe wie die Grain Mill, samt deren Anforderungen.
 
+**Freischaltungen**: Skills, Kampf, Shop und Bank sind im Spiel gesperrt, bis
+die Bedingungen ihres Navigationseintrags erfüllt sind (Level, aber auch
+Lebenszeit-Statistiken wie „20 Raw Shrimp geangelt" oder „250 GP durch
+Verkäufe"). Der Extraktor hängt die Freischaltung als Anforderung `unlock` an
+jedes Rezept des Skills, jeden Shop-Kauf und jedes Bank-Rezept; der Planer
+löst sie wie einen Kauf auf. Statistiken stehen nicht im Spielstand — ob ein
+Skill frei ist, wird geschätzt (schon trainiert, Käufe getätigt, Level-
+Bedingungen erfüllt) und lässt sich im Profil von Hand festlegen.
+
 Jedes Ziel wird zu einer Abfolge von Phasen — trainieren, Gold verdienen,
 kaufen, herstellen —, und jede Phase rechnet mit dem Stand, den die vorige
 hinterlässt. Steckt ein Skill fest, sucht der Planer die billigste

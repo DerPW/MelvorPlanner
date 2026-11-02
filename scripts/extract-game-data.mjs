@@ -252,15 +252,24 @@ each('HerbloreRecipe', (id, o) => {
   })
 })
 
+// Zufallsprodukte je Schlag (Vogelnest, Geode) bzw. je gefälltem Baum
+// (Baumsamen) — WoodcuttingActionStats.OnHitItemChances / OnCutItemChances.
+// Je Schlag: Erwartung je Durchlauf = Chance × Schläge, `perHit` hält die
+// Chance für das Neurechnen mit Boni (andere Schlagzahl).
+const perHit = (list, hits) =>
+  (list ?? []).map((p) => ({ item: p.Item, qty: p.Quantity, chance: Math.min(1, p.Chance * hits), perHit: p.Chance, extra: true }))
+const perRun = (list) => (list ?? []).map((p) => ({ item: p.Item, qty: p.Quantity, chance: p.Chance, extra: true }))
+
 // Holzfällen: jeder Schlag ein Intervall, der Baum fällt nach BaseMaxHealth
 // Schlägen (WoodcuttingActionComponent) — erst dann gibt es Holz und XP.
 each('WoodcuttingRecipe', (id, o) => {
+  const hits = Math.max(1, o.BaseMaxHealth ?? 1)
   push('WoodcuttingRecipe', id, o, {
     kind: 'woodcutting',
     icon: icon(o.Media),
     skill: 'MelvorBase:Woodcutting',
     level: o.Level ?? requirements(o).level,
-    outputs: [{ item: o.Product.Item, qty: o.Product.Quantity, chance: 1 }],
+    outputs: [{ item: o.Product.Item, qty: o.Product.Quantity, chance: 1 }, ...perHit(o.RandomProductsPerHit, hits), ...perRun(o.RandomProductsPerCut)],
     timeMs: o.BaseInterval * Math.max(1, o.BaseMaxHealth ?? 1),
     base: { interval: o.BaseInterval, maxHealth: o.BaseMaxHealth ?? 1 },
   })
@@ -276,7 +285,7 @@ each('MiningRecipe', (id, o) => {
     kind: 'mining',
     icon: icon(o.Media),
     skill: 'MelvorBase:Mining',
-    outputs: [{ item: o.Product.Item, qty: o.Product.Quantity, chance: 1 }],
+    outputs: [{ item: o.Product.Item, qty: o.Product.Quantity, chance: 1 }, ...perHit(o.RandomProductsPerHit, hits)],
     timeMs: o.BaseInterval * hits,
     base: { interval: o.BaseInterval, productChance: p },
   })
@@ -583,9 +592,21 @@ for (const [id, a] of all('RanchingAnimal')) {
     infoSources.push({ item: p.Item, via: 'ranching', name, icon: icon(a.Icon), min: p.Quantity, max: p.Quantity, chance: 1, level: requirements(a).level, intervalMs: a.ProductInterval ?? null })
   }
 }
+// Behälter (Vogelnest, Geode …) öffnen: ein Item rein, die festen Beigaben
+// und ein gewichteter Griff in die Tabelle raus, ohne Zeit — als echte Quelle
 for (const it of items) {
-  for (const d of it.openable?.drops ?? []) infoSources.push({ item: d.item, via: 'chest', name: it.name, icon: it.icon, chest: it.id, min: d.min, max: d.max, chance: d.chance })
-  for (const d of it.openable?.always ?? []) infoSources.push({ item: d.item, via: 'chest', name: it.name, icon: it.icon, chest: it.id, min: d.qty, max: d.qty, chance: 1 })
+  if (!it.openable) continue
+  push('Open', it.id.replace(/^MelvorBase:/, ''), { DisplayName: it.name }, {
+    kind: 'open',
+    icon: it.icon,
+    skill: null,
+    inputs: [{ item: it.id, qty: 1 }],
+    outputs: [
+      ...it.openable.always.map((d) => ({ item: d.item, qty: d.qty, chance: 1 })),
+      ...it.openable.drops.map((d) => ({ item: d.item, qty: (d.min + d.max) / 2, chance: d.chance, share: d.chance })),
+    ],
+    timeMs: 0,
+  })
 }
 
 // Monster, Kampfgebiete und Dungeons — für Suche und Detailseiten
@@ -677,6 +698,57 @@ for (const res of icons) {
   written++
 }
 
+// Freischaltungen: Skills, Kampf, Shop und Bank sind gesperrt, bis die
+// Bedingungen ihres Navigationseintrags erfüllt sind (SkillNavigationOption
+// usw., Requirements) — Level, aber auch Lebenszeit-Statistiken wie „20 Raw
+// Shrimp geangelt" oder „1 Golbin besiegt". Jedes Rezept des Skills (und jeder
+// Shop-Kauf, jedes Bank-Upgrade) bekommt die Freischaltung als Anforderung.
+function unlockReqs(list) {
+  const reqs = []
+  let demoLocked = false
+  for (const r of list ?? []) {
+    const d = r.Data ?? {}
+    const t = short(r.Type)
+    if (t === 'DemoLocked') demoLocked = true
+    else if (t === 'Level') reqs.push({ type: 'level', skill: d.Component.Entity, level: d.Level })
+    else if (t === 'ItemStatistic') {
+      // „<Skill>ItemGained" zählt nur, was der Skill gebracht hat; „BankItemFound" jede Quelle
+      const m = /^MelvorBase:(\w+)ItemGained$/.exec(d.Statistic)
+      reqs.push({ type: 'gained', item: d.Item, qty: d.Value, skill: m ? `MelvorBase:${m[1]}` : null })
+    } else if (t === 'EnemyStatistic') reqs.push({ type: 'killed', enemy: d.Enemy, qty: d.Value })
+    else if (t === 'HuntingAnimalStatistic')
+      reqs.push({ type: 'trapped', animal: d.Animal, name: objects.HuntingAnimal?.get(d.Animal)?.DisplayName ?? short(d.Animal), qty: d.Value })
+    else if (t === 'CurrencyStatistic' && /FromSale$/.test(d.Statistic)) reqs.push({ type: 'sold', qty: d.Value })
+    else reqs.push({ type: 'other', text: short(r.Type) })
+  }
+  return { reqs, demoLocked }
+}
+const features = []
+for (const [type, entity] of [
+  ['SkillNavigationOption', null],
+  ['CombatNavigationOption', 'MelvorBase:Combat'],
+  ['ShopNavigationOption', 'MelvorBase:Shop'],
+  ['BankNavigationOption', 'MelvorBase:Bank'],
+]) {
+  handled.add(type)
+  for (const [, o] of all(type)) {
+    const { reqs, demoLocked } = unlockReqs(o.Requirements)
+    features.push({ id: entity ?? o.Entity, name: o.DisplayName, icon: icon(o.Icon), reqs, demoLocked })
+  }
+}
+const featureById = new Map(features.map((f) => [f.id, f]))
+const unlockReq = (id) => {
+  const f = featureById.get(id)
+  return f && (f.reqs.length || f.demoLocked) ? { type: 'unlock', feature: f.id, name: f.name, reqs: f.reqs, ...(f.demoLocked ? { demoLocked: true } : {}) } : null
+}
+for (const r of recipes) {
+  const feature = r.kind === 'shop' ? 'MelvorBase:Shop' : r.kind === 'upgrade' || r.kind === 'open' ? 'MelvorBase:Bank' : r.skill
+  const q = feature ? unlockReq(feature) : null
+  if (q) r.reqs = [q, ...r.reqs]
+}
+const shopUnlock = unlockReq('MelvorBase:Shop')
+if (shopUnlock) for (const p of purchases) p.reqs = [shopUnlock, ...p.reqs]
+
 const plist = pckPath.includes('.app/') ? path.join(pckPath.split('.app/')[0] + '.app', 'Contents/Info.plist') : null
 const version =
   plist && fs.existsSync(plist)
@@ -701,6 +773,7 @@ const data = {
   infoSources,
   enemies,
   areas,
+  features,
 }
 fs.writeFileSync(path.join(OUT_DIR, 'data.json'), JSON.stringify(data))
 

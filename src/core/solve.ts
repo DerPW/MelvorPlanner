@@ -13,7 +13,7 @@
 
 import { applyBonuses } from './bonuses'
 import { MAX_LEVEL, levelForXp, xpForLevel } from './experience'
-import { add, levelOf, makePlan, unmetReqs, type GameIndex, type Plan, type SourceChoices } from './planner'
+import { add, isUnlocked, levelOf, makePlan, unlockReqFor, unmetReqs, type GameIndex, type Plan, type SourceChoices, type UnlockReq } from './planner'
 import { GP, planRoute, unitCosts, type Route, type RouteGoal, type RouteOptions } from './route'
 import type { Id, ItemGoal, Msg, Mod, Profile, Purchase, Req } from './types'
 
@@ -27,6 +27,10 @@ export type Phase =
   | { kind: 'route'; route: Route; why: Msg }
   | { kind: 'buy'; purchase: Purchase; why: Msg; savesMs?: number }
   | { kind: 'craft'; plan: Plan; goals: ItemGoal[]; why: Msg; at: Profile }
+  /** Ein Skill/Bereich wird frei — Meilenstein im Ablauf */
+  | { kind: 'unlock'; feature: Id; name: string; why: Msg }
+  /** Etwas, das der Planer (noch) nicht rechnet, z. B. ein Monster besiegen */
+  | { kind: 'task'; text: Msg; entity: string | null; why: Msg }
 
 export interface Solution {
   target: Target
@@ -90,6 +94,8 @@ export function solve(baseIndex: GameIndex, target: Target, profile: Profile, ch
   const gold = () => p.currencies[GP] ?? 0
   const skillName = (id: Id) => baseIndex.skills.get(id)?.name ?? id
   const itemName = (id: Id) => baseIndex.items.get(id)?.name ?? id
+  /** Freischaltungen, die gerade aufgelöst werden (gegen Kreise) */
+  const unlocking = new Set<Id>()
 
   // --- Probe: auf einer Kopie ausführen, messen, Stand zurücksetzen
 
@@ -246,6 +252,8 @@ export function solve(baseIndex: GameIndex, target: Target, profile: Profile, ch
 
   function ensureLevel(skill: Id, level: number, why: Msg, depth = 0) {
     if (levelOf(p, skill) >= level) return
+    const lock = unlockReqFor(baseIndex, skill)
+    if (lock) ensureUnlock(lock, why, depth + 1)
     optimize(
       () => plainLevel(skill, level, why, depth),
       () => [...upgradeCandidates(chainSkills(skill)), ...unlockCandidates(skill, level)],
@@ -333,6 +341,56 @@ export function solve(baseIndex: GameIndex, target: Target, profile: Profile, ch
       if (q.type === 'purchase') ensurePurchase(q.purchase, why, depth + 1)
       else if (q.type === 'item') ensureItems([{ item: q.item, qty: 1 }], why, depth + 1)
       else if (q.type === 'level') ensureLevel(q.skill, q.level, why, depth + 1)
+      else if (q.type === 'unlock') ensureUnlock(q, why, depth + 1)
+    }
+  }
+
+  /** Skill/Bereich freischalten: seine Bedingungen erfüllen. Statistiken
+   *  („20 Raw Shrimp geangelt") werden als Herstellen über genau diesen Skill
+   *  gerechnet, Gold aus Verkäufen als Gold-Route; Kämpfe und Fallen stehen
+   *  als Aufgabe im Ablauf, bis der Planer sie rechnet. */
+  function ensureUnlock(q: UnlockReq, why: Msg, depth: number) {
+    if (isUnlocked(p, q) || unlocking.has(q.feature)) return
+    if (q.demoLocked) {
+      problem({ key: 'problem.demoFeature', params: { name: q.name } })
+      return
+    }
+    if (depth > 10) return
+    unlocking.add(q.feature)
+    const ref = baseIndex.skills.has(q.feature) ? `skill:${q.feature}` : ''
+    const own: Msg = { key: 'why.forUnlock', params: { name: q.name, ref } }
+    try {
+      for (const r of q.reqs) {
+        if (r.type === 'level') ensureLevel(r.skill, r.level, own, depth + 1)
+        else if (r.type === 'gained') ensureGained(r, own, depth + 1)
+        else if (r.type === 'sold') ensureGold(gold() + r.qty, own)
+        else if (r.type === 'killed') {
+          const e = baseIndex.data.enemies?.find((x) => x.id === r.enemy)
+          phases.push({ kind: 'task', text: { key: 'task.kill', params: { n: r.qty, name: e?.name ?? r.enemy } }, entity: `enemy:${r.enemy}`, why: own })
+        } else if (r.type === 'trapped') phases.push({ kind: 'task', text: { key: 'task.trap', params: { n: r.qty, name: r.name } }, entity: null, why: own })
+        else if (r.type === 'other') notes.add(r.text)
+      }
+    } finally {
+      unlocking.delete(q.feature)
+    }
+    p = { ...p, unlocked: { ...p.unlocked, [q.feature]: true } }
+    phases.push({ kind: 'unlock', feature: q.feature, name: q.name, why })
+  }
+
+  /** „N Stück über Skill X gewonnen": so viele herstellen, über eine Quelle
+   *  dieses Skills (das Lager zählt als Untergrenze der Statistik) */
+  function ensureGained(r: Extract<Req, { type: 'gained' }>, why: Msg, depth: number) {
+    if ((p.inventory[r.item] ?? 0) >= r.qty) return
+    const via = r.skill
+      ? (baseIndex.producers.get(r.item) ?? []).filter((x) => x.skill === r.skill && !x.demoLocked).sort((a, b) => a.level - b.level)[0]
+      : undefined
+    const prev = ch[r.item]
+    if (via) ch = { ...ch, [r.item]: via.id }
+    ensureItems([{ item: r.item, qty: r.qty }], why, depth)
+    if (via) {
+      ch = { ...ch }
+      if (prev) ch[r.item] = prev
+      else delete ch[r.item]
     }
   }
 
@@ -356,7 +414,8 @@ export function solve(baseIndex: GameIndex, target: Target, profile: Profile, ch
     if (purchase.demoLocked) problem({ key: 'problem.locked', params: { name: purchase.name } })
     const own: Msg = { key: 'why.forPurchase', params: { name: purchase.name, ref: `purchase:${id}` } }
     for (const q of purchase.reqs) {
-      if (q.type === 'level') ensureLevel(q.skill, q.level, own, depth + 1)
+      if (q.type === 'unlock') ensureUnlock(q, own, depth + 1)
+      else if (q.type === 'level') ensureLevel(q.skill, q.level, own, depth + 1)
       else if (q.type === 'purchase' && depth < 5) ensurePurchase(q.purchase, own, depth + 1)
       else if (q.type === 'item') ensureItems([{ item: q.item, qty: 1 }], own, depth + 1)
       else if (q.type === 'other') notes.add(q.text)
@@ -390,6 +449,10 @@ export function solve(baseIndex: GameIndex, target: Target, profile: Profile, ch
       for (const tool of plan.tools) {
         if (goals.some((g) => g.item === tool)) continue
         ensureItems([{ item: tool, qty: 1 }], { key: 'why.tool', params: { name: itemName(tool), ref: `item:${tool}` } }, depth + 1)
+        changed = true
+      }
+      for (const q of plan.unlocks.values()) {
+        ensureUnlock(q, why, depth + 1)
         changed = true
       }
       for (const id of plan.purchases) {

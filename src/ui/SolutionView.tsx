@@ -1,9 +1,9 @@
 import { Fragment, useState, type ReactNode } from 'react'
 import { fmtDuration, fmtDurationShort, fmtInt } from '../core/format'
-import type { MakeStep } from '../core/planner'
+import { isUnlocked, unlockReqFor, unmetReqs, type GameIndex, type MakeStep, type UnlockReq } from '../core/planner'
 import { GP, type Route, type RouteSegment } from '../core/route'
 import { isGoal, solutionXp, type Phase, type Solution } from '../core/solve'
-import type { Id, Msg, Recipe, Req } from '../core/types'
+import type { Id, Msg, Profile, Recipe, Req } from '../core/types'
 import { useT, type T } from '../i18n'
 import { GameIcon, LevelTag, Ref, Sym } from './components'
 import { useGame } from './state'
@@ -49,12 +49,8 @@ export function SourceText({ r, self }: { r: Recipe; self?: Id }) {
 /** „braucht X, Y" — jeder Name mit Tooltip, Kontextmenü und Klick */
 export function Needs({ reqs, className = 'tag warn' }: { reqs: Req[]; className?: string }) {
   const { index } = useGame()
-  const parts = reqs.flatMap((q) => {
-    if (q.type === 'purchase') return [{ entity: `purchase:${q.purchase}`, name: q.name }]
-    if (q.type === 'item') return [{ entity: `item:${q.item}`, name: index.items.get(q.item)?.name ?? q.item }]
-    if (q.type === 'level') return [{ entity: `skill:${q.skill}`, name: `${index.skills.get(q.skill)?.name ?? q.skill} ${q.level}` }]
-    return []
-  })
+  const t = useT()
+  const parts = reqs.map((q) => reqPart(index, q, t))
   if (!parts.length) return null
   return (
     <span className={className}>
@@ -62,15 +58,43 @@ export function Needs({ reqs, className = 'tag warn' }: { reqs: Req[]; className
         k="insp.needs"
         nodes={{
           name: parts.map((x, i) => (
-            <Fragment key={x.entity}>
+            <Fragment key={i}>
               {i > 0 && ', '}
-              <Ref entity={x.entity}>{x.name}</Ref>
+              {x.entity ? <Ref entity={x.entity}>{x.name}</Ref> : x.name}
             </Fragment>
           )),
         }}
       />
     </span>
   )
+}
+
+/** Eine Anforderung als Text mit Verweis — „Cooking 10", „20× Raw Shrimp (Fishing)" */
+export function reqPart(index: GameIndex, q: Req, t: T): { entity: string | null; name: string; icon: string | null } {
+  const enemy = (id: Id) => index.data.enemies?.find((e) => e.id === id)
+  switch (q.type) {
+    case 'level':
+      return { entity: `skill:${q.skill}`, name: `${index.skills.get(q.skill)?.name ?? q.skill} ${q.level}`, icon: index.skills.get(q.skill)?.icon ?? null }
+    case 'purchase':
+      return { entity: `purchase:${q.purchase}`, name: q.name, icon: index.purchases.get(q.purchase)?.icon ?? null }
+    case 'item':
+      return { entity: `item:${q.item}`, name: index.items.get(q.item)?.name ?? q.item, icon: index.items.get(q.item)?.icon ?? null }
+    case 'unlock':
+      return { entity: featureEntity(index, q.feature), name: t('need.unlock', { name: q.name }), icon: featureIcon(index, q.feature) }
+    case 'gained': {
+      const name = index.items.get(q.item)?.name ?? q.item
+      const via = q.skill ? index.skills.get(q.skill)?.name : null
+      return { entity: `item:${q.item}`, name: t(via ? 'need.gainedVia' : 'need.gained', { n: fmtInt(q.qty), name, skill: via ?? '' }), icon: index.items.get(q.item)?.icon ?? null }
+    }
+    case 'killed':
+      return { entity: `enemy:${q.enemy}`, name: t('need.killed', { n: fmtInt(q.qty), name: enemy(q.enemy)?.name ?? q.enemy }), icon: enemy(q.enemy)?.icon ?? null }
+    case 'trapped':
+      return { entity: null, name: t('need.trapped', { n: fmtInt(q.qty), name: q.name }), icon: index.skills.get('MelvorBase:Hunting')?.icon ?? null }
+    case 'sold':
+      return { entity: null, name: t('need.sold', { n: fmtInt(q.qty) }), icon: index.currencies.get(GP)?.icon ?? null }
+    default:
+      return { entity: null, name: q.text, icon: null }
+  }
 }
 
 /** Wofür ein Schritt da ist — mit Verweis, wenn der Löser einen mitgibt */
@@ -84,6 +108,29 @@ export function WhyTag({ why }: { why: Msg }) {
   ) : (
     <span className="tag std">{t(why)}</span>
   )
+}
+
+/** Ist der Skill/Bereich gesperrt? Dann mit seiner Freischaltung und den offenen Bedingungen */
+export function featureLock(index: GameIndex, profile: Profile, feature: Id): { req: UnlockReq; unmet: Req[] } | null {
+  const req = unlockReqFor(index, feature)
+  if (!req || isUnlocked(profile, req)) return null
+  return { req, unmet: unmetReqs(req.reqs, profile) }
+}
+
+/** Symbol und Verweis eines Skills/Bereichs (Shop, Kampf, Bank haben keine Detailseite) */
+export const featureEntity = (index: GameIndex, feature: Id) => (index.skills.has(feature) ? `skill:${feature}` : null)
+export const featureIcon = (index: GameIndex, feature: Id) => index.skills.get(feature)?.icon ?? index.features.get(feature)?.icon ?? null
+
+/** Symbol zu einer Entität „typ:id" */
+export function entityIcon(index: GameIndex, entity: string): string | null {
+  const i = entity.indexOf(':')
+  const type = entity.slice(0, i)
+  const id = entity.slice(i + 1)
+  if (type === 'item') return index.items.get(id)?.icon ?? null
+  if (type === 'skill') return index.skills.get(id)?.icon ?? null
+  if (type === 'purchase') return index.purchases.get(id)?.icon ?? null
+  if (type === 'enemy') return index.data.enemies?.find((e) => e.id === id)?.icon ?? null
+  return null
 }
 
 /** Ein Item-Name als Verweis */
@@ -218,6 +265,16 @@ export function RouteOverview({ solution, onOpen }: { solution: Solution; onOpen
             entity = `purchase:${ph.purchase.id}`
             label = ph.purchase.name
             time = t('flow.shop')
+          } else if (ph.kind === 'unlock') {
+            icon = featureIcon(index, ph.feature)
+            entity = featureEntity(index, ph.feature)
+            label = t('flow.unlock', { name: ph.name })
+            time = t('flow.unlocked')
+          } else if (ph.kind === 'task') {
+            icon = ph.entity ? entityIcon(index, ph.entity) : null
+            entity = ph.entity
+            label = t(ph.text)
+            time = t('flow.byHand')
           } else {
             icon = index.items.get(ph.goals[0]?.item)?.icon
             entity = ph.goals[0] ? `item:${ph.goals[0].item}` : null
@@ -277,6 +334,8 @@ export function unlockStep(solution: Solution, r: Recipe): number | null {
 const segmentKey = (phase: number, i: number, seg: RouteSegment) => `${phase}:${i}:${seg.recipe.id}`
 const makeKey = (phase: number, step: MakeStep) => `${phase}:${step.key}`
 const buyKey = (phase: number) => `${phase}:buy`
+const unlockKey = (phase: number, feature: string) => `${phase}:unlock:${feature}`
+const taskKey = (phase: number) => `${phase}:task`
 
 function stepKeys(solution: Solution): string[] {
   return solution.phases.flatMap((ph, i) =>
@@ -284,7 +343,11 @@ function stepKeys(solution: Solution): string[] {
       ? ph.route.segments.map((s, j) => segmentKey(i, j, s))
       : ph.kind === 'buy'
         ? [buyKey(i)]
-        : ph.plan.steps.map((s) => makeKey(i, s)),
+        : ph.kind === 'unlock'
+          ? [unlockKey(i, ph.feature)]
+          : ph.kind === 'task'
+            ? [taskKey(i)]
+            : ph.plan.steps.map((s) => makeKey(i, s)),
   )
 }
 
@@ -328,6 +391,53 @@ function PhaseBlock({ phase, index, keyFor }: { phase: Phase; index: number; key
   const { index: game } = useGame()
   const t = useT()
   if (phase.kind === 'route') return <RouteBlock route={phase.route} why={phase.why} phase={index} keyFor={keyFor} />
+  if (phase.kind === 'unlock') {
+    const entity = featureEntity(game, phase.feature)
+    return (
+      <section className="phase">
+        <ol className="steps">
+          <StepRow
+            k={keyFor(unlockKey(index, phase.feature))}
+            entity={entity ?? undefined}
+            icon={featureIcon(game, phase.feature)}
+            title={<TNodes k="flow.unlock" nodes={{ name: entity ? <Ref entity={entity}>{phase.name}</Ref> : phase.name }} />}
+            sub={
+              <>
+                <span className="muted">{t('flow.unlockHint')}</span>
+                {!isGoal(phase.why) && <WhyTag why={phase.why} />}
+              </>
+            }
+            meta={
+              <b className="ok">
+                <Sym name="unlock" size={13} /> {t('flow.unlocked')}
+              </b>
+            }
+          />
+        </ol>
+      </section>
+    )
+  }
+  if (phase.kind === 'task') {
+    return (
+      <section className="phase">
+        <ol className="steps">
+          <StepRow
+            k={keyFor(taskKey(index))}
+            entity={phase.entity ?? undefined}
+            icon={phase.entity ? entityIcon(game, phase.entity) : null}
+            title={t(phase.text)}
+            sub={
+              <>
+                <span className="muted">{t('flow.taskHint')}</span>
+                {!isGoal(phase.why) && <WhyTag why={phase.why} />}
+              </>
+            }
+            meta={<b>{t('flow.byHand')}</b>}
+          />
+        </ol>
+      </section>
+    )
+  }
   if (phase.kind === 'buy') {
     const price = phase.purchase.costs.find((c) => c.currency === GP)?.qty ?? 0
     return (

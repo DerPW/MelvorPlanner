@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react'
 import { MAX_LEVEL, xpForLevel } from '../core/experience'
 import { fmtInt } from '../core/format'
+import { unlockReqFor } from '../core/planner'
 import { GP } from '../core/route'
 import { useI18n, type LangSetting } from '../i18n'
 import { modLabel, modScope, modValue } from './bonusText'
 import { GameIcon, Ref, Select, Stepper, Switch, Sym, Toolbar } from './components'
 import { ItemSearch } from './ItemSearch'
 import { useLive } from './LiveSync'
+import { featureLock } from './SolutionView'
 import { useGame } from './state'
 import { useUi } from './ui'
 
@@ -161,13 +163,34 @@ export function ProfileView() {
         <div className="form-group skill-grid">
           {skills.map((s) => {
             const level = p.levels[s.id] ?? 1
+            const lockable = unlockReqFor(index, s.id)
+            const locked = !!featureLock(index, p, s.id)
+            const manual = p.unlocked?.[s.id] !== undefined
             return (
-              <div className="form-row" key={s.id}>
+              <div className={`form-row ${locked ? 'locked' : ''}`} key={s.id}>
                 <GameIcon src={s.icon} size={22} entity={`skill:${s.id}`} />
                 <span className="grow">
                   <Ref entity={`skill:${s.id}`}>{s.name}</Ref>
-                  <div className="hint">{fmtInt(p.xp?.[s.id] ?? xpForLevel(level))} XP</div>
+                  <div className="hint">
+                    {locked ? t('lock.short') : `${fmtInt(p.xp?.[s.id] ?? xpForLevel(level))} XP`}
+                    {manual && <span className="muted"> · {t('lock.manual')}</span>}
+                  </div>
                 </span>
+                {lockable && !lockable.demoLocked && (
+                  <button
+                    className={`icon-btn lock-toggle ${locked ? 'on' : ''}`}
+                    title={t(locked ? 'lock.markOpen' : 'lock.markLocked')}
+                    aria-label={t(locked ? 'lock.markOpen' : 'lock.markLocked')}
+                    onClick={() => dispatch({ type: 'setUnlocked', feature: s.id, unlocked: locked })}
+                    onContextMenu={(e) => {
+                      if (!manual) return
+                      e.preventDefault()
+                      dispatch({ type: 'setUnlocked', feature: s.id, unlocked: null })
+                    }}
+                  >
+                    <Sym name={locked ? 'lock' : 'unlock'} size={13} />
+                  </button>
+                )}
                 <Stepper
                   narrow
                   label={`${s.name} Level`}

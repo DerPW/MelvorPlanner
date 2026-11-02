@@ -10,6 +10,28 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.6.1',
+    date: '2026-11-02',
+    de: {
+      title: 'Freischaltungen',
+      items: [
+        'Skills, Shop und Bank sind gesperrt, bis ihre Bedingungen erfüllt sind — z. B. Thieving erst mit Cooking 10, Cooking erst nach 20 geangelten Raw Shrimp. Routen schalten den Weg dorthin selbst frei und zeigen „Thieving freischalten" als eigenen Schritt.',
+        'Bedingungen, die der Planer noch nicht rechnet (ein Monster besiegen, ein Tier fangen), stehen als Aufgabe im Ablauf.',
+        'Gesperrte Skills tragen ein Schloss in der Seitenleiste; die Skill-Seite und der Tooltip sagen, was fehlt. Im Profil lässt sich der Stand je Skill von Hand festlegen.',
+        'Vogelnester, Geoden und andere Behälter sind jetzt echte Quellen: Holzfällen bringt Vogelnester und Baumsamen, Bergbau Geoden, und Öffnen liefert den Inhalt — Kartoffelsamen kommen so aus Vogelnestern statt per Thieving 35.',
+      ],
+    },
+    en: {
+      title: 'Unlocks',
+      items: [
+        'Skills, the shop and the bank stay locked until their conditions are met — e.g. Thieving needs Cooking 10, Cooking needs 20 Raw Shrimp fished. Routes unlock the way there on their own and show “Unlock Thieving” as a step.',
+        'Conditions the planner does not calculate yet (defeat a monster, trap an animal) appear as a task in the steps.',
+        'Locked skills carry a lock in the sidebar; the skill page and tooltip say what is missing. The profile lets you set each skill by hand.',
+        'Bird nests, geodes and other containers are real sources now: woodcutting yields bird nests and tree seeds, mining yields geodes, and opening gives the contents — potato seeds come from bird nests instead of Thieving 35.',
+      ],
+    },
+  },
+  {
     version: '0.6.0',
     date: '2026-11-02',
     de: {

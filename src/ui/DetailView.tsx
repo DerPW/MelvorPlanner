@@ -9,7 +9,7 @@ import type { Id, InfoSource, Mod, NamedValue, Req } from '../core/types'
 import { useI18n } from '../i18n'
 import { modLabel, modScope, modValue } from './bonusText'
 import { GameIcon, LevelTag, Ref, Stepper, Switch, Sym, Toolbar } from './components'
-import { Needs, recipeAction, SourceText, sourceEntity } from './SolutionView'
+import { Needs, recipeAction, reqPart, SourceText, sourceEntity } from './SolutionView'
 import { itemRoute, newId, planItem, useGame, type DetailType } from './state'
 
 export function DetailView({ type, id }: { type: DetailType; id: Id }) {
@@ -111,6 +111,19 @@ function Stats({ rows }: { rows: NamedValue[] }) {
   )
 }
 
+/** Freischaltung oder Statistik als Chip — erfüllt grün, offen gelb */
+function ReqChip({ q }: { q: Req }) {
+  const { index, state } = useGame()
+  const { t } = useI18n()
+  const part = reqPart(index, q, t)
+  const met = unmetReqs([q], state.profile).length === 0
+  return (
+    <span className={`chip ${met ? 'met' : 'unmet'}`}>
+      <GameIcon src={part.icon} size={14} entity={part.entity} /> {part.entity ? <Ref entity={part.entity}>{part.name}</Ref> : part.name}
+    </span>
+  )
+}
+
 function Reqs({ reqs }: { reqs: Req[] }) {
   const { index, state } = useGame()
   const { t } = useI18n()
@@ -127,10 +140,12 @@ function Reqs({ reqs }: { reqs: Req[] }) {
           <EntityLink key={i} type="purchase" id={q.purchase} icon={index.purchases.get(q.purchase)?.icon} name={q.name} size={14} />
         ) : q.type === 'item' ? (
           <ItemLink key={i} id={q.item} />
-        ) : (
+        ) : q.type === 'other' ? (
           <span key={i} className="chip muted" title={t('sum.uncheckedHint')}>
             {q.text}
           </span>
+        ) : (
+          <ReqChip key={i} q={q} />
         ),
       )}
     </div>

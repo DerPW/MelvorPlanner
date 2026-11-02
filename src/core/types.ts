@@ -24,6 +24,11 @@ export interface Output extends ItemQty {
   /** Anteil innerhalb einer gewichteten Tabelle (Angeln, Thieving-Beute) */
   share?: number
   table?: 'fish' | 'common' | 'rare'
+  /** Zufallsprodukt neben dem eigentlichen (Vogelnest, Samen, Geode) —
+   *  Mengen-Boni gelten nicht dafür */
+  extra?: boolean
+  /** Chance je Schlag; `chance` ist dann die Erwartung je Durchlauf */
+  perHit?: number
 }
 
 export interface CurrencyOutput extends CurrencyQty {
@@ -35,6 +40,16 @@ export type Req =
   | { type: 'purchase'; purchase: Id; name: string }
   | { type: 'item'; item: Id }
   | { type: 'other'; text: string }
+  /** Skill oder Bereich (Kampf, Shop, Bank) muss freigeschaltet sein — samt
+   *  dessen Bedingungen, damit sich der Stand ohne Index auswerten lässt */
+  | { type: 'unlock'; feature: Id; name: string; reqs: Req[]; demoLocked?: boolean }
+  // Freischalt-Bedingungen aus den Lebenszeit-Statistiken des Spiels
+  /** So viele Stück gewonnen — über diesen Skill, ohne Skill aus jeder Quelle */
+  | { type: 'gained'; item: Id; qty: number; skill: Id | null }
+  | { type: 'killed'; enemy: Id; qty: number }
+  | { type: 'trapped'; animal: Id; name: string; qty: number }
+  /** So viel Gold durch Verkäufe eingenommen */
+  | { type: 'sold'; qty: number }
 
 export type RecipeKind =
   | 'artisan'
@@ -48,6 +63,7 @@ export type RecipeKind =
   | 'mill'
   | 'shop'
   | 'upgrade'
+  | 'open'
 
 export type Success =
   | { kind: 'cooking'; difficulty: number; proficiency?: number }
@@ -187,6 +203,15 @@ export interface GuildRank {
   percent: number
 }
 
+/** Ein Skill oder Bereich, der erst freigeschaltet werden muss */
+export interface Feature {
+  id: Id
+  name: string
+  icon: string | null
+  reqs: Req[]
+  demoLocked: boolean
+}
+
 export interface GameData {
   meta: { packages: string[]; gameVersion: string | null; godot: string; extractedAt: string }
   currencies: Currency[]
@@ -202,6 +227,7 @@ export interface GameData {
   infoSources: InfoSource[]
   enemies: Enemy[]
   areas: Area[]
+  features: Feature[]
 }
 
 export interface Enemy {
@@ -245,6 +271,9 @@ export interface Profile {
   levelCap?: number
   /** Gilden-Rang je Skill (Index in guildRanks, 0 = Anfang) */
   guildRanks?: Record<Id, number>
+  /** Freigeschaltete Skills/Bereiche, von Hand oder vom Planer gesetzt;
+   *  fehlt ein Eintrag, wird er aus dem Stand geschätzt (isUnlocked) */
+  unlocked?: Record<Id, boolean>
   /** Woher der Stand kommt */
   source?: { character: string; savedAt: string | null; importedAt: string; version: number }
 }

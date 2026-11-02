@@ -16,6 +16,7 @@ import { ProfileView } from './ProfileView'
 import { ReleaseNotes, useReleaseNotesOnUpdate } from './ReleaseNotes'
 import { newRoute, routeEntity, routeIcon, routeLabel } from './routeText'
 import { RoutesHome } from './RoutesHome'
+import { featureLock } from './SolutionView'
 import { RouteView } from './RouteView'
 import { GlobalSearch } from './search'
 import { SkillView } from './SkillView'
@@ -152,12 +153,16 @@ function Sidebar() {
               <button
                 key={s.id}
                 data-entity={`skill:${s.id}`}
-                className={`side-row ${v.kind === 'skill' && v.skill === s.id ? 'active' : ''}`}
+                className={`side-row ${v.kind === 'skill' && v.skill === s.id ? 'active' : ''} ${featureLock(index, state.profile, s.id) ? 'locked' : ''}`}
                 onClick={() => dispatch({ type: 'view', view: { kind: 'skill', skill: s.id }, root: true })}
               >
                 <GameIcon src={s.icon} size={18} />
                 <span className="grow">{s.name}</span>
-                <span className="badge">{state.profile.levels[s.id] ?? 1}</span>
+                {featureLock(index, state.profile, s.id) ? (
+                  <Sym name="lock" size={12} className="side-lock" />
+                ) : (
+                  <span className="badge">{state.profile.levels[s.id] ?? 1}</span>
+                )}
               </button>
             ))}
         </div>

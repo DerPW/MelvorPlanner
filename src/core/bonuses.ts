@@ -206,7 +206,9 @@ export function deriveRecipe(r: Recipe, t: (stat: string) => number): Recipe {
       const interval = Math.floor((b.interval + t('FlatInterval')) * (1 + t('PercentInterval')))
       const hp = Math.max(1, Math.ceil((b.maxHealth + t('FlatMaxHealth')) * (1 + t('PercentMaxHealth'))))
       const hits = expectedHits(hp, clamp01(t('InstantCutChance')), clamp01(t('WeakSpotChance')), clamp01(t('DoubleDamageChance')))
-      const outputs = r.outputs.map((o) => ({ ...o, qty: (o.qty + t('FlatProductQuantity')) * doubling }))
+      const outputs = r.outputs.map((o) =>
+        o.extra ? (o.perHit ? { ...o, chance: Math.min(1, o.perHit * hits) } : o) : { ...o, qty: (o.qty + t('FlatProductQuantity')) * doubling },
+      )
       return { ...r, timeMs: interval * hits, outputs, xp }
     }
     case 'mining': {
@@ -216,10 +218,13 @@ export function deriveRecipe(r: Recipe, t: (stat: string) => number): Recipe {
       const n = Math.max(1, Math.ceil((0.9999 - start) / p - 1e-9))
       const hits = p >= 1 ? 1 : (1 - (1 - p) ** n) / p
       const shatter = clamp01(t('ShatterChance'))
-      const outputs = r.outputs.map((o) => ({
-        ...o,
-        qty: (o.qty + t('FlatProductQuantity') + clamp01(t('AdditionalProductQuantityChance'))) * doubling * (1 + 2 * shatter),
-      }))
+      const outputs = r.outputs.map((o) =>
+        o.extra
+          ? o.perHit
+            ? { ...o, chance: Math.min(1, o.perHit * hits) }
+            : o
+          : { ...o, qty: (o.qty + t('FlatProductQuantity') + clamp01(t('AdditionalProductQuantityChance'))) * doubling * (1 + 2 * shatter) },
+      )
       return { ...r, timeMs: interval * hits, outputs, xp: xp * (1 + shatter) }
     }
     case 'fishing': {

@@ -82,6 +82,18 @@ const PATHS: Record<string, ReactNode> = {
     </>
   ),
   plus: <path d="M8 3.5v9M3.5 8h9" />,
+  lock: (
+    <>
+      <rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />
+      <path d="M5.5 7V5.25a2.5 2.5 0 0 1 5 0V7" />
+    </>
+  ),
+  unlock: (
+    <>
+      <rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />
+      <path d="M5.5 7V5.25a2.5 2.5 0 0 1 4.9-.7" />
+    </>
+  ),
   minus: <path d="M3.5 8h9" />,
   close: <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />,
   chevron: <path d="M6 3.5 10.5 8 6 12.5" />,
