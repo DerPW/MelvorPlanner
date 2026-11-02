@@ -122,11 +122,25 @@ export function unmetReqs(reqs: Req[], profile: Profile): Req[] {
     if (q.type === 'purchase') return !(profile.owned[q.purchase] > 0)
     if (q.type === 'item') return !(profile.inventory[q.item] > 0) && !profile.equipped?.includes(q.item)
     if (q.type === 'unlock') return !isUnlocked(profile, q)
-    // Statistiken kennt der Stand nicht: Lager als untere Schranke, der Rest gilt als offen
-    if (q.type === 'gained') return (profile.inventory[q.item] ?? 0) < q.qty
-    if (q.type === 'killed' || q.type === 'trapped' || q.type === 'sold') return true
+    // Statistiken aus dem Spielstand, wenn da; sonst Lager als untere Schranke, der Rest gilt als offen
+    if (q.type === 'gained' || q.type === 'killed' || q.type === 'trapped' || q.type === 'sold') {
+      const known = statOf(profile, q)
+      if (known !== null) return known < q.qty
+      return q.type === 'gained' ? (profile.inventory[q.item] ?? 0) < q.qty : true
+    }
     return false
   })
+}
+
+/** Zähler einer Statistik-Bedingung — null, wenn der Stand keine Statistiken hat */
+export function statOf(profile: Profile, q: Req): number | null {
+  if (!profile.stats || !('stat' in q) || !q.stat) return null
+  const map = profile.stats[q.stat] ?? {}
+  if (q.type === 'gained') return map[q.item] ?? 0
+  if (q.type === 'killed') return map[q.enemy] ?? 0
+  if (q.type === 'trapped') return map[q.animal] ?? 0
+  if (q.type === 'sold') return map[q.currency ?? 'MelvorBase:GoldPieces'] ?? 0
+  return null
 }
 
 const COMBAT_SKILLS = ['MelvorBase:Attack', 'MelvorBase:Strength', 'MelvorBase:Defence', 'MelvorBase:Ranged', 'MelvorBase:Magic']
@@ -142,6 +156,8 @@ export function isUnlocked(profile: Profile, q: Extract<Req, { type: 'unlock' }>
   if (levelOf(profile, q.feature) > 1 || (profile.xp?.[q.feature] ?? 0) > 0) return true
   if (q.feature === 'MelvorBase:Shop' && Object.keys(profile.owned).length > 0) return true
   if (q.feature === 'MelvorBase:Combat' && COMBAT_SKILLS.some((s) => levelOf(profile, s) > 1)) return true
+  // Mit Statistiken aus dem Spielstand ist jede Bedingung prüfbar
+  if (profile.stats) return unmetReqs(q.reqs, profile).length === 0
   return q.reqs.length > 0 && q.reqs.every((r) => r.type === 'level' || r.type === 'gained') && unmetReqs(q.reqs, profile).length === 0
 }
 

@@ -802,11 +802,11 @@ function unlockReqs(list) {
     else if (t === 'ItemStatistic') {
       // „<Skill>ItemGained" zählt nur, was der Skill gebracht hat; „BankItemFound" jede Quelle
       const m = /^MelvorBase:(\w+)ItemGained$/.exec(d.Statistic)
-      reqs.push({ type: 'gained', item: d.Item, qty: d.Value, skill: m ? `MelvorBase:${m[1]}` : null })
-    } else if (t === 'EnemyStatistic') reqs.push({ type: 'killed', enemy: d.Enemy, qty: d.Value })
+      reqs.push({ type: 'gained', item: d.Item, qty: d.Value, skill: m ? `MelvorBase:${m[1]}` : null, stat: d.Statistic })
+    } else if (t === 'EnemyStatistic') reqs.push({ type: 'killed', enemy: d.Enemy, qty: d.Value, stat: d.Statistic })
     else if (t === 'HuntingAnimalStatistic')
-      reqs.push({ type: 'trapped', animal: d.Animal, name: objects.HuntingAnimal?.get(d.Animal)?.DisplayName ?? short(d.Animal), qty: d.Value })
-    else if (t === 'CurrencyStatistic' && /FromSale$/.test(d.Statistic)) reqs.push({ type: 'sold', qty: d.Value })
+      reqs.push({ type: 'trapped', animal: d.Animal, name: objects.HuntingAnimal?.get(d.Animal)?.DisplayName ?? short(d.Animal), qty: d.Value, stat: d.Statistic })
+    else if (t === 'CurrencyStatistic' && /FromSale$/.test(d.Statistic)) reqs.push({ type: 'sold', qty: d.Value, stat: d.Statistic, currency: d.Currency })
     else reqs.push({ type: 'other', text: short(r.Type) })
   }
   return { reqs, demoLocked }
@@ -837,6 +837,47 @@ for (const r of recipes) {
 const shopUnlock = unlockReq('MelvorBase:Shop')
 if (shopUnlock) for (const p of purchases) p.reqs = [shopUnlock, ...p.reqs]
 
+// Completion-Log: die Items in der Reihenfolge des Spiels, Monster ohne IgnoreCompletion
+const itemIds = new Set(items.map((i) => i.id))
+const enemyIds = new Set(enemies.map((e) => e.id))
+const completion = {
+  items: (entityConfig['MelvorBase:CompletionLog']?.ItemCompletionOrder ?? []).map((x) => x.Id).filter((id) => itemIds.has(id)),
+  enemies: all('Enemy')
+    .filter(([id, e]) => !e.IgnoreCompletion && enemyIds.has(id))
+    .map(([id]) => id),
+}
+
+// Shop wie im Spiel: Kategorien → Unterkategorien → Käufe, in der Reihenfolge der Konfiguration
+handled.add('ShopCategory')
+handled.add('ShopSubcategory')
+const shopCfg = entityConfig['MelvorBase:Shop'] ?? {}
+const purchaseIds = new Set(purchases.map((p) => p.id))
+const subOrder = (shopCfg.Subcategories ?? []).map((x) => x.Id)
+const purchaseOrder = new Map((shopCfg.Purchases ?? []).map((x, i) => [x.Id, i]))
+const shop = (shopCfg.Categories ?? []).map((c) => {
+  const cat = objects.ShopCategory?.get(c.Id)
+  return {
+    id: c.Id,
+    name: cat?.DisplayName ?? short(c.Id),
+    icon: icon(cat?.Icon),
+    subcategories: subOrder
+      .filter((id) => objects.ShopSubcategory?.get(id)?.Category === c.Id)
+      .map((id) => {
+        const sub = objects.ShopSubcategory.get(id)
+        return {
+          id,
+          name: sub.DisplayName,
+          icon: icon(sub.Icon),
+          purchases: all('ShopPurchase')
+            .filter(([pid, p]) => p.Subcategory === id && purchaseIds.has(pid))
+            .sort((a, b) => (purchaseOrder.get(a[0]) ?? 1e9) - (purchaseOrder.get(b[0]) ?? 1e9))
+            .map(([pid]) => pid),
+        }
+      })
+      .filter((s) => s.purchases.length),
+  }
+}).filter((c) => c.subcategories.length)
+
 const plist = pckPath.includes('.app/') ? path.join(pckPath.split('.app/')[0] + '.app', 'Contents/Info.plist') : null
 const version =
   plist && fs.existsSync(plist)
@@ -863,6 +904,8 @@ const data = {
   areas,
   features,
   combat,
+  completion,
+  shop,
 }
 fs.writeFileSync(path.join(OUT_DIR, 'data.json'), JSON.stringify(data))
 

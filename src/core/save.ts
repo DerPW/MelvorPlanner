@@ -38,6 +38,9 @@ export interface SaveData {
   equipped: Id[]
   /** Kampf: Ausrüstung je Platz (ohne belegte Nebenplätze), Haltung je Waffentyp, Essen, Zauber, HP */
   combat: { gear: Record<string, { item: Id; qty: number }>; stances: Record<string, string>; food: Id | null; spell: Id | null; hp: number | null }
+  /** Wörterbuch-Statistiken aller Einheiten: Statistik → (Schlüssel → Zähler) */
+  stats: Record<Id, Record<Id, number>>
+  bankTabs: { name: string; items: { item: Id; qty: number }[] }[]
   entities: string[]
   warnings: Msg[]
 }
@@ -135,6 +138,8 @@ export function parseSave(raw: Uint8Array): SaveData {
     purchases: {},
     equipped: [],
     combat: { gear: {}, stances: {}, food: null, spell: null, hp: null },
+    stats: {},
+    bankTabs: [],
     entities: [],
     warnings: [],
   }
@@ -186,6 +191,7 @@ export function parseSave(raw: Uint8Array): SaveData {
 }
 
 function readComponent(out: SaveData, entity: string, component: string, r: Reader) {
+  if (component === 'Statistics') return readStatistics(out, r)
   if (entity === 'MelvorBase:Combat') return readCombat(out, component, r)
   switch (component) {
     case 'Experience': {
@@ -212,14 +218,19 @@ function readComponent(out: SaveData, entity: string, component: string, r: Read
         r.bool() // AllowStackCombining
         r.bool() // AllowSameItemStacks
         const stacks = r.i32()
+        const tab: SaveData['bankTabs'][number] = { name: '', items: [] }
         for (let s = 0; s < stacks; s++) {
           const qty = r.i32()
           const placeholder = r.bool()
           r.bool() // IsLocked
           const item = r.str()
-          if (!placeholder && qty > 0) out.bank[item] = (out.bank[item] ?? 0) + qty
+          if (!placeholder && qty > 0) {
+            out.bank[item] = (out.bank[item] ?? 0) + qty
+            tab.items.push({ item, qty })
+          }
         }
-        r.str() // Reitername
+        tab.name = r.str()
+        out.bankTabs.push(tab)
         const tags = r.i32()
         for (let g = 0; g < tags; g++) {
           r.bool()
@@ -317,6 +328,35 @@ function readCombat(out: SaveData, component: string, r: Reader) {
     case 'MagicSpells':
       if (r.bool()) c.spell = short(r.str())
       return
+  }
+}
+
+// Statistiken (StatisticsComponent.WriteTo, bei Kampf u. a. CombatStatistics):
+// erst die einfachen Werte, dann Listen von Wörterbuch-Statistiken
+// (DictionaryStatistic: Anzahl × [double Zähler, string Schlüssel]) bis zum
+// Ende des Blocks — Items, Währungen, Monster, Dungeons, Kampfstile, Gebete.
+function readStatistics(out: SaveData, r: Reader) {
+  try {
+    const simple = r.i32()
+    for (let i = 0; i < simple; i++) {
+      r.str()
+      r.region()
+    }
+    while (r.pos < r.length) {
+      const n = r.i32()
+      for (let i = 0; i < n; i++) {
+        const stat = r.str()
+        const sr = r.region()
+        const map = (out.stats[stat] ??= {})
+        const count = sr.i32()
+        for (let j = 0; j < count; j++) {
+          const value = sr.f64()
+          map[sr.str()] = value
+        }
+      }
+    }
+  } catch {
+    // Eine unbekannte Statistik-Form ändert nichts am Rest — still überspringen
   }
 }
 

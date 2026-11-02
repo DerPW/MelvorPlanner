@@ -45,11 +45,11 @@ export type Req =
   | { type: 'unlock'; feature: Id; name: string; reqs: Req[]; demoLocked?: boolean }
   // Freischalt-Bedingungen aus den Lebenszeit-Statistiken des Spiels
   /** So viele Stück gewonnen — über diesen Skill, ohne Skill aus jeder Quelle */
-  | { type: 'gained'; item: Id; qty: number; skill: Id | null }
-  | { type: 'killed'; enemy: Id; qty: number }
-  | { type: 'trapped'; animal: Id; name: string; qty: number }
+  | { type: 'gained'; item: Id; qty: number; skill: Id | null; stat?: Id }
+  | { type: 'killed'; enemy: Id; qty: number; stat?: Id }
+  | { type: 'trapped'; animal: Id; name: string; qty: number; stat?: Id }
   /** So viel Gold durch Verkäufe eingenommen */
-  | { type: 'sold'; qty: number }
+  | { type: 'sold'; qty: number; stat?: Id; currency?: Id }
 
 export type RecipeKind =
   | 'artisan'
@@ -246,6 +246,10 @@ export interface GameData {
   areas: Area[]
   features: Feature[]
   combat: CombatTables
+  /** Was das Completion-Log zählt */
+  completion: { items: Id[]; enemies: Id[] }
+  /** Shop wie im Spiel: Kategorien → Unterkategorien → Käufe */
+  shop: { id: Id; name: string; icon: string | null; subcategories: { id: Id; name: string; icon: string | null; purchases: Id[] }[] }[]
 }
 
 export interface Enemy {
@@ -372,6 +376,10 @@ export interface Profile {
   combatSave?: CombatLoadout
   /** Selbst gewählt — das Einlesen des Spielstands lässt `combat` dann stehen */
   combatManual?: boolean
+  /** Lebenszeit-Statistiken aus dem Spielstand: Statistik → (Item/Monster/Währung → Zähler) */
+  stats?: Record<Id, Record<Id, number>>
+  /** Bank-Reiter wie im Spiel */
+  bankTabs?: { name: string; items: { item: Id; qty: number }[] }[]
   /** Freigeschaltete Skills/Bereiche, von Hand oder vom Planer gesetzt;
    *  fehlt ein Eintrag, wird er aus dem Stand geschätzt (isUnlocked) */
   unlocked?: Record<Id, boolean>

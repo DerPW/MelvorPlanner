@@ -104,6 +104,8 @@ export function profileFromSave(index: GameIndex, save: SaveData, current: Profi
       // Selbst gewählte Ausrüstung bleibt; die aus dem Spiel wird trotzdem gemerkt
       combat: current.combatManual && current.combat ? current.combat : fromSave,
       combatSave: fromSave,
+      stats: save.stats,
+      bankTabs: save.bankTabs.map((t) => ({ ...t, items: t.items.filter((i) => index.items.has(i.item)) })),
       combatManual: current.combatManual && !!current.combat,
       source: {
         character: save.character,
