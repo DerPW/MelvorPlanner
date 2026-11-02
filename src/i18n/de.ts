@@ -255,6 +255,10 @@ export const de = {
   'toolbelt.title': 'Werkzeuggürtel',
   'toolbelt.equipped': 'ausgerüstet',
 
+  'mastery.title': 'Mastery',
+  'stats.title': 'Statistiken',
+  'guide.title': 'Guide',
+  'quests.title': 'Quests',
   'live.view': 'Live',
   'live.viewSub': 'Spielstand vor {s} s · das Spiel speichert etwa alle 10 s',
   'live.off': 'Die Live-Verbindung ist aus. In den Einstellungen den Spielstand wählen und „Live mitlesen“ einschalten.',
@@ -504,6 +508,7 @@ export const de = {
   'track.stepReady': 'fertig',
   'track.planned': 'Plan {time}',
   'track.measuredHint': 'Gemessen am Spielstand; zählt bis zum nächsten Speichern herunter',
+  'flow.notEnough': 'Du hast gerade {have}',
   'flow.uses': 'verbraucht',
   'flow.usesHint': 'Zutaten für diesen Schritt',
   'flow.fromStockUsed': 'Aus dem Lager',

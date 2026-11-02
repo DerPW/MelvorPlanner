@@ -255,6 +255,10 @@ export const en: Record<Key, string> = {
   'toolbelt.title': 'Toolbelt',
   'toolbelt.equipped': 'equipped',
 
+  'mastery.title': 'Mastery',
+  'stats.title': 'Statistics',
+  'guide.title': 'Guide',
+  'quests.title': 'Quests',
   'live.view': 'Live',
   'live.viewSub': 'Save from {s} s ago · the game saves about every 10 s',
   'live.off': 'The live connection is off. Pick your save in Settings and turn on “Follow live”.',
@@ -504,6 +508,7 @@ export const en: Record<Key, string> = {
   'track.stepReady': 'done',
   'track.planned': 'plan {time}',
   'track.measuredHint': 'Measured from your save; counts down until the next save',
+  'flow.notEnough': 'You have {have} right now',
   'flow.uses': 'uses',
   'flow.usesHint': 'Ingredients for this step',
   'flow.fromStockUsed': 'From your bank',

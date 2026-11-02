@@ -10,6 +10,26 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.11.8',
+    date: '2026-11-02',
+    de: {
+      title: 'Nur kaufen, was es im Shop gibt; Münzen im Baum',
+      items: [
+        'Der Planer schlägt nur noch Käufe vor, die im Spiel-Shop wirklich stehen. 41 Käufe stehen zwar in den Spieldaten, aber nicht in der Shop-Liste — darunter Cowhide, Green Dragonhide, der Grain Starter Pack, Banana- und Apple-Tree-Samen und die alten Äxte, Spitzhacken und Angeln. Sie gelten jetzt als gesperrt.',
+        'Baum: Was gekauft oder gegen Münzen hergestellt wird, zeigt die Kosten für die ganze Menge — rot, wenn dein Gold gerade nicht reicht.',
+        'Ablauf: „verbraucht“ nennt auch die Münzen eines Schritts.',
+      ],
+    },
+    en: {
+      title: 'Only buy what the shop has; coins in the tree',
+      items: [
+        'The planner only suggests purchases that are really in the in-game shop. 41 purchases exist in the game data but not in the shop list — among them Cowhide, Green Dragonhide, the Grain Starter Pack, Banana and Apple tree seeds and the old axes, pickaxes and rods. They now count as locked.',
+        'Tree: anything bought or made for coins shows the cost for the whole amount — red when your gold is not enough right now.',
+        'Flow: “uses” also lists a step’s coins.',
+      ],
+    },
+  },
+  {
     version: '0.11.7',
     date: '2026-11-02',
     de: {

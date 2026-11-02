@@ -29,6 +29,11 @@ export type View =
   | { kind: 'wiki'; section?: WikiKind; group?: string }
   | { kind: 'completion' }
   | { kind: 'live' }
+  /** Mastery Guild, Statistiken, Guide — je Skill wie die Knöpfe im Spiel; ohne Skill die Übersicht */
+  | { kind: 'mastery'; skill?: Id }
+  | { kind: 'stats'; entity?: Id }
+  | { kind: 'guide'; skill?: Id }
+  | { kind: 'quests'; quest?: Id }
   | { kind: 'skill'; skill: Id }
   | { kind: 'detail'; type: DetailType; id: Id }
 

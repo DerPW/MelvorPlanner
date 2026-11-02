@@ -19,6 +19,15 @@ function station(index: GameIndex, state: State, v: View, t: T): { label: string
   if (v.kind === 'bank') return { label: t('bank.title'), icon: ui('Bank'), entity: null }
   if (v.kind === 'shop') return { label: t('shop.title'), icon: ui('Shop'), entity: null }
   if (v.kind === 'wiki') return { ...wikiStation(index, t, v), entity: null }
+  // Mastery, Statistiken, Guide: je Skill „Woodcutting · Mastery“, sonst die Übersicht
+  if (v.kind === 'mastery' || v.kind === 'stats' || v.kind === 'guide') {
+    const id = v.kind === 'stats' ? v.entity : v.skill
+    const s = id ? index.skills.get(id) : undefined
+    const title = t(`${v.kind}.title`)
+    const fallback = v.kind === 'mastery' ? ui('Mastery_Icon') : v.kind === 'stats' ? ui('Milestones') : ui('GuideBook')
+    return { label: s ? `${s.name} · ${title}` : title, icon: s?.icon ?? fallback, entity: null }
+  }
+  if (v.kind === 'quests') return { label: t('quests.title'), icon: ui('Quests'), entity: null }
   if (v.kind === 'live') return { label: t('live.view'), icon: ui('Mastery_Icon'), entity: null }
   if (v.kind === 'completion') return { label: t('completion.title'), icon: ui('Milestones'), entity: null }
   if (v.kind === 'gear') return { label: t('gear.title'), icon: index.items.get('MelvorBase:IronHelmet')?.icon ?? ui('Combat'), entity: null }

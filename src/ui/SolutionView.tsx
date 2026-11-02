@@ -709,7 +709,7 @@ function SegmentRow({ seg, route, k, share }: { seg: RouteSegment; route: Route;
             {seg.fromStock && <span className="tag std">{t('flow.fromStock')}</span>}
             {chain.length > 0 && <span className="muted">{t('flow.withChain', { time: fmtDurationShort(seg.timeMs) })}</span>}
             {isNew && <span className="tag std">{t('flow.newAt', { level: r.level })}</span>}
-            <Uses inputs={r.inputs} times={seg.actions} />
+            <Uses inputs={r.inputs} costs={r.costs} times={seg.actions} />
           </>
         }
         meta={
@@ -748,7 +748,7 @@ function ChainStep({ r, item, runs, ms, k }: { r: Recipe; item?: Id; runs: numbe
         <>
           {skill && <GameIcon src={skill.icon} size={14} entity={`skill:${skill.id}`} />}
           <SourceText r={r} self={out} />
-          <Uses inputs={r.inputs} times={runs} />
+          <Uses inputs={r.inputs} costs={r.costs} times={runs} />
         </>
       }
       meta={<b>{ms > 0 ? fmtDurationShort(ms) : '—'}</b>}
@@ -780,7 +780,7 @@ function MakeRow({ step, k, levels }: { step: MakeStep; k: string; levels: Recor
           <SourceText r={r} self={step.item} />
           {step.completions !== step.amount && <span className="muted">{t('flow.runs', { n: fmtInt(step.completions) })}</span>}
           <LevelTag level={r.level} have={r.skill ? (levels[r.skill] ?? 1) : 1} />
-          <Uses inputs={r.inputs} times={step.completions} />
+          <Uses inputs={r.inputs} costs={r.costs} times={step.completions} />
         </>
       }
       meta={
@@ -873,19 +873,34 @@ function LiveStepTime({ step, planned }: { step: LiveStep; planned: React.ReactN
 }
 
 /** Was ein Schritt verbraucht: Symbol und Menge je Zutat */
-function Uses({ inputs, times }: { inputs: { item: Id; qty: number }[]; times: number }) {
+function Uses({ inputs, costs = [], times }: { inputs: { item: Id; qty: number }[]; costs?: { currency: Id; qty: number }[]; times: number }) {
   const { index, state } = useGame()
   const t = useT()
-  if (!inputs.length || times <= 0) return null
+  if ((!inputs.length && !costs.length) || times <= 0) return null
   return (
     <span className="uses" title={t('flow.usesHint')}>
       <span className="muted">{t('flow.uses')}</span>
+      {costs.map((c) => (
+        <Cost key={c.currency} currency={c.currency} qty={c.qty * times} />
+      ))}
       {inputs.map((i) => (
         <span key={i.item}>
           <GameIcon src={index.items.get(i.item)?.icon} size={14} entity={`item:${i.item}`} /> {fmtInt(Math.ceil(i.qty * times))}
           {(state.reserved ?? []).includes(i.item) && <Sym name="lock" size={10} className="muted" />}
         </span>
       ))}
+    </span>
+  )
+}
+
+/** Münzen, die etwas kostet — rot, wenn sie gerade nicht reichen */
+export function Cost({ currency, qty }: { currency: Id; qty: number }) {
+  const { index, state } = useGame()
+  const t = useT()
+  const enough = (state.profile.currencies[currency] ?? 0) >= qty
+  return (
+    <span className={enough ? 'gold' : 'bad'} title={enough ? undefined : t('flow.notEnough', { have: fmtInt(state.profile.currencies[currency] ?? 0) })}>
+      <GameIcon src={index.currencies.get(currency)?.icon} size={14} /> {fmtInt(Math.ceil(qty))}
     </span>
   )
 }

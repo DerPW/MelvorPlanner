@@ -398,11 +398,15 @@ each('GrainMillRecipe', (id, o) => {
 })
 
 // Shop: jeder Kauf ist eine Freischaltung; die, die Items liefern, zusätzlich
-// eine Item-Quelle.
+// eine Item-Quelle. Im Spiel steht nur im Shop, was seine Shop-Liste nennt —
+// der Rest (Cowhide, Grain Starter Pack, alte Äxte …) ist nicht zu kaufen und
+// gilt hier als gesperrt, ohne Item-Quelle.
+const listedPurchases = new Set((entityConfig['MelvorBase:Shop']?.Purchases ?? []).map((p) => p.Id))
 const purchases = []
 each('ShopPurchase', (id, o) => {
   const req = requirements(o)
   const items = qtyList(o.Provides?.Items)
+  const unlisted = !listedPurchases.has(id)
   purchases.push({
     id,
     name: o.DisplayName,
@@ -414,9 +418,10 @@ each('ShopPurchase', (id, o) => {
     reqs: req.reqs,
     items,
     buyLimit: o.DefaultBuyLimit || null,
-    demoLocked: isDemoLocked(o),
+    demoLocked: isDemoLocked(o) || unlisted,
+    ...(unlisted ? { unlisted: true } : {}),
   })
-  if (items.length) {
+  if (items.length && !unlisted) {
     push('ShopPurchase', id, o, {
       kind: 'shop',
       icon: icon(o.Icon),

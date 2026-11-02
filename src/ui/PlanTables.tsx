@@ -9,7 +9,7 @@ import type { Solution } from '../core/solve'
 import type { Id } from '../core/types'
 import { useT } from '../i18n'
 import { GameIcon, LevelTag, Sym } from './components'
-import { SourceText, sourceEntity, unlockStep } from './SolutionView'
+import { Cost, SourceText, sourceEntity, unlockStep } from './SolutionView'
 import { useGame } from './state'
 
 export function TreeTable({ plan, levels, solution }: { plan: Plan; levels: Record<Id, number>; solution: Solution }) {
@@ -130,6 +130,14 @@ function TreeRow({
               {node.completions !== node.toMake && node.completions > 0 && <span className="muted"> · {fmtInt(node.completions)}×</span>}
             </span>
             <LevelTag level={r.level} have={r.skill ? (levels[r.skill] ?? 1) : 1} />
+            {/* Was der Kauf bzw. die Herstellung an Münzen kostet, für die ganze Menge */}
+            {node.completions > 0 && r.costs.length > 0 && (
+              <span className="tree-cost">
+                {r.costs.map((c) => (
+                  <Cost key={c.currency} currency={c.currency} qty={c.qty * node.completions} />
+                ))}
+              </span>
+            )}
             {step && (
               <span className="tag unlock-step" title={t('tree.afterStepHint')}>
                 {t('tree.afterStep', { n: step })}

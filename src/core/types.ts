@@ -116,6 +116,8 @@ export interface Purchase {
   items: ItemQty[]
   buyLimit: number | null
   demoLocked: boolean
+  /** In den Daten, aber nicht in der Shop-Liste des Spiels — dort nicht zu kaufen */
+  unlisted?: boolean
 }
 
 export interface NamedValue {

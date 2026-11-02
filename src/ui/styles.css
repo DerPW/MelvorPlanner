@@ -1255,6 +1255,8 @@ button.crumb:hover { background: var(--hover); color: var(--text); }
 
 /* Verbrauch je Schritt und „Aus dem Lager“ je Abschnitt (zurücklegbar) */
 .step .what .sub > .uses { gap: 6px; }
+.tree-cost { display: inline-flex; gap: 8px; flex: none; font-variant-numeric: tabular-nums; }
+.tree-cost > span { display: inline-flex; align-items: center; gap: 3px; }
 .uses > span { display: inline-flex; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; }
 .stock-use { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 10px 4px; padding-top: 9px; border-top: 0.5px solid var(--separator); font-size: 12px; }
 .su-label { font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); margin-right: 2px; }
