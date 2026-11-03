@@ -29,7 +29,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Spieldaten aus dem Release
         shell: bash
-        run: gh release download spieldaten --repo "$GITHUB_REPOSITORY" --pattern game.tar.gz --output - | tar -xz -C public
+        # public/ ist nicht im Repo (darin liegt nur das ignorierte game/)
+        run: |
+          mkdir -p public
+          gh release download spieldaten --repo "$GITHUB_REPOSITORY" --pattern game.tar.gz --output - | tar -xz -C public --warning=no-unknown-keyword
         env:
           GH_TOKEN: ${{ github.token }}
       - run: pnpm build

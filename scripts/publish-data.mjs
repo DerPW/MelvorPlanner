@@ -29,9 +29,10 @@ const ok = (cmd, args) => {
   }
 }
 
-// COPYFILE_DISABLE: ohne die ._-Dateien, die macOS-tar sonst für Dateiattribute anlegt
+// Ohne Dateiattribute (--no-xattrs) und ohne die ._-Dateien (COPYFILE_DISABLE),
+// die macOS-tar sonst mitpackt — GNU-tar im Workflow warnt sonst je Datei
 const archive = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'melvor-data-')), 'game.tar.gz')
-run('tar', ['-czf', archive, '--exclude', '.DS_Store', '-C', path.join(root, 'public'), 'game'], { COPYFILE_DISABLE: '1' })
+run('tar', ['-czf', archive, '--no-xattrs', '--exclude', '.DS_Store', '-C', path.join(root, 'public'), 'game'], { COPYFILE_DISABLE: '1' })
 
 const notes = `Aus Melvor Idle 2 extrahiert (\`pnpm extract\`, ${packages.join(', ')} ${gameVersion}) für die GitHub-Pages-Seite des Planers. Eigentum von Games by Malcs / Jagex, nicht Teil des Quellcodes.`
 if (ok('gh', ['release', 'view', TAG])) run('gh', ['release', 'edit', TAG, '--notes', notes])
