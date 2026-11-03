@@ -22,6 +22,13 @@ export function setFormatLang(next: Lang) {
 export const fmtInt = (n: number) => num.format(Math.round(n))
 export const fmtNum = (n: number) => (Number.isInteger(n) ? num.format(n) : num1.format(n))
 
+/** 12.345 → 12,3K wie im Spiel */
+export function fmtCompact(n: number): string {
+  if (n >= 1e6) return `${num1.format(Math.floor(n / 1e5) / 10)}M`
+  if (n >= 1e4) return `${num1.format(Math.floor(n / 1e2) / 10)}K`
+  return fmtInt(n)
+}
+
 /** 3 Std 12 Min · 4 Min 05 s · 12 s */
 export function fmtDuration(ms: number): string {
   if (!isFinite(ms)) return '—'

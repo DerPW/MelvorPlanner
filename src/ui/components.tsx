@@ -111,6 +111,7 @@ const PATHS: Record<string, ReactNode> = {
       <path d="M5.5 7V5.25a2.5 2.5 0 0 1 4.9-.7" />
     </>
   ),
+  pin: <path d="M6 2.75h4M6.5 2.75 6 7l-2 2.25h8L10 7l-.5-4.25M8 9.25v4" />,
   minus: <path d="M3.5 8h9" />,
   close: <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />,
   chevron: <path d="M6 3.5 10.5 8 6 12.5" />,

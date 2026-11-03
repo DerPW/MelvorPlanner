@@ -9,7 +9,7 @@ import type { GameIndex } from '../core/planner'
 import { isGoal, nextBest, solve, type Solution } from '../core/solve'
 import { useT, type T } from '../i18n'
 import { GameIcon, Ref, Segmented, Select, Stepper, Switch, Sym, Toolbar, useNow } from './components'
-import { Materials, TreeTable } from './PlanTables'
+import { CraftTree, Materials } from './PlanTables'
 import { routeEntity, routeIcon, routeLabel, routeTarget } from './routeText'
 import { Measuring, StepBar, statusLine, totalLeft, useTrack, type Tracking } from './LiveTrack'
 import { recipeAction, SolutionFlow, SolutionNotes, stepKeys, SummaryPlate, TrackContext } from './SolutionView'
@@ -135,7 +135,7 @@ export function RouteView({ id }: { id: string }) {
                 />
               </TrackedFlow>
             )}
-            {tab === 'tree' && plan?.kind === 'craft' && <TreeTable plan={plan.plan} levels={plan.at.levels} solution={solution} />}
+            {tab === 'tree' && plan?.kind === 'craft' && <CraftTree plan={plan.plan} levels={plan.at.levels} solution={solution} />}
             {tab === 'materials' && plan?.kind === 'craft' && <Materials plan={plan.plan} />}
           </div>
         </div>

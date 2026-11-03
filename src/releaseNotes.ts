@@ -10,6 +10,26 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.15.0',
+    date: '2026-11-03',
+    de: {
+      title: 'Neuer Herstellbaum',
+      items: [
+        'Der Baum einer Item-Route ist jetzt ein Outline mit Linien statt einer Tabelle: Man sieht auf einen Blick, welche Zutat wohin gehört. Jede Zeile zeigt das Item mit Menge am Symbol und darunter, wie viel gebraucht wird, was aus dem Lager kommt, was übrig bleibt und woher der Rest kommt.',
+        'Rechts sagt eine Plakette die Art der Quelle — Herstellen, Sammeln, Beute, Kampf, Kaufen, Lager oder Fehlt —, daneben die Zeit und bei Käufen die Münzen. Gibt es mehrere Quellen, wählt ein Klick auf die Plakette eine andere; selbst gewählte tragen eine Nadel und lassen sich oben gesammelt zurücksetzen.',
+        'Alles auf- und zuklappen, Auswahl per Klick (öffnet den Inspector), Pfeiltasten klappen auf und zu. Wird der Platz knapp (Telefon, offener Inspector), stehen Plakette und Zeit übereinander.',
+      ],
+    },
+    en: {
+      title: 'New crafting tree',
+      items: [
+        'An item route’s tree is now an outline with connecting lines instead of a table: you see at a glance which ingredient goes where. Each row shows the item with its quantity on the icon and, below, how much is needed, what comes from the bank, what is left over and where the rest comes from.',
+        'On the right, a badge names the kind of source — Craft, Gather, Loot, Fight, Buy, Bank or Missing — next to the time and, for purchases, the coins. With several sources, clicking the badge picks another; your own picks carry a pin and can be reset together at the top.',
+        'Expand and collapse all, select with a click (opens the inspector), arrow keys expand and collapse. When space is tight (phone, inspector open), badge and time stack.',
+      ],
+    },
+  },
+  {
     version: '0.14.3',
     date: '2026-11-03',
     de: {

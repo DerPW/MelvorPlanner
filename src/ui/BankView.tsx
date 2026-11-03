@@ -3,7 +3,7 @@
 // sich Mengen von Hand ändern.
 
 import { useMemo, useState } from 'react'
-import { fmtInt } from '../core/format'
+import { fmtCompact, fmtInt } from '../core/format'
 import { GP } from '../core/route'
 import type { Id } from '../core/types'
 import { useI18n } from '../i18n'
@@ -93,7 +93,7 @@ export function BankView() {
             {shown.map((id) => (
               <button key={id} className="bank-tile" data-entity={`item:${id}`} onClick={() => dispatch({ type: 'view', view: { kind: 'detail', type: 'item', id } })}>
                 <GameIcon src={index.items.get(id)?.icon} size={40} />
-                <span className="bank-qty">{compact(p.inventory[id] ?? 0)}</span>
+                <span className="bank-qty">{fmtCompact(p.inventory[id] ?? 0)}</span>
               </button>
             ))}
           </div>
@@ -102,11 +102,4 @@ export function BankView() {
       </div>
     </>
   )
-}
-
-/** 12.345 → 12,3K wie im Spiel */
-function compact(n: number): string {
-  if (n >= 1e6) return `${Math.floor(n / 1e5) / 10}M`
-  if (n >= 1e4) return `${Math.floor(n / 1e2) / 10}K`
-  return fmtInt(n)
 }

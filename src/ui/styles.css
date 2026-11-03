@@ -31,6 +31,8 @@
   --danger: #a3261b;
   --danger-soft: rgba(163, 38, 27, 0.1);
   --warn: #8a5a00;
+  --info: #2c6496;
+  --violet: #7a4796;
   --plate: #e8dcc0;
   --plate-edge: #d6c69f;
   --plate-text: #2c2824;
@@ -63,6 +65,8 @@
     --danger: #f0705f;
     --danger-soft: rgba(240, 112, 95, 0.12);
     --warn: #f0bb2a;
+    --info: #7db4e8;
+    --violet: #c79ae6;
     --shadow-float: 0 0 0 0.5px rgba(0, 0, 0, 0.6), 0 10px 30px rgba(0, 0, 0, 0.35);
     --shadow-pop: 0 0 0 0.5px rgba(0, 0, 0, 0.7), 0 16px 40px rgba(0, 0, 0, 0.5);
   }
@@ -465,6 +469,93 @@ button.note:hover { background: var(--control-strong); color: var(--text); }
 .disclosure-spacer { width: 16px; flex: none; }
 .cell-source { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .cell-source .name { overflow: hidden; text-overflow: ellipsis; }
+
+/* Herstellbaum: Outline mit Linien statt Tabelle. Jede Ebene rückt um die
+   Breite des Pfeils ein; die senkrechte Linie läuft unter dem Pfeil der
+   Elternzeile, ein kurzer Querstrich führt zur Zeile. */
+.ctree-wrap { overflow-x: auto; padding: 2px 2px 8px; container-type: inline-size; }
+.ct-bar { display: flex; align-items: center; gap: 4px; margin: 0 0 6px; min-height: 28px; }
+.ct-bar .muted { margin-right: auto; padding-left: 6px; font-size: 12px; }
+.ctree, .ctree ul { list-style: none; margin: 0; padding: 0; }
+.ctree { min-width: 540px; }
+.ctree ul { margin-left: 13px; }
+.ctree li.ct-child { position: relative; padding-left: 15px; }
+.ctree li.ct-child::before,
+.ctree li.ct-child::after {
+  content: ''; position: absolute; left: 0;
+  background: color-mix(in srgb, var(--text) 20%, transparent);
+}
+.ctree li.ct-child::before { top: 0; bottom: 0; width: 1px; }
+.ctree li.ct-child:last-child::before { bottom: auto; height: 24px; }
+.ctree li.ct-child::after { top: 23px; width: 12px; height: 1px; }
+.ct-row {
+  display: grid; grid-template-columns: 16px 32px minmax(0, 1fr) 92px 84px;
+  align-items: center; column-gap: 8px;
+  height: 46px; padding: 0 10px 0 5px;
+  border-radius: 8px; cursor: default; outline: none;
+}
+.ct-row:hover { background: var(--hover); }
+.ct-row:focus-visible { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent); }
+.ct-row.selected {
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.ct-icon { position: relative; width: 32px; height: 32px; display: grid; place-items: center; }
+.ct-qty {
+  position: absolute; right: -3px; bottom: -3px;
+  font-size: 10.5px; font-weight: 700; line-height: 1; color: var(--text);
+  text-shadow: 0 0 2px var(--content), 0 0 2px var(--content), 0 0 3px var(--content);
+  pointer-events: none;
+}
+.ct-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ct-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* Der Name geht vor: erst werden die Plaketten daneben gekürzt */
+.ct-name .name { flex: none; max-width: 100%; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ct-name .lv, .ct-name .tag { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; line-height: 16px; }
+.ct-name .lv { flex: none; }
+.ct-sub {
+  display: flex; align-items: center; gap: 0 6px; min-width: 0;
+  font-size: 11.5px; color: var(--text-2); white-space: nowrap; overflow: hidden;
+}
+.ct-sub > * { flex: none; }
+.ct-sub > * + *::before { content: '·'; margin-right: 6px; color: var(--text-3); }
+.ct-src { display: inline-flex; align-items: center; gap: 4px; flex: 0 1 auto !important; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ct-mode-cell { display: flex; justify-content: flex-end; }
+.ct-mode {
+  display: inline-flex; align-items: center; gap: 3px;
+  height: 18px; padding: 0 6px; border: 0; border-radius: 5px;
+  font: 600 10px/1 ui-monospace, 'SF Mono', Menlo, monospace; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text-2); background: var(--control);
+  white-space: nowrap;
+}
+.ct-mode.make { color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, transparent); }
+.ct-mode.gather { color: var(--info); background: color-mix(in srgb, var(--info) 14%, transparent); }
+.ct-mode.loot { color: var(--violet); background: color-mix(in srgb, var(--violet) 14%, transparent); }
+.ct-mode.fight, .ct-mode.missing { color: var(--danger); background: var(--danger-soft); }
+.ct-mode.stock { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.ct-mode.pick { cursor: pointer; }
+.ct-mode.pick:hover { box-shadow: inset 0 0 0 1px currentColor; }
+.ct-value { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ct-cost { display: inline-flex; gap: 6px; font-size: 11.5px; }
+.ct-cost > span { display: inline-flex; align-items: center; gap: 3px; }
+.ct-menu { min-width: 280px; max-width: 340px; }
+.menu-item.ct-pick { display: flex; align-items: center; gap: 7px; height: 26px; }
+.ct-pick .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ct-check { width: 12px; flex: none; display: grid; place-items: center; }
+.ct-kind { font-size: 11px; color: var(--text-3); }
+.ct-pick:hover .ct-kind { color: inherit; opacity: 0.8; }
+/* Schmal (Telefon, Inspector offen): Plakette und Zeit rechts übereinander,
+   weniger Einzug je Ebene */
+@container (max-width: 560px) {
+  .ctree { min-width: 0; }
+  .ct-name .unlock-step { display: none; }
+  .ctree li.ct-child { padding-left: 9px; }
+  .ctree li.ct-child::after { width: 7px; }
+  .ct-row { grid-template-columns: 16px 32px minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 6px; row-gap: 3px; align-content: center; padding-right: 6px; }
+  .ct-row > .disclosure, .ct-row > .disclosure-spacer, .ct-icon, .ct-main { grid-row: 1 / 3; }
+  .ct-mode-cell { grid-column: 4; grid-row: 1; align-self: end; }
+  .ct-value { grid-column: 4; grid-row: 2; align-self: start; justify-self: end; flex-direction: row; gap: 6px; font-size: 11.5px; }
+}
 .ingredients { display: flex; gap: 8px; align-items: center; }
 .ingredients span { display: inline-flex; align-items: center; gap: 3px; }
 
