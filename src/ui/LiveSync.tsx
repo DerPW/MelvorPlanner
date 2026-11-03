@@ -53,6 +53,9 @@ export function LiveSyncProvider({ children }: { children: ReactNode }) {
   const selected = state.live?.save ?? null
 
   useEffect(() => {
+    // Statisch ausgeliefert (GitHub Pages): kein Server, gar nicht erst fragen —
+    // saves bleibt null, das Profil sagt, dass es die Verbindung nur lokal gibt
+    if (!__LIVE_SERVER__) return
     let stopped = false
     // Neu gewählt oder wieder eingeschaltet: einmal sofort übernehmen, Messung neu beginnen
     if (selected) seen.current[`p:${selected}`] = 0

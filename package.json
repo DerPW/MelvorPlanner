@@ -1,10 +1,11 @@
 {
   "name": "melvor-planner",
   "private": true,
-  "version": "0.15.0",
+  "version": "0.15.1",
   "type": "module",
   "scripts": {
     "extract": "node scripts/extract-game-data.mjs",
+    "publish-data": "node scripts/publish-data.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",

@@ -10,6 +10,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '0.15.1',
+    date: '2026-11-03',
+    de: {
+      title: 'Planer im Browser',
+      items: [
+        'Der Planer läuft jetzt auch ohne Installation unter git.theonlypw.eu/MelvorPlanner — mit allen Spieldaten, einfach öffnen. Spielstand importieren, Routen, Wiki und Editor gehen dort wie lokal.',
+        'Nur die Live-Verbindung gibt es online nicht: Sie braucht den lokalen Server, der die Spielstände liest. Die Live-Ansicht sagt das jetzt, statt alle paar Sekunden vergeblich nachzufragen.',
+      ],
+    },
+    en: {
+      title: 'Planner in the browser',
+      items: [
+        'The planner now also runs without installing anything at git.theonlypw.eu/MelvorPlanner — with all game data, just open it. Save import, routes, wiki and editor work there just like locally.',
+        'Only the live connection is not available online: it needs the local server that reads your saves. The live view now says so instead of asking in vain every few seconds.',
+      ],
+    },
+  },
+  {
     version: '0.15.0',
     date: '2026-11-03',
     de: {

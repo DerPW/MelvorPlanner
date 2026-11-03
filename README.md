@@ -172,9 +172,25 @@ Demo). Sonst den Pfad übergeben: `pnpm extract -- /pfad/zu/Melvor2.pck`.
 Die Ausgabe landet in `public/game/` und ist **nicht** im Repo — die Daten
 gehören den Entwicklern.
 
+### Online (GitHub Pages)
+
+Unter <https://git.theonlypw.eu/MelvorPlanner/> läuft der Planer ohne
+Installation. `.github/workflows/pages.yml` baut ihn bei jedem Push auf
+`main` mit `PAGES_BASE=/MelvorPlanner/` (Unterpfad; alle Spiel-Pfade sind
+relativ) und veröffentlicht `dist/`. Die Live-Verbindung fehlt dort
+(`__LIVE_SERVER__` ist aus, es wird nicht nach `/api/saves` gefragt).
+
+Die Spieldaten kommen nicht aus dem Repo, sondern als `game.tar.gz` vom
+Release `spieldaten`. Nach einem neuen `pnpm extract`:
+
+```bash
+pnpm publish-data   # Archiv hochladen, Seite neu bauen lassen
+```
+
 ### Zum Release (Early Access 17.11.2026)
 
-Spiel installieren, `pnpm extract` erneut laufen lassen, fertig. Das Skript
+Spiel installieren, `pnpm extract` erneut laufen lassen (für die Online-Seite
+danach `pnpm publish-data`), fertig. Das Skript
 liest alle Datenpakete generisch, sucht die Vollversion vor der Demo und
 meldet am Ende Objekttypen, die Items erzeugen, aber noch nicht gerechnet
 werden (in der Demo: Ranching, Hunting, Astrology).
@@ -213,6 +229,7 @@ Hunting, Ranching, Astrology; Gilden-Rang aus dem Spielstand lesen.
 
 - `scripts/extract-game-data.mjs` — Godot-Paket lesen, Rezepte vereinheitlichen
 - `scripts/vite-save-plugin.ts` — Spielstände für die Live-Verbindung
+- `scripts/publish-data.mjs` — Spieldaten für GitHub Pages hochladen
 - `src/core/` — Rechenkern ohne UI: `planner` (Crafting-Baum), `route`
   (Level/Gold-Simulation), `solve` (Ziele → Phasen), `bonuses` (Boni →
   Rezepte neu berechnen), `experience`, `save` (Spielstand lesen),

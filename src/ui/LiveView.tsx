@@ -25,16 +25,19 @@ export function LiveView() {
   const [perm, setPerm] = useState(() => ('Notification' in window ? Notification.permission : 'denied'))
   const ago = lastAt !== null ? Math.max(0, Math.round((now - lastAt) / 1000)) : null
 
-  if (!state.live)
+  // Ohne lokalen Server (GitHub Pages) gibt es nichts einzuschalten
+  if (!state.live || !__LIVE_SERVER__)
     return (
       <>
         <Toolbar title={t('live.view')} />
         <div className="content narrow-content">
           <div className="empty">
-            <p>{t('live.off')}</p>
-            <button className="btn" onClick={() => dispatch({ type: 'view', view: { kind: 'profile' } })}>
-              {t('live.toSettings')}
-            </button>
+            <p>{t(__LIVE_SERVER__ ? 'live.off' : 'live.unavailable')}</p>
+            {__LIVE_SERVER__ && (
+              <button className="btn" onClick={() => dispatch({ type: 'view', view: { kind: 'profile' } })}>
+                {t('live.toSettings')}
+              </button>
+            )}
           </div>
         </div>
       </>

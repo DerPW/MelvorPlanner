@@ -1,0 +1,50 @@
+# GitHub Pages: baut den Planer unter /<repo>/ und veröffentlicht dist/.
+# Die Spieldaten (public/game) gehören Games by Malcs / Jagex und liegen nicht
+# im Repo, sondern als Archiv am Release „spieldaten" (pnpm publish-data).
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: npm install -g pnpm@12.16.1
+      - run: pnpm install --frozen-lockfile
+      - name: Spieldaten aus dem Release
+        shell: bash
+        run: gh release download spieldaten --repo "$GITHUB_REPOSITORY" --pattern game.tar.gz --output - | tar -xz -C public
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - run: pnpm build
+        env:
+          PAGES_BASE: /${{ github.event.repository.name }}/
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
